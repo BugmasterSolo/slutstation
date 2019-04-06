@@ -1,2 +1,4 @@
 # slutstation
-new bot
+new bot for friends
+
+requires discord.py
