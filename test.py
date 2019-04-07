@@ -15,7 +15,7 @@ TOKEN = get_token()
 @bot.event
 async def on_ready():
     print('Up and running!')
-    await bot.change_premise(game=Game(name='like damn dude'))
+
 
 @bot.command(name='test')
 async def tester(ctx):
@@ -26,6 +26,25 @@ async def tester(ctx):
 # otherwise rest param absorbs word by word
 async def testerTwo(ctx, *, arg):
     await ctx.send(arg)
+
+@bot.event
+async def on_guild_join(guild):
+    # event accepts a guild only.
+    print("Invited to {}: ID {}".format(guild.name, guild.id))
+    open_channel = find_channel(guild)
+    if not open_channel == None:
+        await open_channel.send("Thanks for the invite :)")
+    else:
+        print("could not post join message.")
+        
+
+def find_channel(guild):
+    for c in guild.text_channels:
+        if c.permissions_for(guild.me).send_messages:
+            return c;
+    return None;
+        
+    
 
 bot.run(TOKEN)
     
