@@ -1,8 +1,14 @@
 from discord.ext.commands import Bot
 from discord import Game
+from discord import Status
 from os import listdir
 
 BOT_PREFIX = ("?", "!")
+
+# todo:
+#   - start importing cogs to break up the bot flow
+#   - figure out what exactly the bot should do
+#   - asasasdadsd
 
 bot = Bot(command_prefix='g ', description="sorry")
 
@@ -15,9 +21,11 @@ TOKEN = get_token()
 @bot.event
 async def on_ready():
     print('Up and running!')
+    await bot.change_presence(status=Status.dnd, activity=Game("mike craft"))
 
 
 @bot.command(name='test')
+# commands accept a context, and the message is sent back thru the context.
 async def tester(ctx):
     await ctx.send('fuck off')
 
@@ -29,7 +37,7 @@ async def testerTwo(ctx, *, arg):
 
 @bot.event
 async def on_guild_join(guild):
-    # event accepts a guild only.
+    # this event accepts a guild only.
     print("Invited to {}: ID {}".format(guild.name, guild.id))
     open_channel = find_channel(guild)
     if not open_channel == None:
