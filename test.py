@@ -7,6 +7,7 @@ import random
 BOT_PREFIX = ("?", "!")
 
 # todo:
+#   - IMPLEMENT SOME COGS!!!!! will help break up the code
 #   - start importing cogs to break up the bot flow
 #   - figure out what exactly the bot should do
 #   - store user info somewhere and fetch it (track level, xp, etc ........)
@@ -46,7 +47,7 @@ async def tester(ctx):
     await ctx.send('fuck off')
 
 
-@bot.command()
+@bot.command
 async def help(ctx):
     await ctx.send('to be decided')
 
@@ -62,7 +63,7 @@ async def testerTwo(ctx, *, arg):
 # best way to log the number of coin flips in a given server?
 # this is getting into storing database files or accessing one,
 # i'll look into that soon.
-@bot.command()
+@bot.command
 async def coinflip(ctx):
     rand_event = ("the coin shattered and the shards deposited in your eyes",
                   "The coin landed on its side!",
@@ -78,7 +79,7 @@ async def coinflip(ctx):
         await ctx.send("You flipped tails!")
 
 
-@bot.command()
+@bot.command
 async def pushup(ctx, *args):
     try:
         msg = ctx.message
@@ -96,7 +97,7 @@ async def pushup(ctx, *args):
         pass
 
 
-@bot.command()
+@bot.command
 async def users(ctx):
     await ctx.message.channel.send(f"""# of users: {ctx.message.guild.member_count}""")
 
@@ -114,6 +115,11 @@ async def on_guild_join(guild):
         await open_channel.send("Thanks for the invite :)")
     else:
         print("could not post join message.")
+
+
+@bot.event
+async def on_message(guild):
+    print("does the bot still respond?")
 
 
 def find_channel(guild):
