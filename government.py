@@ -7,18 +7,30 @@ class Government(Client):
         # append space when referring to the bot commands
         super().__init__()
         self.prefix = prefix
+        print("Up and running!")
 
     # take care of some file imports
     async def on_message(self, message):
         if message.author != self.user:
-            # implement some sort of command loop for parsing inputs
-            if (self.check_if_contains(list=message.mentions, term=self.user.id)):
+            # prior: if any functions might mention the bot, create
+            #        a distinct class just for them, that can be achecked here.
+            #        (class UserAntics)
+
+            # deal with the case in which the bot is mentioned.
+            if (self.check_if_mentioned(list=message.mentions,
+                                        id=self.user.id)):
                 print("that's me!")
                 await self.mentioned(message)
+        # if the bot is not mentioned, check if the command prefix is set.
+        # if so, start delegating the command to each class (async)
+        # note: python supports parallelism, we could easily perform
+        # a task search in parallel, or at least come up with some better
+        # way to delegate tasks to given cores.
 
-    def check_if_contains(self, list, term):
+    # the class takes care of any instances in which the bot is mentioned.
+    def check_if_mentioned(self, list, id):
         for m in list:
-            if (m.id == term):
+            if (m.id == id):
                 return True
         return False
 
