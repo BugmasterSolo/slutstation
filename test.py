@@ -46,7 +46,6 @@ async def tester(ctx):
     """Simple test command."""
     await ctx.send('fuck off')
 
-
 @bot.command
 async def help(ctx):
     await ctx.send('to be decided')
@@ -79,7 +78,7 @@ async def coinflip(ctx):
         await ctx.send("You flipped tails!")
 
 
-@bot.command
+@bot.command(name="pushup")
 async def pushup(ctx, *args):
     try:
         msg = ctx.message
@@ -97,7 +96,9 @@ async def pushup(ctx, *args):
         pass
 
 
-@bot.command
+
+
+@bot.command(name="users")
 async def users(ctx):
     await ctx.message.channel.send(f"""# of users: {ctx.message.guild.member_count}""")
 
@@ -115,11 +116,6 @@ async def on_guild_join(guild):
         await open_channel.send("Thanks for the invite :)")
     else:
         print("could not post join message.")
-
-
-@bot.event
-async def on_message(guild):
-    print("does the bot still respond?")
 
 
 def find_channel(guild):
