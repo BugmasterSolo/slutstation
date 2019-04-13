@@ -1,5 +1,5 @@
-todo: place the pfp here ;)
-![profile pic](https://raw.githubusercontent.com/jamieboy1337/slutstation/master/botimage.png)
+![bot pic](https://raw.githubusercontent.com/jamieboy1337/slutstation/master/botimage.png)
+
 (credit to artist of)
 
 # government
