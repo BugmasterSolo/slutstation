@@ -18,6 +18,9 @@ class Module:
     By extending the module and adding functions with the @Command decorator,
     a module can be given a set of functions, generally with similar traits.
 
+    Modules are designed around similar functionality, and will only run if the inputted information
+    matches those criteria.
+
     This pretty much mimicks the "discord.ext.commands.Cog" functionality,
     or at least that is the goal.
     '''
@@ -47,6 +50,29 @@ class Module:
                 print(f"found: {command_object.name}")
                 return c
         return None
+
+    async def check(message):
+        '''
+        Modules are designed to respond to a wide range of inputs, but responding to all messages
+        takes time. The check method aims to alleviate extra processing whenever possible.
+
+        The check method is a first pass, notifying the bot as to whether the content of the Message
+        is worth interpreting, or whether it can ignore the contents and save some time.
+
+        For instance, one module may ask to read the contents of all Messages, for the purpose of logging
+        user activity (level up system, NSA plant). In this event, the check function might always return
+        True, notifying the bot that the module needs to examine the message contents further.
+
+        On the other hand, a module designed for administrative purposes might want to check if the message
+        came from a server admin, and only return True if the message is from a server administrator
+        (perhaps reading back a canned "administrator only!" message if the function contains a prefix--
+        either way, this saves time, as the bot does not need to check all listed commands and aliases)
+
+        The default assumes that the bot needs to read the contents of all messages-- you are encouraged
+        to overwrite this! It will save some compute time and it will make the bot smile at you :)
+        '''
+        pass
+
 # todo: generic "command not found" formatting
 
 

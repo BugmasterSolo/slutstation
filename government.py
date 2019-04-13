@@ -1,7 +1,7 @@
 import asyncio
 
 from discord import Client
-from module import Test
+import module
 
 # import all modules, construct them in the bot code
 # commands will be parsed with spaces
@@ -16,7 +16,7 @@ class Government(Client):
         print("Up and running!")
         self.module_list = [];
         # place imported modules here.
-
+        # ++: preparing for expansion in the near future.
     async def on_message(self, message):
         if message.author != self.user:
             if (self.check_if_mentioned(list=message.mentions,
@@ -24,7 +24,7 @@ class Government(Client):
                 print("that's me!")
                 await self.mentioned(message)
 
-
+    # this should always stay small
     def check_if_mentioned(self, list, id):
         return any(m.id == id for m in list)
 
@@ -35,6 +35,13 @@ class Government(Client):
         else:
             await message.channel.send(f"what's up, <@{message.author.id}>!")
 
+    async def import_extension(self, cls=None):
+        try:
+            self.module_list.append(cls(self))
+        except Exception as e:
+            err_string = str(e)
+            print("Exception occurred: \n{err_string}")
+            pass
 
 def load_token():
     with open("secret_token.txt", "r") as f:
