@@ -1,4 +1,5 @@
 todo: place the pfp here ;)
+![profile pic](../botimage.png)
 (credit to artist of)
 
 # government
