@@ -100,6 +100,7 @@ class Module:
     # i think futures should cover this as well
     # add coros and shit and doll this up a bunch
     async def http_get_request(domain):
+        # some of the requests were failing wo this.
         async with aiohttp.ClientSession(headers={"user-agent":
                                                   "Government(Discord.py) / 0.01 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
                                                   }) as session:
