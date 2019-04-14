@@ -2,7 +2,7 @@
 # for inst: a module might read all messages for a leveling system.
 
 import asyncio
-
+import aiohttp
 # we're doing it all from scratch baby
 
 # template for future modules.
@@ -10,6 +10,20 @@ import asyncio
 # defines a function container with function similar to discord.py's cogs,
 # built from scratch in pursuit of some additional functionality that may/may not
 # prove useful. whatever, it's for fun :-)
+
+
+# todo:
+# means of modules broadcasting their functional needs
+'''
+with in python:
+    classes will have an __enter__ and __exit__ function which takes care of cleanup
+    xhr requests work great for this since they're destroyed once used
+
+    with A() as a, B() as b
+    ===
+    with A() as a:
+        with B() as b:
+'''
 
 
 class Module:
@@ -26,32 +40,32 @@ class Module:
     '''
     # getting the event loop inside of the module and passing it to all of the functions.
     def __init__(self, host, *args, **kwargs):
-        self.function_list = []
+        self.command_list = {}
         self.host = host
         for func in dir(self):
             f = getattr(self, func)
-            if isinstance(getattr(self, func), Command):
-                for a in f.alias:
-                    if any(a in self.__getattribute__(c).alias for c in self.function_list):
-                        raise AttributeError(f"\nDuplicate command {func} found in module. Please double check your function names.")
-                self.function_list.append(func)
+            if isinstance(f, Command):
+                for alias in f.alias:
+                    # this check is fine-- convert to set for massive checks.
+                    if alias in self.command_list.keys():
+                        raise AttributeError(f"\nDuplicate command {alias} found in module. Please double check your function names.")
+                    self.command_list[alias] = f
         # created list of commands -- check for any issues.
-        print(self.function_list)
+        print("List of commands: ")
+        # create dict of aliases and functions. (duh!)
+        print(self.command_list)
 
-    async def get_command(self, command):
+    # dict simplifies this considerably
+    async def get_command(self, cmd):
         '''
         Returns the relevant Command if available, otherwise returns none.
         '''
-        for c in self.function_list:
-            command_object = self.__getattribute__(c)
-            print(command_object.alias)
-            print(command)
-            if any(a == command for a in command_object.alias):
-                print(f"found: {command_object.name}")
-                return c
-        return None
+        for i in self.command_list.keys():
+            if i == cmd:
+                return self.command_list[i]
+        pass
 
-    async def check(message):
+    async def check(self, state):
         '''
         Modules are designed to respond to a wide range of inputs, but responding to all messages
         takes time. The check method aims to alleviate extra processing whenever possible.
@@ -71,12 +85,35 @@ class Module:
         The default assumes that the bot needs to read the contents of all messages-- you are encouraged
         to overwrite this! It will save some compute time and it will make the bot smile at you :)
         '''
-        pass
+        if state.args:
+            return state.args[0] in self.command_list
 
-# todo: generic "command not found" formatting
+    async def handle_message(self, state):
+        '''
+        Handles user input that passes the initial check.
+        Defaults to checking the command list and passing the context to the command.
+        '''
+        if state.command_host == self:
+            await self.command_list[state.args[0]](self.host, state)
+
+    # mimicking promises :-)
+    # i think futures should cover this as well
+    # add coros and shit and doll this up a bunch
+    async def http_get_request(domain):
+        async with aiohttp.ClientSession(headers={"user-agent":
+                                                  "Government(Discord.py) / 0.01 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
+                                                  }) as session:
+            print(domain)
+            async with session.get(domain) as resp:
+                text = await resp.text()
+                return {
+                    "status": resp.status,
+                    "text": text
+                }
 
 
 # decorator class for funky functions
+# self is redefined, and thus will not work.
 class Command:
     '''Commands make up the bulk of each module, referring to a function of the bot.
 
@@ -98,6 +135,10 @@ class Command:
 
         alias (opt): Alternative commands used to call a command.
                      Name is automatically added to the list of aliases.
+
+            Commands must accept two parameters:
+                - host, referring to the bot.
+                - message, referring to the passed message.
     '''
     def __init__(self, func, **kwargs):
         self.name = kwargs.get("name", func.__name__)
@@ -110,12 +151,20 @@ class Command:
         # fix please
         if not kwargs.get("alias") is None:
             self.alias.append(kwargs.get("alias"))
-        self.loop = asyncio.get_event_loop()  # for call method (sync by default)
 
-    def __call__(self, *args, **kwargs):
-        self.loop.run_until_complete(self.func(*args, *kwargs))
+    async def __call__(self, host, message, *args, **kwargs):
+        await self.func(host, message, *args, **kwargs)
 
     def register(func=None, *args, **kwargs):
+        '''
+        Decorator used to instantiate command objects from functions.
+
+        @Command.register[(options)]
+        def bot_command(...):
+            ...
+
+        For descriptions of options view the Command docstring.
+        '''
         if func:
             return Command(func)
 

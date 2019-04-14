@@ -1,9 +1,11 @@
 """
 
-MODULE WRAPPER
+MODULE PACKAGE
 ---
 
-An extension for importing user-created modules.
+An extension for simple, user-created modules.
+
+Place any custom modules in the package folder and they will be imported automatically.
 """
 
 # todo:
@@ -14,7 +16,7 @@ import importlib
 import os
 
 from .base import Module, Command
-from .test import *
+from .fun import *
 
 # programatically import all modules placed in a subfolder.
 # this will provide access to the rest of them.
@@ -22,7 +24,7 @@ from .test import *
 
 module_list = os.listdir()
 for str in module_list:
-    # pop off the .py if it is present
+    # pop off the .py if it is present, better way to do this
     if str[-3:] == ".py":
         # assume it is a valid module file
         importlib.import_module(str[:-3], ".")
