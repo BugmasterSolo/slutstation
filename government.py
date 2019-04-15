@@ -32,7 +32,9 @@ class Government(Client):
         for mod in self.module_list:
             for command in mod.command_list:
                 if command in self.unique_commands:
-                    raise ValueError("Duplicate commands {}")
+                    raise ValueError(f"Duplicate commands: {command} in {mod.__name__} and {self.unique_commands[command].__name__}")
+                # this might be pointless, if not implement it,
+                # it'll save some guts
                 self.unique_commands[command] = mod
                 print(self.unique_commands[command])
                 print(command)
@@ -48,7 +50,7 @@ class Government(Client):
             args = None
             command_host = None
             if (trimmed_message.startswith(self.prefix)):
-                trimmed_message = trimmed_message[len(self.prefix) - 1:].strip()
+                trimmed_message = trimmed_message.strip(self.prefix)
                 args = re.split(" +", trimmed_message)
                 if args[0] in self.unique_commands:
                     command_host = self.unique_commands[args[0]]
@@ -56,9 +58,12 @@ class Government(Client):
             for mod in self.module_list:
                 if await mod.check(state):
                     await mod.handle_message(state)
+                    # guaranteed that commands only belong to one
+                    break
 
     async def import_all(self):
         await self.import_extension(module.Fun)
+        await self.import_extension(module.NSFW)
 
     async def import_extension(self, cls):
         try:
@@ -72,6 +77,7 @@ class Government(Client):
 def load_token():
     with open("secret_token.txt", "r") as f:
         return f.read().strip()
+
 
 '''
 Takeaway: the function wrapper will return the object we want!

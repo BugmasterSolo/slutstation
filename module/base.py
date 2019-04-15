@@ -87,6 +87,7 @@ class Module:
         '''
         if state.args:
             return state.args[0] in self.command_list
+        return False
 
     async def handle_message(self, state):
         '''

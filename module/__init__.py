@@ -17,14 +17,4 @@ import os
 
 from .base import Module, Command
 from .fun import *
-
-# programatically import all modules placed in a subfolder.
-# this will provide access to the rest of them.
-# :)
-
-module_list = os.listdir()
-for str in module_list:
-    # pop off the .py if it is present, better way to do this
-    if str[-3:] == ".py":
-        # assume it is a valid module file
-        importlib.import_module(str[:-3], ".")
+from .nsfw import *
