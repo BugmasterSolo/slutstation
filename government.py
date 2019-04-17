@@ -5,10 +5,14 @@ from discord import Client
 import module
 # import all modules, construct them in the bot code
 # commands will be parsed with spaces
+# todo: fast dict traversal for double checking long lists!
+# additionally: local/remote storage of vars based on associated delay!
 
 
+# lol
 class State:
-    '''Wrapper for variables provided in message event'''
+    '''Wrapper for variables provided in message event, includes some added values as necessary.
+        TODO: remove the need for state and move the function parsing to a hidden module var.'''
     def __init__(self, host, message, **kwargs):
         self.message = message
         self.host = host

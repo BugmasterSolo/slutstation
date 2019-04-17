@@ -1,7 +1,11 @@
 from .base import Module, Command
-from discord import Status
+from discord import Status, Embed
+
+import time
 import random
 import math
+import json
+import sys
 
 '''
 aiohttp:
@@ -11,6 +15,29 @@ aiohttp:
 
 
 class Fun(Module):
+    # probably runs on import, no longer needed.\
+    # also: this is a significant limitation of the current structure.
+    # + i dont like it.
+    FORTUNE_LIST = []
+    MAX_INT = sys.maxsize
+    with open("./module/module_resources/fortune_cookie.json", "r") as fortune:
+        FORTUNE_LIST = json.loads(fortune.read())
+
+    @Command.register(name="fortune", descrip="read")
+    async def fortune(host, state):
+        cur = int(time.time() / 86400)
+        print(cur)
+        seed = Fun._xorshift(state.message.author.id - cur)
+        # eh
+        seed %= len(Fun.FORTUNE_LIST)
+        timeformat = time.strftime("%B %d, %Y")
+        description = f"Your fortune for {timeformat}:\n\n{Fun.FORTUNE_LIST[seed]}"
+        fortune = Embed(title="Fortune",
+                        type="rich",
+                        color=0xE8522E,
+                        description=description)
+        await state.message.channel.send(embed=fortune)
+
     @Command.register(name="coinflip", descrip="flip a coin!")
     async def coinflip(host, state):
         flip = random.random()
@@ -35,9 +62,13 @@ class Fun(Module):
             await state.message.channel.send("You flipped heads!")
         else:
             await state.message.channel.send("You flipped tails!")
-        print("ass")
 
     @Command.register(name="pushup")
     async def pushup(host, state):
         count = int(math.floor(float(state.args[1]) + 1))
         await state.message.channel.send(f"that's cool but i can do {count} pushups")
+
+    # George Marsaglia, FSU.
+    def _xorshift(num):
+        num = num & Fun.MAX_INT
+        return (num << 1) ^ (num >> 15) ^ (num << 4)
