@@ -25,8 +25,10 @@ class NSFW(Module):
         # pop off the command, the rest is tags
         state.args.pop(0)
         tagstring = ("+".join(state.args))
+        response_message = await state.message.channel.send("```Searching...```")
+        await state.message.channel.trigger_typing()
         url = f"https://e621.net/post/index.json?limit=20&tags={tagstring}"
-        resp = await Module.http_get_request(url)
+        resp = await Module._http_get_request(url)
         status = resp["status"]
         if (status >= 200 and status < 300):
             parsed_json = json.loads(resp["text"])
@@ -48,14 +50,15 @@ class NSFW(Module):
                 description = f"*by {artist}*\n*posted {postdate}*\n\n**Score:** {target['score']}\n\n**Source (hosted on e621):** {target['file_url']}\n\n*{desc}*"
                 print(url)
                 # this will probably get redundant, come up with a way to stylin it
-                response = Embed(title="E621",
-                                 type="rich",
-                                 colour=0x00549D,
-                                 description=description,
-                                 url="https://e621.net")
-                response.set_image(url=url)
-                response.set_author(name=host.user.name, icon_url=host.user.avatar_url_as(format="png", size=64))
-                await state.message.channel.send(embed=response)
+                response_embed = Embed(title="E621",
+                                       type="rich",
+                                       colour=0x00549D,
+                                       description=description,
+                                       url="https://e621.net")
+                response_embed.set_image(url=url)
+                response_embed.set_author(name=host.user.name, icon_url=host.user.avatar_url_as(format="png", size=64))
+                await response_message.delete()
+                await state.message.channel.send(embed=response_embed)
                 # await state.message.channel.send(random.choice(parsed_json)['file_url'])
         else:
             await state.message.channel.send("Error {resp['status']}: resp['text']")

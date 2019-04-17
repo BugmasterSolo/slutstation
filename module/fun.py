@@ -36,7 +36,8 @@ class Fun(Module):
                         type="rich",
                         color=0xE8522E,
                         description=description)
-        await state.message.channel.send(embed=fortune)
+        test = await state.message.channel.send(embed=fortune)
+        print(test)
 
     @Command.register(name="coinflip", descrip="flip a coin!")
     async def coinflip(host, state):
