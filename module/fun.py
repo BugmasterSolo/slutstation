@@ -20,13 +20,13 @@ class Fun(Module):
     # + i dont like it.
     FORTUNE_LIST = []
     MAX_INT = sys.maxsize
+    # referred to from host
     with open("./module/module_resources/fortune_cookie.json", "r") as fortune:
         FORTUNE_LIST = json.loads(fortune.read())
 
     @Command.register(name="fortune", descrip="read")
     async def fortune(host, state):
         cur = int(time.time() / 86400)
-        print(cur)
         seed = Fun._xorshift(state.message.author.id - cur)
         # eh
         seed %= len(Fun.FORTUNE_LIST)
