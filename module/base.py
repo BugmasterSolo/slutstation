@@ -14,18 +14,6 @@ import aiohttp
 
 # todo:
 # means of modules broadcasting their functional needs
-'''
-with in python:
-    classes will have an __enter__ and __exit__ function which takes care of cleanup
-    xhr requests work great for this since they're destroyed once used
-
-    with A() as a, B() as b
-    ===
-    with A() as a:
-        with B() as b:
-'''
-
-
 class Module:
     '''A module is a component of the bot which contains a series of functions.
 
@@ -50,10 +38,6 @@ class Module:
                     if alias in self.command_list.keys():
                         raise AttributeError(f"\nDuplicate command {alias} found in module. Please double check your function names.")
                     self.command_list[alias] = f
-        # created list of commands -- check for any issues.
-        print("List of commands: ")
-        # create dict of aliases and functions. (duh!)
-        print(self.command_list)
 
     # dict simplifies this considerably
     async def get_command(self, cmd):

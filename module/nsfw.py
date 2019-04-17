@@ -6,12 +6,12 @@ import random
 
 
 class NSFW(Module):
-    async def check(self, state):
-        if state.args and state.args[0] in self.command_list:
+    async def handle_message(self, state):
+        if state.command_host == self:
             if not state.message.channel.nsfw:
                 await state.message.channel.send(f'```Command "{state.args[0]}" for NSFW channels only!```')
-                return False
-            return state.args[0] in self.command_list
+            else:
+                await self.command_list[state.args[0]](self.host, state)
 
     # TODO:
     #   - implement per (user, guild, ...) cooldowns (DB?)

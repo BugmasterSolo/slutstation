@@ -40,8 +40,6 @@ class Government(Client):
                 # this might be pointless, if not implement it,
                 # it'll save some guts
                 self.unique_commands[command] = mod
-                print(self.unique_commands[command])
-                print(command)
 
     # rework parsing of commands. the bot should only respond to mentions
     # if they do not involve a command.
@@ -65,6 +63,7 @@ class Government(Client):
                     # guaranteed that commands only belong to one
                     break
 
+    # g :)
     async def import_all(self):
         await self.import_extension(module.Fun)
         await self.import_extension(module.NSFW)
@@ -74,7 +73,7 @@ class Government(Client):
             self.module_list.append(cls(self))
         except Exception as e:
             err_string = str(e)
-            print("Exception occurred: \n{err_string}")
+            print(f"Exception occurred: \n{err_string}")
             pass
 
 
