@@ -30,14 +30,13 @@ class Fun(Module):
         seed = Fun._xorshift(state.message.author.id - cur)
         # eh
         seed %= len(Fun.FORTUNE_LIST)
-        timeformat = time.strftime("%B %d, %Y")
+        timeformat = time.strftime("%B %d, %Y", time.gmtime())
         description = f"Your fortune for {timeformat}:\n\n{Fun.FORTUNE_LIST[seed]}"
         fortune = Embed(title="Fortune",
                         type="rich",
                         color=0xE8522E,
                         description=description)
-        test = await state.message.channel.send(embed=fortune)
-        print(test)
+        await state.message.channel.send(embed=fortune)
 
     @Command.register(name="coinflip", descrip="flip a coin!")
     async def coinflip(host, state):

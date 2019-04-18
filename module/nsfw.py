@@ -30,6 +30,7 @@ class NSFW(Module):
         url = f"https://e621.net/post/index.json?limit=20&tags={tagstring}"
         resp = await Module._http_get_request(url)
         status = resp["status"]
+        await response_message.delete()
         if (status >= 200 and status < 300):
             parsed_json = json.loads(resp["text"])
             if len(parsed_json) == 0:
@@ -37,6 +38,7 @@ class NSFW(Module):
             else:
                 target = random.choice(parsed_json)
                 url = target['sample_url']
+                # todo: add
                 if url.endswith(".swf"):
                     url = target['preview_url']
                 postdate = datetime.date.fromtimestamp(target['created_at']['s'])
@@ -57,7 +59,6 @@ class NSFW(Module):
                                        url="https://e621.net")
                 response_embed.set_image(url=url)
                 response_embed.set_author(name=host.user.name, icon_url=host.user.avatar_url_as(format="png", size=64))
-                await response_message.delete()
                 await state.message.channel.send(embed=response_embed)
                 # await state.message.channel.send(random.choice(parsed_json)['file_url'])
         else:

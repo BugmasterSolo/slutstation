@@ -86,7 +86,7 @@ class Module:
     # add coros and shit and doll this up a bunch
     # reformat name scheme :)
     async def _http_get_request(domain):
-        # some of the requests were failing wo this.
+        # e6 fails w/o user agent
         async with aiohttp.ClientSession(headers={"user-agent":
                                                   "Government(Discord.py) / 0.01 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
                                                   }) as session:
