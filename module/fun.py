@@ -3,7 +3,6 @@ from discord import Status, Embed
 
 import time
 import random
-import math
 import json
 import sys
 
@@ -15,7 +14,7 @@ aiohttp:
 
 
 class Fun(Module):
-    # probably runs on import, no longer needed.\
+    # probably runs on import, no longer needed.
     # also: this is a significant limitation of the current structure.
     # + i dont like it.
     FORTUNE_LIST = []
@@ -65,14 +64,36 @@ class Fun(Module):
 
     @Command.register(name="pushup")
     async def pushup(host, state):
-        count = int(math.floor(float(state.args[1]) + 1))
+        count = int(float(state.args[1]) + 1)
         await state.message.channel.send(f"that's cool but i can do {count} pushups")
 
     @Command.register(name="roll")
     async def roll(host, state):
-        pass
+        '''Operators are added automatically, separated by spaces.
+           4d6 5d9 1d12 +4 -3 = 4 rolls of 6 side + 5 rolls of 9 side + 1 roll of 12 side, add 4, subtract 3.'''
+        state.args.pop(0)
+        sum = 0
+        try:
+            for roll in state.args:
+                if "d" in roll:  # dice roll
+                    rollstat = roll.split("d")
+                    dicecount = int(rollstat[0])
+                    rollmax = int(rollstat[1])
+                    if dicecount > 4096 or rollmax > Fun.MAX_INT:
+                        await state.message.channel.send("***whoa bud take it easy on the dice***")
+                        raise ValueError("Someone's trying to be a smartass.")
+                    while dicecount > 0:
+                        sum += random.randint(1, rollmax)
+                        dicecount -= 1
+                else:
+                    sum += int(roll)
+            await state.message.channel.send("Rolled " + " + ".join(state.args) + f" and got **{sum}!**")
+        except Exception as e:
+            if not isinstance(e, ValueError):
+                await state.message.channel.send("Invalid roll syntax provided.")
+            print(e)
 
-    # George Marsaglia, FSU.
+    # George Marsaglia, FSU. For cases in which state constancy matters, like the fortune cookie.
     def _xorshift(num):
         num = num & Fun.MAX_INT
         return (num << 1) ^ (num >> 15) ^ (num << 4)
