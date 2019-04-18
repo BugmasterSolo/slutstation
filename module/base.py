@@ -90,7 +90,7 @@ class Module:
         async with aiohttp.ClientSession(headers={"user-agent":
                                                   "Government(Discord.py) / 0.01 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
                                                   }) as session:
-            print(domain)
+            print("get: " + domain)
             async with session.get(domain) as resp:
                 text = await resp.text()
                 return {

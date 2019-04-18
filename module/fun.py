@@ -68,6 +68,10 @@ class Fun(Module):
         count = int(math.floor(float(state.args[1]) + 1))
         await state.message.channel.send(f"that's cool but i can do {count} pushups")
 
+    @Command.register(name="roll")
+    async def roll(host, state):
+        pass
+
     # George Marsaglia, FSU.
     def _xorshift(num):
         num = num & Fun.MAX_INT
