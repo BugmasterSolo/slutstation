@@ -81,7 +81,8 @@ class Fun(Module):
                     rollmax = int(rollstat[1])
                     if dicecount > 4096 or rollmax > Fun.MAX_INT:
                         await state.message.channel.send("***whoa bud take it easy on the dice***")
-                        raise ValueError("Someone's trying to be a smartass.")
+                        # sure i mean it's close
+                        raise OverflowError("Someone's trying to be a smartass.")
                     while dicecount > 0:
                         sum += random.randint(1, rollmax)
                         dicecount -= 1
@@ -89,7 +90,7 @@ class Fun(Module):
                     sum += int(roll)
             await state.message.channel.send("Rolled " + " + ".join(state.args) + f" and got **{sum}!**")
         except Exception as e:
-            if not isinstance(e, ValueError):
+            if not isinstance(e, OverflowError):
                 await state.message.channel.send("Invalid roll syntax provided.")
             print(e)
 
