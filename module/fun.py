@@ -107,4 +107,7 @@ class Fun(Module):
     # George Marsaglia, FSU. For cases in which state constancy matters, like the fortune cookie.
     def _xorshift(self, num):  # change back to absolute reference if not working
         num = num & self.MAX_INT
-        return (num << 1) ^ (num >> 15) ^ (num << 4)
+        num = num ^ (num << 1)
+        num = num ^ (num >> 15)
+        num = num ^ (num << 4)
+        return num
