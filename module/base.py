@@ -88,7 +88,7 @@ class Module:
     async def _http_get_request(domain):
         # e6 fails w/o user agent
         async with aiohttp.ClientSession(headers={"user-agent":
-                                                  "Government(Discord.py) / 0.01 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
+                                                  "Government(Discord.py) / 0.02 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
                                                   }) as session:
             print("get: " + domain)
             async with session.get(domain) as resp:
@@ -101,6 +101,7 @@ class Module:
 
 # decorator class for funky functions
 # self is redefined, and thus will not work.
+# give commands access to their parent module
 class Command:
     '''Commands make up the bulk of each module, referring to a function of the bot.
 

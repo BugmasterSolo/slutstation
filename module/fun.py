@@ -19,14 +19,14 @@ class Fun(Module):
     # + i dont like it.
     FORTUNE_LIST = []
     MAX_INT = sys.maxsize
-    # referred to from host
+    # referred to from host, with command_host this can be a module value
     with open("./module/module_resources/fortune_cookie.json", "r") as fortune:
         FORTUNE_LIST = json.loads(fortune.read())
 
-    @Command.register(name="fortune", descrip="read")
-    async def fortune(host, state):
+    @Command.register(name="fortune", descrip="if you are going to die you should look here")
+    async def fortune(host, state):  # if any issues come up check here.
         cur = int(time.time() / 86400)
-        seed = Fun._xorshift(state.message.author.id - cur)
+        seed = state.command_host._xorshift(state.message.author.id - cur)
         # eh
         seed %= len(Fun.FORTUNE_LIST)
         timeformat = time.strftime("%B %d, %Y", time.gmtime())
@@ -74,7 +74,8 @@ class Fun(Module):
         state.args.pop(0)
         sum = 0
         try:
-            for roll in state.args:
+            for index in range(len(state.args) - 1):
+                roll = state.args[index]
                 if "d" in roll:  # dice roll
                     rollstat = roll.split("d")
                     dicecount = int(rollstat[0])
@@ -87,14 +88,18 @@ class Fun(Module):
                         sum += random.randint(1, rollmax)
                         dicecount -= 1
                 else:
-                    sum += int(roll)
+                    int_roll = int(roll)
+                    sum += int_roll
+                    # fix display
+                    state.args[index] = int_roll
             await state.message.channel.send("Rolled " + " + ".join(state.args) + f" and got **{sum}!**")
         except Exception as e:
+            # avoid double exception print
             if not isinstance(e, OverflowError):
                 await state.message.channel.send("Invalid roll syntax provided.")
             print(e)
 
     # George Marsaglia, FSU. For cases in which state constancy matters, like the fortune cookie.
-    def _xorshift(num):
-        num = num & Fun.MAX_INT
+    def _xorshift(self, num):  # change back to absolute reference if not working
+        num = num & self.MAX_INT
         return (num << 1) ^ (num >> 15) ^ (num << 4)

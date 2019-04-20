@@ -1,3 +1,6 @@
+# todo: modules build their help strings on init. strings are passed to the bot object, and the bot splices them together.
+#       thus, it's very easy to separate things out by module.
+
 import re
 import asyncio
 
@@ -55,6 +58,7 @@ class Government(Client):
                 trimmed_message = trimmed_message.strip(self.prefix)
                 args = re.split(" +", trimmed_message)
                 if args[0] in self.unique_commands:
+                    # TODO: eliminate unique_commands, it's unwieldy and can be eliminated
                     command_host = self.unique_commands[args[0]]
             state = State(self, message, args=args, command_host=command_host)
             for mod in self.module_list:
@@ -67,6 +71,7 @@ class Government(Client):
     async def import_all(self):
         await self.import_extension(module.Fun)
         await self.import_extension(module.NSFW)
+        await self.import_extension(module.Steam)
 
     async def import_extension(self, cls):
         try:

@@ -3,6 +3,7 @@ from discord import Embed
 import json
 import datetime
 import random
+# todo : move from datetime to time
 
 
 class NSFW(Module):
@@ -32,7 +33,7 @@ class NSFW(Module):
             pagenum = state.args.pop(-1)
             try:
                 pagenum = int(pagenum[4:])
-            except:
+            except:  # oop
                 await state.message.channel.send("Invalid page number. Defaulting to page 1.")
                 pagenum = None
         tagstring = ("+".join(state.args))
@@ -69,7 +70,7 @@ class NSFW(Module):
                                        type="rich",
                                        colour=0x00549D,
                                        description=description,
-                                       url="https://e621.net")
+                                       url=url)
                 response_embed.set_image(url=url)
                 response_embed.set_author(name=host.user.name, icon_url=host.user.avatar_url_as(format="png", size=64))
                 await state.message.channel.send(embed=response_embed)
