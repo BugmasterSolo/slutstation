@@ -99,6 +99,11 @@ class Fun(Module):
                 await state.message.channel.send("Invalid roll syntax provided.")
             print(e)
 
+    @Command.register(name="uptime")
+    async def uptime(host, state):
+        uptime = (time.time() - host.uptime) / 86400
+        await state.message.channel.send(f"I have been active for {uptime:.2f} days so far!")
+
     # George Marsaglia, FSU. For cases in which state constancy matters, like the fortune cookie.
     def _xorshift(self, num):  # change back to absolute reference if not working
         num = num & self.MAX_INT

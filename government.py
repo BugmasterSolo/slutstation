@@ -6,6 +6,7 @@ import asyncio
 
 from discord import Client
 import module
+import time
 # import all modules, construct them in the bot code
 # commands will be parsed with spaces
 # todo: fast dict traversal for double checking long lists!
@@ -28,6 +29,7 @@ class Government(Client):
         # dynamically import available modules and add them to internals
         # append space when referring to the bot commands
         super().__init__()
+        self.uptime = time.time()
         self.prefix = prefix
         self.owner = 186944167308427264  # hello :)  used if the bot needs to do anything executive :)
         print("Up and running!")
