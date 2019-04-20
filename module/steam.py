@@ -14,12 +14,9 @@ class Steam(Module):
         await state.message.channel.trigger_typing()
         userID = state.args[1]
         response = await state.command_host.steam_profile_request(userID)
-        print(response)
         if response is None:
-            print("no match...")
             # we're going to assume the user put a vanity URL and send the request again.
             resp = await Module._http_get_request(f"https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key={state.command_host.api_key}&vanityurl={userID}")
-            print(resp)
             url = json.loads(resp['text'])['response']
             if url['success'] != 1:
                 await state.message.channel.send("User not found.")
