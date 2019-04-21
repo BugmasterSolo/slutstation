@@ -140,7 +140,8 @@ class Fun(Module):
                 descrip = "*You have 20 seconds to answer the following question.*\n\n" + descrip + f"A) {answer_array[0]}\nB) {answer_array[1]}\nC) {answer_array[2]}\nD) {answer_array[3]}\n\n"
                 correct_index += 2  # abcd stored two indices over in the emoji str tuple
                 trivia_embed = Embed(title=f"{triv['category']} - {triv['difficulty']}",
-                                     description=descrip)
+                                     description=descrip,
+                                     color=0x8050ff)
                 msg = await chan.send(embed=trivia_embed)
                 for i in range(2, 6):
                     await msg.add_reaction(Fun.TRIVIA_REACTION_LIST[i])
@@ -176,7 +177,7 @@ class Fun(Module):
                 await chan.send(f"Sorry, no one answered correctly.\nThe correct answer was {triv['correct_answer']}.")
             else:
                 user_ids = map(lambda u: "<@" + str(u.id) + ">", correct_users)
-                return_string = f"The correct answer was {triv['correct_answer']}!\n\n Congratulations to " + ", ".join(user_ids) + " for answering correctly!"
+                return_string = f"The correct answer was {triv['correct_answer']}!\n\nCongratulations to " + ", ".join(user_ids) + " for answering correctly!"
                 await chan.send(return_string)
         else:
             chan.send("Could not fetch trivia questions from server.")
