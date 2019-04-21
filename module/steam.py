@@ -14,6 +14,8 @@ class Steam(Module):
         await state.message.channel.trigger_typing()
         userID = state.args[1]
         response = await state.command_host.steam_profile_request(userID)
+        # make status check
+        #   There's not really a way for the function to halt up. We could throw an exception on 404 but that's a bit lame
         if response is None:
             # we're going to assume the user put a vanity URL and send the request again.
             resp = await Module._http_get_request(f"https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key={state.command_host.api_key}&vanityurl={userID}")

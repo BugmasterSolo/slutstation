@@ -23,24 +23,29 @@ class NSFW(Module):
     #       - so keeping track of (high ceiling max) a few thousand cooldown objects at a time should not be a big deal.
     #       - last argument page{n}
     #       - add consistent command flagger (-, --, +)
+    #       - add bantags (please, per-server)
     @Command.register(name="e621")
     async def esix(host, state):
         # check if the command is it
         state.args.pop(0)
         pagenum = None
+        chan = state.message.channel
         # check if its just a command and no tags
         if len(state.args) >= 1 and state.args[-1].startswith("page"):
             pagenum = state.args.pop(-1)
             try:
                 pagenum = int(pagenum[4:])
-            except:  # oop
-                await state.message.channel.send("Invalid page number. Defaulting to page 1.")
+            except Exception as e:  # oop
+                if isinstance(e, ValueError):
+                    await chan.send("Invalid page number. Defaulting to page 1.")
+                else:
+                    await chan.send("An unknown error occurred. Hopefully nothing else breaks :)")
                 pagenum = None
         tagstring = ("+".join(state.args))
         if pagenum is not None:
             tagstring += "&page=" + str(pagenum)
-        response_message = await state.message.channel.send("```Searching...```")
-        await state.message.channel.trigger_typing()
+        response_message = await chan.send("```Searching...```")
+        await chan.trigger_typing()
         url = f"https://e621.net/post/index.json?limit=50&tags={tagstring}"
         resp = await Module._http_get_request(url)
         status = resp["status"]
@@ -48,7 +53,7 @@ class NSFW(Module):
         if (status >= 200 and status < 300):
             parsed_json = json.loads(resp["text"])
             if len(parsed_json) == 0:
-                await state.message.channel.send("No results found for that query.")
+                await chan.send("No results found for that query.")
             else:
                 target = random.choice(parsed_json)
                 url = target['sample_url']
@@ -73,9 +78,9 @@ class NSFW(Module):
                                        url=url)
                 response_embed.set_image(url=url)
                 response_embed.set_author(name=host.user.name, icon_url=host.user.avatar_url_as(format="png", size=64))
-                await state.message.channel.send(embed=response_embed)
+                await chan.send(embed=response_embed)
                 # await state.message.channel.send(random.choice(parsed_json)['file_url'])
         else:
-            await state.message.channel.send("Error {resp['status']}: resp['text']")
+            await chan.send("Error {resp['status']}: resp['text']")
         # thanks stack: https://stackoverflow.com/questions/25231989/how-to-check-if-a-variable-is-a-dictionary-in-python
         # worry about edge cases in a sec

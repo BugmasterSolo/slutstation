@@ -5,6 +5,8 @@ import time
 import random
 import json
 import sys
+import asyncio
+import html
 
 '''
 aiohttp:
@@ -19,6 +21,7 @@ class Fun(Module):
     # + i dont like it.
     FORTUNE_LIST = []
     MAX_INT = sys.maxsize
+    TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001F1E6", "\U0001F1E7", "\U0001F1E8", "\U0001F1E9")
     # referred to from host, with command_host this can be a module value
     with open("./module/module_resources/fortune_cookie.json", "r") as fortune:
         FORTUNE_LIST = json.loads(fortune.read())
@@ -39,15 +42,16 @@ class Fun(Module):
 
     @Command.register(name="coinflip", descrip="flip a coin!")
     async def coinflip(host, state):
+        msg = state.message
         flip = random.random()
         if flip < 0.02:
             randuser = None
             while True:
-                randuser = random.choice(state.message.guild.members)
+                randuser = random.choice(msg.guild.members)
                 if randuser.status == Status.online:
                     break
             randuser = randuser.id
-            await state.message.channel.send(random.choice((
+            await msg.channel.send(random.choice((
                 "The coin landed on its side!",
                 "The coin penetrated the floor and shattered.",
                 "The coin vanished instantly...",
@@ -58,9 +62,9 @@ class Fun(Module):
                 "please stop asking me to flip coins"
             )))
         elif flip < 0.51:
-            await state.message.channel.send("You flipped heads!")
+            await msg.channel.send("You flipped heads!")
         else:
-            await state.message.channel.send("You flipped tails!")
+            await msg.channel.send("You flipped tails!")
 
     @Command.register(name="pushup")
     async def pushup(host, state):
@@ -103,6 +107,79 @@ class Fun(Module):
     async def uptime(host, state):
         uptime = (time.time() - host.uptime) / 86400
         await state.message.channel.send(f"I have been active for {uptime:.2f} days so far!")
+
+    # TODO: Integrate into economy. Potentially add a list of modules to the state? Allowing cogs to communicate.
+    #       - Related: Implement cooldowns. Provide a special case for cooldowns (for instance, in the trivia case:
+    #                  money questions would only be usable once every 15 mins or so, otherwise it would be for fun)
+    @Command.register(name="trivia")
+    async def trivia(host, state):
+        chan = state.message.channel
+        url = "https://opentdb.com/api.php?amount=1"
+        response = await Module._http_get_request(url)
+        status = response['status']
+        if status >= 200 and status < 300:
+            triv = json.loads(response['text'])['results'][0]
+            descrip = html.unescape(f"{triv['question']}\n\n")
+            type = triv['type']
+            correct_index = None
+            msg = None
+            if type == "boolean":
+                correct_index = 0 if triv['correct_answer'] is True else 1
+                descrip = "*You have 20 seconds to answer the following question.*\n\nTrue or False:\n\n" + descrip
+                # not worth breaking out of this if statement for two lines lol
+                trivia_embed = Embed(title=f"{triv['category']} -- {triv['difficulty']}",
+                                     description=descrip)
+                msg = await chan.send(embed=trivia_embed)
+                await msg.add_reaction(Fun.TRIVIA_REACTION_LIST[0])
+                await msg.add_reaction(Fun.TRIVIA_REACTION_LIST[1])
+            elif type == "multiple":
+                answer_array = triv['incorrect_answers']
+                correct_index = random.randint(0, len(answer_array))
+                answer_array.insert(correct_index, triv['correct_answer'])
+                # hopefully general case isn't too necessary (bad string concat)
+                descrip = "*You have 20 seconds to answer the following question.*\n\n" + descrip + f"A) {answer_array[0]}\nB) {answer_array[1]}\nC) {answer_array[2]}\nD) {answer_array[3]}\n\n"
+                correct_index += 2  # abcd stored two indices over in the emoji str tuple
+                trivia_embed = Embed(title=f"{triv['category']} - {triv['difficulty']}",
+                                     description=descrip)
+                msg = await chan.send(embed=trivia_embed)
+                for i in range(2, 6):
+                    await msg.add_reaction(Fun.TRIVIA_REACTION_LIST[i])
+            await asyncio.sleep(10)
+            warning = await chan.send("*10 seconds remaining!*")
+            await asyncio.sleep(5)
+            await warning.delete()
+            await asyncio.sleep(5)
+            # refresh the reaction list
+            done = await chan.send("***Time's up!***")
+            msg_reactions = await chan.fetch_message(msg.id)
+            msg_reactions = msg_reactions.reactions
+            correct_users = []
+            incorrect_users = []
+            for reaction in msg_reactions:
+                if str(reaction.emoji) in Fun.TRIVIA_REACTION_LIST:
+                    answer_index = Fun.TRIVIA_REACTION_LIST.index(str(reaction.emoji))
+                    async for user in reaction.users():
+                        if not user == host.user:
+                            if answer_index == correct_index:
+                                if user not in incorrect_users:
+                                    print(str(user.name) + " answered correctly!")
+                                    correct_users.append(user)
+                            else:
+                                if user in correct_users:
+                                    print(str(user.name) + " cheated!")
+                                    correct_users.remove(user)
+                                else:
+                                    print(str(user.name) + " was incorrect!")
+                                    incorrect_users.append(user)
+            await done.delete()
+            if len(correct_users) == 0:
+                await chan.send(f"Sorry, no one answered correctly.\nThe correct answer was {triv['correct_answer']}.")
+            else:
+                user_ids = map(lambda u: "<@" + str(u.id) + ">", correct_users)
+                return_string = f"The correct answer was {triv['correct_answer']}!\n\n Congratulations to " + ", ".join(user_ids) + " for answering correctly!"
+                await chan.send(return_string)
+        else:
+            chan.send("Could not fetch trivia questions from server.")
 
     # George Marsaglia, FSU. For cases in which state constancy matters, like the fortune cookie.
     def _xorshift(self, num):  # change back to absolute reference if not working
