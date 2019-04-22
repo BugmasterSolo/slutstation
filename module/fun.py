@@ -4,7 +4,6 @@ from discord import Status, Embed
 import time
 import random
 import json
-import sys
 import asyncio
 import html
 
@@ -20,7 +19,6 @@ class Fun(Module):
     # also: this is a significant limitation of the current structure.
     # + i dont like it.
     FORTUNE_LIST = []
-    MAX_INT = sys.maxsize
     TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001F1E6", "\U0001F1E7", "\U0001F1E8", "\U0001F1E9")
     # referred to from host, with command_host this can be a module value
     with open("./module/module_resources/fortune_cookie.json", "r") as fortune:
@@ -29,7 +27,7 @@ class Fun(Module):
     @Command.register(name="fortune", descrip="if you are going to die you should look here")
     async def fortune(host, state):  # if any issues come up check here.
         cur = int(time.time() / 86400)
-        seed = state.command_host._xorshift(state.message.author.id - cur)
+        seed = Fun._xorshift(state.message.author.id - cur)
         # eh
         seed %= len(Fun.FORTUNE_LIST)
         timeformat = time.strftime("%B %d, %Y", time.gmtime())
@@ -111,6 +109,9 @@ class Fun(Module):
     # TODO: Integrate into economy. Potentially add a list of modules to the state? Allowing cogs to communicate.
     #       - Related: Implement cooldowns. Provide a special case for cooldowns (for instance, in the trivia case:
     #                  money questions would only be usable once every 15 mins or so, otherwise it would be for fun)
+    #       - Add an elimination mode for larger servers (far future) in which users would be eliminated from the player pool
+    #         for answering incorrectly. Some reward would then be given to the last m(a/e)n standing
+    #           - Would be extremely fun to run this for all connected servers, with a collective jackpot for all users (hq trivia)
     @Command.register(name="trivia")
     async def trivia(host, state):
         chan = state.message.channel
@@ -183,9 +184,9 @@ class Fun(Module):
             chan.send("Could not fetch trivia questions from server.")
 
     # George Marsaglia, FSU. For cases in which state constancy matters, like the fortune cookie.
-    def _xorshift(self, num):  # change back to absolute reference if not working
-        num = num & self.MAX_INT
-        num = num ^ (num << 1)
-        num = num ^ (num >> 15)
-        num = num ^ (num << 4)
-        return num
+    def _xorshift(num):  # change back to absolute reference if not working
+        tnum = num & 0xFFFFFFFF
+        tnum = (tnum ^ (tnum << 13))
+        tnum = (tnum ^ (tnum >> 17))
+        tnum = (tnum ^ (tnum << 5))
+        return tnum & 0xFFFFFFFF
