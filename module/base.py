@@ -3,7 +3,23 @@
 
 import asyncio
 import aiohttp
+import time
+from enum import Enum
 # we're doing it all from scratch baby
+
+
+# lower two bits: cooldown scope.
+# upper bit: cooldown type.
+class Scope(Enum):
+    USER = 0        # per user
+    CHANNEL = 1     # per channel
+    SERVER = 2      # per server
+    GLOBAL = 3      # ultra exclusive
+
+    # cooldown time type
+
+    RUN = 4         # ends some time after function finishes running
+    TIME = 0        # ends some time after call
 
 # template for future modules.
 
@@ -102,6 +118,18 @@ class Module:
 # decorator class for funky functions
 # self is redefined, and thus will not work.
 # give commands access to their parent module
+
+# implementing cooldowns:
+#       - Commands are constructed with an optional (ENUM?) scope, determining if the cooldown is per user, per channel, etc
+#           - If not set, default to some value indicating no cooldown
+#       - If a cooldown is present, the command needs to keep a record of the relevant unique ID, and check for it on run
+#       - If present, return a default cooldown message (can be set via the function wrapper)
+#       - An internal data structure would track ID keys and epochTime calls. If curTime > callTime + cooldown, clear the cooldown from the array
+#       - Use a Number input on the wrapper to determine cooldown -- if number present and no scope, default to user.
+#         If scope present and no number, default to 15sec
+#         If neither present, ignore cooldown.
+#         Note: functions without cooldown parameters should not bother checking. Just set it to None or something and perform a check in the call.
+
 class Command:
     '''Commands make up the bulk of each module, referring to a function of the bot.
 
@@ -136,12 +164,69 @@ class Command:
         self.func = func
         self.descrip = kwargs.get("descrip", func.__doc__ or "No description available.")
         self.alias = [kwargs.get("name", func.__name__)]
+        self.cooldown = None
+        # safe to set
+        self.cooltime = None
+        self.cooldown_array = {}
         # fix please
         if not kwargs.get("alias") is None:
             self.alias.append(kwargs.get("alias"))
 
-    async def __call__(self, host, message, *args, **kwargs):
-        await self.func(host, message, *args, **kwargs)
+    async def __call__(self, host, state, *args, **kwargs):
+        uid = self._get_cooldown_id(state.message)
+        print(uid)
+        if not uid == 0:
+            cur_time = time.time()
+            call_time = self.cooldown_array.get(uid)
+            print(cur_time)
+            print("testing123")
+            # if 0, no cooldown. call function.
+            # else, add the relevant uid to the cooldown array with the time if there is no cooldown.
+            # dict is O(1) (WC O(n)), all of our keys are 64 bit ints so should be safe
+            if call_time is None:
+                # poppin
+                if self.cooldown >= 4:
+                    cur_time = cur_time * -1
+                self.cooldown_array[uid] = cur_time
+            else:
+                time_diff = cur_time - call_time
+                if time_diff > self.cooltime:
+                    if self.cooldown >= 4:
+                        cur_time = cur_time * -1
+                    self.cooldown_array[uid] = cur_time
+                else:
+                    chan = state.message.channel
+                    if call_time < 0:
+                        warn = await chan.send("*please be patient i am trying my hardest already*")
+                        await asyncio.sleep(3)
+                        await warn.delete()
+                    else:
+                        await state.message.channel.send(f"`That function is on cooldown for {self.cooltime - abs(time_diff):.2f} more seconds.`")
+                    # eh
+                    return
+        await self.func(host, state, *args, **kwargs)
+        # we guarantee it is set here, since if it wasn't it was set to the old time earlier.
+        if not uid == 0 and self.cooldown >= 4:  # one more check on uid
+            print("curtime: ")
+            print(cur_time)
+            print(cur_time * -1)
+            self.cooldown_array[uid] = (cur_time * -1)
+            # in the event that we're running off the function call, set current time once the call finishes.
+            # if run, update to end of run. typically this should be set to 0
+
+    def _get_cooldown_id(self, message):
+        cool = self.cooldown & 3
+        # uses scope values
+        if cool == 0:
+            return message.author.id
+        elif cool == 1:
+            return message.channel.id
+        elif cool == 2:
+            return message.guild.id
+        elif cool == 3:
+            return 1
+        else:
+            return 0
 
     def register(func=None, *args, **kwargs):
         '''
@@ -158,4 +243,20 @@ class Command:
 
         def wrapper(func):
             return Command(func, *args, **kwargs)
+        return wrapper
+
+    # receives command object, or alternatively performs a function and then receives the cooldown.
+    # messes with some easy values and bumps it out
+    def cooldown(cmd=None, scope=Scope.CHANNEL, type=Scope.TIME, time=15):
+        if cmd:
+            cmd.cooldown = scope
+            cmd.cooltime = time
+            return cmd
+
+        def wrapper(cmd):
+            cmd.cooldown = scope.value | type.value
+            cmd.cooltime = time
+            print(cmd.cooltime)
+            return cmd
+
         return wrapper

@@ -1,4 +1,4 @@
-from .base import Module, Command
+from .base import Module, Command, Scope
 from discord import Embed
 import json
 import datetime
@@ -24,6 +24,7 @@ class NSFW(Module):
     #       - last argument page{n}
     #       - add consistent command flagger (-, --, +)
     #       - add bantags (please, per-server)
+    @Command.cooldown(scope=Scope.CHANNEL, type=Scope.RUN, time=5)
     @Command.register(name="e621")
     async def esix(host, state):
         # check if the command is it

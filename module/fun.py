@@ -1,4 +1,4 @@
-from .base import Module, Command
+from .base import Module, Command, Scope
 from discord import Status, Embed
 
 import time
@@ -112,6 +112,11 @@ class Fun(Module):
     #       - Add an elimination mode for larger servers (far future) in which users would be eliminated from the player pool
     #         for answering incorrectly. Some reward would then be given to the last m(a/e)n standing
     #           - Would be extremely fun to run this for all connected servers, with a collective jackpot for all users (hq trivia)
+    #       - Add cooldown (min 20 seconds)
+    #       - Modify trivia around cooldown -- trivia should be able to run based on its cooldown.
+    #       - add cooldown in, but have a Trivia module that keeps track of the time since last "Money Q".
+    #       - unfortunately this requires an extra time check outside of the cooldown scope, but that's fine in this 1/1000 case.
+    @Command.cooldown(scope=Scope.CHANNEL, time=0, type=Scope.RUN)
     @Command.register(name="trivia")
     async def trivia(host, state):
         chan = state.message.channel
@@ -184,8 +189,8 @@ class Fun(Module):
         else:
             chan.send("Could not fetch trivia questions from server.")
 
-    # George Marsaglia, FSU. For cases in which state constancy matters, like the fortune cookie.
-    def _xorshift(num):  # change back to absolute reference if not working
+    # 32 bit xorshift. used for state dependent PRNG.
+    def _xorshift(num):
         tnum = num & 0xFFFFFFFF
         tnum = (tnum ^ (tnum << 13))
         tnum = (tnum ^ (tnum >> 17))
