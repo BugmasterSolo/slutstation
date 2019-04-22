@@ -125,11 +125,12 @@ class Fun(Module):
             correct_index = None
             msg = None
             if type == "boolean":
-                correct_index = 0 if triv['correct_answer'] is True else 1
+                correct_index = 0 if triv['correct_answer'] == "True" else 1
                 descrip = "*You have 20 seconds to answer the following question.*\n\nTrue or False:\n\n" + descrip
                 # not worth breaking out of this if statement for two lines lol
                 trivia_embed = Embed(title=f"{triv['category']} -- {triv['difficulty']}",
-                                     description=descrip)
+                                     description=descrip,
+                                     color=0x8050ff)
                 msg = await chan.send(embed=trivia_embed)
                 await msg.add_reaction(Fun.TRIVIA_REACTION_LIST[0])
                 await msg.add_reaction(Fun.TRIVIA_REACTION_LIST[1])
