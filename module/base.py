@@ -187,10 +187,11 @@ class Command:
                 # poppin
                 if self.cooldown >= 4:
                     cur_time = cur_time * -1
+                    print("negated")
                 self.cooldown_array[uid] = cur_time
             else:
                 time_diff = cur_time - call_time
-                if time_diff > self.cooltime:
+                if time_diff > self.cooltime and call_time > 0:
                     if self.cooldown >= 4:
                         cur_time = cur_time * -1
                     self.cooldown_array[uid] = cur_time
@@ -207,16 +208,13 @@ class Command:
         await self.func(host, state, *args, **kwargs)
         # we guarantee it is set here, since if it wasn't it was set to the old time earlier.
         if not uid == 0 and self.cooldown >= 4:  # one more check on uid
-            print("curtime: ")
-            print(cur_time)
-            print(cur_time * -1)
-            self.cooldown_array[uid] = (cur_time * -1)
+            self.cooldown_array[uid] = time.time()
             # in the event that we're running off the function call, set current time once the call finishes.
             # if run, update to end of run. typically this should be set to 0
 
     def _get_cooldown_id(self, message):
         cool = self.cooldown & 3
-        # uses scope values
+        # uses scope values (no idea if the switch bundle is faster but whatever)
         if cool == 0:
             return message.author.id
         elif cool == 1:
