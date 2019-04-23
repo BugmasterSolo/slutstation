@@ -43,11 +43,12 @@ class NSFW(Module):
         url = f"https://e621.net/post/index.json?limit=50&tags={tagstring}"
         resp = await Module._http_get_request(url)
         status = resp["status"]
+        parsed_json = json.loads(resp["text"])
         await response_message.delete()
         if (status >= 200 and status < 300):
-            parsed_json = json.loads(resp["text"])
             if len(parsed_json) == 0:
                 await chan.send("No results found for that query.")
+                # errors in request will throw a wonky status code
             else:
                 target = random.choice(parsed_json)
                 url = target['sample_url']
@@ -75,6 +76,7 @@ class NSFW(Module):
                 await chan.send(embed=response_embed)
                 # await state.message.channel.send(random.choice(parsed_json)['file_url'])
         else:
-            await chan.send("Error {resp['status']}: resp['text']")
+
+            await chan.send("Sorry, no dice: " + parsed_json['reason'])
         # thanks stack: https://stackoverflow.com/questions/25231989/how-to-check-if-a-variable-is-a-dictionary-in-python
         # worry about edge cases in a sec
