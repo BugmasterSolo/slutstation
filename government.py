@@ -4,7 +4,7 @@
 import re
 import asyncio
 
-from discord import Client
+from discord import Client, Game
 import module
 import time
 # import all modules, construct them in the bot code
@@ -48,6 +48,9 @@ class Government(Client):
 
     # rework parsing of commands. the bot should only respond to mentions
     # if they do not involve a command.
+
+    async def on_ready(self):
+        await self.change_presence(activity=Game(name="mike craft"))
 
     # incorporate everything into the "message.author != self.user" check
     async def on_message(self, message):
