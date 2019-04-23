@@ -164,9 +164,9 @@ class Command:
         self.func = func
         self.descrip = kwargs.get("descrip", func.__doc__ or "No description available.")
         self.alias = [kwargs.get("name", func.__name__)]
-        self.cooldown = -1
+        self.cooldown = None
         # safe to set
-        self.cooltime = -1
+        self.cooltime = None
         self.cooldown_array = {}
         # fix please
         if not kwargs.get("alias") is None:
@@ -174,12 +174,9 @@ class Command:
 
     async def __call__(self, host, state, *args, **kwargs):
         uid = self._get_cooldown_id(state.message)
-        print(uid)
         if not uid == 0:
             cur_time = time.time()
             call_time = self.cooldown_array.get(uid)
-            print(cur_time)
-            print("testing123")
             # if 0, no cooldown. call function.
             # else, add the relevant uid to the cooldown array with the time if there is no cooldown.
             # dict is O(1) (WC O(n)), all of our keys are 64 bit ints so should be safe
@@ -187,7 +184,6 @@ class Command:
                 # poppin
                 if self.cooldown >= 4:
                     cur_time = cur_time * -1
-                    print("negated")
                 self.cooldown_array[uid] = cur_time
             else:
                 time_diff = cur_time - call_time
@@ -213,8 +209,9 @@ class Command:
             # if run, update to end of run. typically this should be set to 0
 
     def _get_cooldown_id(self, message):
-        # -1 is full bits -- -1 and a number is the number. This number is 10111, since our cooldown bit is <7 we can use that leading bit to differentiate -1.
-        cool = self.cooldown & 23
+        cool = None
+        if self.cooldown is not None:
+            cool = self.cooldown & 3
         # uses scope values (no idea if the switch bundle is faster but whatever)
         if cool == 0:
             return message.author.id
@@ -255,7 +252,6 @@ class Command:
         def wrapper(cmd):
             cmd.cooldown = scope.value | type.value
             cmd.cooltime = time
-            print(cmd.cooltime)
             return cmd
 
         return wrapper
