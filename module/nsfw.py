@@ -16,13 +16,6 @@ class NSFW(Module):
 
     # TODO:
     #   - implement per (user, guild, ...) cooldowns (DB?)
-    #       - discord py tracks cooldowns in a massive key/val structure that processes IDs and simply returns whether or not they are on cooldown
-    #       - each ID is unique and so based on some information from the relevant cooldown we can figure out whether or not the function should be called
-    #       - no idea if performance will become an issue but we can find out :)
-    #       - realistically people aren't spamming all functions in all servers at all times (and if they are i will veto them)
-    #       - so keeping track of (high ceiling max) a few thousand cooldown objects at a time should not be a big deal.
-    #       - last argument page{n}
-    #       - add consistent command flagger (-, --, +)
     #       - add bantags (please, per-server)
     @Command.cooldown(scope=Scope.CHANNEL, type=Scope.RUN, time=5)
     @Command.register(name="e621")

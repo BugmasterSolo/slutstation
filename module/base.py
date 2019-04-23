@@ -164,9 +164,9 @@ class Command:
         self.func = func
         self.descrip = kwargs.get("descrip", func.__doc__ or "No description available.")
         self.alias = [kwargs.get("name", func.__name__)]
-        self.cooldown = None
+        self.cooldown = -1
         # safe to set
-        self.cooltime = None
+        self.cooltime = -1
         self.cooldown_array = {}
         # fix please
         if not kwargs.get("alias") is None:
@@ -213,7 +213,8 @@ class Command:
             # if run, update to end of run. typically this should be set to 0
 
     def _get_cooldown_id(self, message):
-        cool = self.cooldown & 3
+        # -1 is full bits -- -1 and a number is the number. This number is 10111, since our cooldown bit is <7 we can use that leading bit to differentiate -1.
+        cool = self.cooldown & 23
         # uses scope values (no idea if the switch bundle is faster but whatever)
         if cool == 0:
             return message.author.id

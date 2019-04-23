@@ -7,12 +7,6 @@ import json
 import asyncio
 import html
 
-'''
-aiohttp:
-    asynch http requests in line with what we would expect
-    get it ready!
-'''
-
 
 class Fun(Module):
     # probably runs on import, no longer needed.
