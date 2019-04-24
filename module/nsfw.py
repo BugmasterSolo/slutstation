@@ -97,11 +97,10 @@ class NSFW(Module):
         await chan.trigger_typing()
         resp = await Module._http_get_request(url)
         status = resp['status']
-        await response_message.delete();
+        await response_message.delete()
         if status >= 200 and status < 300:
             target = ET.fromstring(resp['text'])
-            print(target.attrib)
-            if target.attrib['count'] is "0":
+            if target.attrib['count'] == "0":
                 await chan.send("No results found for that query.")
             else:
                 target = random.choice(target).attrib
