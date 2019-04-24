@@ -3,6 +3,7 @@ from discord import Embed
 import json
 import datetime
 import random
+import xml.etree.ElementTree as ET
 # todo : move from datetime to time
 
 
@@ -17,25 +18,13 @@ class NSFW(Module):
     # TODO:
     #   - implement per (user, guild, ...) cooldowns (DB?)
     #       - add bantags (please, per-server)
-    @Command.cooldown(scope=Scope.CHANNEL, type=Scope.RUN, time=5)
+    @Command.cooldown(scope=Scope.CHANNEL, time=5)
     @Command.register(name="e621")
     async def esix(host, state):
         # check if the command is it
-        state.args.pop(0)
-        pagenum = None
         chan = state.message.channel
-        # check if its just a command and no tags
-        if len(state.args) >= 1 and state.args[-1].startswith("page"):
-            pagenum = state.args.pop(-1)
-            try:
-                pagenum = int(pagenum[4:])
-            except Exception as e:  # oop
-                if isinstance(e, ValueError):
-                    await chan.send("Invalid page number. Defaulting to page 1.")
-                else:
-                    await chan.send("An unknown error occurred. Hopefully nothing else breaks :)")
-                pagenum = None
-        tagstring = ("+".join(state.args))
+        tag_array, pagenum = await NSFW._parse_tags(state.args, chan)
+        tagstring = ("+".join(tag_array))
         if pagenum is not None:
             tagstring += "&page=" + str(pagenum)
         response_message = await chan.send("```Searching...```")
@@ -72,11 +61,55 @@ class NSFW(Module):
                                        description=description,
                                        url=url)
                 response_embed.set_image(url=url)
-                response_embed.set_author(name=host.user.name, icon_url=host.user.avatar_url_as(format="png", size=64))
+                response_embed.set_author(name="E621.NET")
                 await chan.send(embed=response_embed)
                 # await state.message.channel.send(random.choice(parsed_json)['file_url'])
         else:
-
             await chan.send("Sorry, no dice: " + parsed_json['reason'])
         # thanks stack: https://stackoverflow.com/questions/25231989/how-to-check-if-a-variable-is-a-dictionary-in-python
         # worry about edge cases in a sec
+
+    async def _parse_tags(tag_array, chan):
+        tag_array.pop(0)
+        pagenum = None
+        if len(tag_array) >= 1 and tag_array[-1].startswith("page"):
+            pagenum = tag_array.pop(-1)
+            try:
+                pagenum = int(pagenum[4:])
+            except Exception as e:
+                if isinstance(e, ValueError):
+                    await chan.send("Invalid page number. Defaulting to page 1.")
+                else:
+                    await chan.send("An unknown error occurred. Hopefully nothing else breaks :)")
+                pagenum = None
+        return [tag_array, pagenum]
+
+    @Command.cooldown(scope=Scope.CHANNEL, time=5)
+    @Command.register(name="rule34")
+    async def rule34(host, state):
+        chan = state.message.channel
+        tag_array, pagenum = await NSFW._parse_tags(state.args, chan)
+        tagstring = "+".join(tag_array)
+        url = f"https://rule34.xxx/index.php?page=dapi&s=post&q=index&limit=50&tags={tagstring}"
+        if pagenum is not None:
+            url += f"&pid={pagenum}"
+        response_message = await chan.send("```Searching...```")
+        await chan.trigger_typing()
+        resp = await Module._http_get_request(url)
+        status = resp['status']
+        await response_message.delete();
+        if status >= 200 and status < 300:
+            target = ET.fromstring(resp['text'])
+            print(target.attrib)
+            if target.attrib['count'] is "0":
+                await chan.send("No results found for that query.")
+            else:
+                target = random.choice(target).attrib
+                source = target.get("source") or target.get("file_url")
+                timestring = datetime.datetime.strptime(target['created_at'], "%a %b %d %H:%M:%S %z %Y").strftime("%B %d, %Y")
+                descrip = f"*posted {timestring}*\n\n**Score: {target['score']}**\n\n**Source:**\n{source}"
+                response_embed = Embed(url=source, type="rich",
+                                       description=descrip, title="Rule34", color=0xa0e080)
+                response_embed.set_image(url=target.get("file_url"))
+                response_embed.set_author(name="RULE34.XXX")
+                await chan.send(embed=response_embed)
