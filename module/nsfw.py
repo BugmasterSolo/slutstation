@@ -105,10 +105,19 @@ class NSFW(Module):
             else:
                 target = random.choice(target).attrib
                 source = target.get("source") or target.get("file_url")
+                if not source.startswith("http"):
+                    # milk junkies 02
+                    source = target.get("file_url")
                 timestring = datetime.datetime.strptime(target['created_at'], "%a %b %d %H:%M:%S %z %Y").strftime("%B %d, %Y")
                 descrip = f"*posted {timestring}*\n\n**Score: {target['score']}**\n\n**Source:**\n{source}"
+                image_url = target.get("sample_url")
+                print(image_url)
+                if image_url.endswith("webm"):
+                    print("ok")
+                    image_url = target.get("preview_url")
+                    descrip += "***(animated)***"
                 response_embed = Embed(url=source, type="rich",
                                        description=descrip, title="Rule34", color=0xa0e080)
-                response_embed.set_image(url=target.get("file_url"))
+                response_embed.set_image(url=image_url)
                 response_embed.set_author(name="RULE34.XXX")
                 await chan.send(embed=response_embed)
