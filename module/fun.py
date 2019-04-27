@@ -10,7 +10,7 @@ import html
 import re
 from string import ascii_uppercase as letters
 
-
+# TODO: Modify poll info to appear in embed message.
 class Fun(Module):
     # probably runs on import, no longer needed.
     # also: this is a significant limitation of the current structure.
@@ -244,13 +244,19 @@ class Fun(Module):
             elif tally == max:
                 maxindex.append(i)
         # deal with tie case
+        result_string = None
         if max == 0:
-            await chan.send("No one voted :(")
+            result_string = "*No one voted on this poll... :(*"
         elif len(maxindex) == 1:
-            await chan.send(f"{answer_list[maxindex[0]]} won with {max} votes!")
+            result_string = f"***Result: '{answer_list[maxindex[0]]}' won with {max} votes!***"
         else:
             top_answers = ", ".join(map(lambda i: answer_list[i], maxindex))
-            await chan.send(f"{top_answers} tied with {max} votes!")
+            # highlighting the winners in the embed? nah too much work
+            result_string = f"***Result: '{top_answers}' tied with {max} votes!***"
+        notify = await chan.send(result_string)
+        await asyncio.sleep(5)
+        await notify.delete()
+        await poll.edit(content=result_string)
 
     async def add_reactions(chan, embed, time, loop=None, char_list=None):
         poll = await chan.send(embed=embed)
