@@ -11,6 +11,7 @@ import html
 import re
 from string import ascii_uppercase as letters
 
+
 # TODO: Modify poll info to appear in embed message.
 class Fun(Module):
     # probably runs on import, no longer needed.

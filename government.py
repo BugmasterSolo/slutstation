@@ -84,10 +84,5 @@ def load_token():
         return f.read().strip()
 
 
-'''
-Takeaway: the function wrapper will return the object we want!
-When arguments are passed: The wrapper performs func = wrapper(args)(func). This produces the desired result!
-
-'''
 client = Government("g ")
 client.run(load_token())
