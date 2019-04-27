@@ -229,7 +229,7 @@ class Fun(Module):
             description += letters[i] + f") {answer_list[i]}\n"
         description += "\n*Created on " + time.strftime("%B %d %Y, %H:%M:%S ", time.gmtime()) + "UTC*"
         question_embed = Embed(title=question, description=description, color=0x8050ff)
-        poll_id = await Fun.add_reactions(chan, question_embed, timer, loop_list)
+        poll_id = await Fun.add_reactions(chan, question_embed, timer, loop_list, descrip=question)
         poll = await chan.fetch_message(poll_id)
         poll_reactions = poll.reactions
         poll_responses = [None] * answer_count
@@ -270,7 +270,8 @@ class Fun(Module):
         await notify.delete()
         await poll.edit(content=result_string)
 
-    async def add_reactions(chan, embed, timer, loop=None, char_list=None):
+    # desc's are not necessary for short queries, such as trivia.
+    async def add_reactions(chan, embed, timer, loop=None, char_list=None, descrip="Get your answer in!"):
         poll = await chan.send(embed=embed)
         # specifics!
         if char_list:
@@ -280,14 +281,37 @@ class Fun(Module):
             for i in loop:
                 await poll.add_reaction(chr(Fun.A_EMOJI + i))
         # more dynamic response
+        if timer >= 3600:
+            await asyncio.sleep(timer - 1800)
+            warning = await chan.send(f"***30 minutes remaining: '{descrip}'***")
+            await asyncio.sleep(5)
+            await warning.delete()
+            timer = 1795
+        if timer >= 900:
+            await asyncio.sleep(timer - 600)
+            warning = await chan.send(f"***10 minutes remaining: '{descrip}'***")
+            await asyncio.sleep(5)
+            await warning.delete()
+            timer = 595
+        if timer >= 300:
+            await asyncio.sleep(timer - 180)
+            warning = await chan.send("***3 minutes remaining!***")
+            await asyncio.sleep(5)
+            await warning.delete()
+            timer = 175
+        if timer >= 120:
+            await asyncio.sleep(timer - 60)
+            warning = await chan.send("***1 minute remaining!***")
+            await asyncio.sleep(5)
+            await warning.delete()
+            timer = 55
         if timer > 10:
             await asyncio.sleep(timer - 10)
+            # use a description on longer waits
             warning = await chan.send("***10 seconds remaining!***")
             await asyncio.sleep(5)
             await warning.delete()
             await asyncio.sleep(5)
-        else:
-            await asyncio.sleep(timer)
         return poll.id
         # jump back into loop
 
