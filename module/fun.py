@@ -3,6 +3,7 @@ from discord import Status, Embed
 # import mysql.connector as mysql
 
 import time
+import math
 import random
 import json
 import asyncio
@@ -191,12 +192,13 @@ class Fun(Module):
     # todo:
     #   - probably keep trying to reduce cyclomatic complexity (if necessary)
     #   - add time of creation + duration to the poll embed
+    @Command.cooldown(scope=Scope.CHANNEL, time=30, type=Scope.TIME)
     @Command.register(name="poll")
     async def poll(host, state):
         chan = state.message.channel
         msg = state.content
         question = None
-        time = None
+        timer = None
         end_index = None
         if msg[0] == "\"":  # user passed a question string
             end_index = msg.find("\"", 1)
@@ -209,21 +211,24 @@ class Fun(Module):
             return
         msg = msg[end_index + 1:].strip()
         end_index = msg.find(" ")
-        time = None
         try:
-            time = int(msg[:end_index])
+            timer = int(msg[:end_index])
+            if timer < 0:
+                chan.send("alright smartass cut it with the negative polls")
+                return
         except Exception as e:
-            time = 30
+            timer = 30
             print(e)
         msg = msg[end_index + 1:].strip()
         answer_list = re.split(" *\| *", msg)
         answer_count = len(answer_list)
         loop_list = range(0, answer_count)
-        description = ""
+        description = "*Duration: " + Fun.format_duration(timer) + "*\n\n"
         for i in loop_list:
             description += letters[i] + f") {answer_list[i]}\n"
+        description += "\n*Created on " + time.strftime("%B %d %Y, %H:%M:%S ", time.gmtime()) + "UTC*"
         question_embed = Embed(title=question, description=description, color=0x8050ff)
-        poll_id = await Fun.add_reactions(chan, question_embed, time, loop_list)
+        poll_id = await Fun.add_reactions(chan, question_embed, timer, loop_list)
         poll = await chan.fetch_message(poll_id)
         poll_reactions = poll.reactions
         poll_responses = [None] * answer_count
@@ -264,7 +269,7 @@ class Fun(Module):
         await notify.delete()
         await poll.edit(content=result_string)
 
-    async def add_reactions(chan, embed, time, loop=None, char_list=None):
+    async def add_reactions(chan, embed, timer, loop=None, char_list=None):
         poll = await chan.send(embed=embed)
         # specifics!
         if char_list:
@@ -273,16 +278,41 @@ class Fun(Module):
         else:
             for i in loop:
                 await poll.add_reaction(chr(Fun.A_EMOJI + i))
-        if time > 10:
-            await asyncio.sleep(time - 10)
+        # more dynamic response
+        if timer > 10:
+            await asyncio.sleep(timer - 10)
             warning = await chan.send("***10 seconds remaining!***")
             await asyncio.sleep(5)
             await warning.delete()
             await asyncio.sleep(5)
         else:
-            await asyncio.sleep(time)
+            await asyncio.sleep(timer)
         return poll.id
         # jump back into loop
+
+    def format_duration(timer):
+        duration_string = ""
+        if (timer > 86400):
+            day_count = math.floor(timer / 84600)
+            timer = (timer - (day_count * 86400))
+            duration_string += str(day_count) + " day" + ("s" if day_count > 1 else "")  # i dont like this
+            if not (timer == 0):
+                duration_string += ", "
+        if (timer > 3600):
+            hour_count = math.floor(timer / 3600)
+            timer = (timer - (hour_count * 3600))
+            duration_string += str(hour_count) + " hour" + ("s" if hour_count > 1 else "")
+            if not (timer == 0):
+                duration_string += ", "
+        if (timer > 60):
+            minute_count = math.floor(timer / 60)
+            timer = (timer - (minute_count * 60))
+            duration_string += str(minute_count) + " minute" + ("s" if minute_count > 1 else "")
+            if not (timer == 0):
+                duration_string += ", "
+        if (timer > 0):
+            duration_string += str(timer) + " second" + ("s" if timer > 1 else "")
+        return duration_string
 
     # 32 bit xorshift. used for state dependent PRNG.
     def _xorshift(num):
