@@ -188,8 +188,9 @@ class Fun(Module):
         else:
             chan.send("Could not fetch trivia questions from server.")
 
-    # todo: "reduce cyclomatic complexity"
-    # there's a lot of interdependent code in here
+    # todo:
+    #   - probably keep trying to reduce cyclomatic complexity (if necessary)
+    #   - add time of creation + duration to the poll embed
     @Command.register(name="poll")
     async def poll(host, state):
         chan = state.message.channel
@@ -208,7 +209,12 @@ class Fun(Module):
             return
         msg = msg[end_index + 1:].strip()
         end_index = msg.find(" ")
-        time = int(msg[:end_index])
+        time = None
+        try:
+            time = int(msg[:end_index])
+        except Exception as e:
+            time = 30
+            print(e)
         msg = msg[end_index + 1:].strip()
         answer_list = re.split(" *\| *", msg)
         answer_count = len(answer_list)
