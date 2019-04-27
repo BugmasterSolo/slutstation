@@ -1,19 +1,22 @@
 from .base import Module, Command, Scope
 from discord import Status, Embed
+# import mysql.connector as mysql
 
 import time
 import random
 import json
 import asyncio
 import html
+import string
 
 
 class Fun(Module):
     # probably runs on import, no longer needed.
     # also: this is a significant limitation of the current structure.
     # + i dont like it.
+    MAX_INT = 4294967295
     FORTUNE_LIST = []
-    TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001F1E6", "\U0001F1E7", "\U0001F1E8", "\U0001F1E9")
+    TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001F1E6", "\U0001F1E7", "\U0001F1E8", "\U0001F1E9", "\U0001F1EA", "\U0001F1EB", "\U0001F1EC", "\U0001F1ED", "\U0001F1EE", "\U0001F1EF", "\U0001F1F0", "\U0001F1F0", "\U0001F1F1")
     # referred to from host, with command_host this can be a module value
     with open("./module/module_resources/fortune_cookie.json", "r") as fortune:
         FORTUNE_LIST = json.loads(fortune.read())
@@ -60,19 +63,23 @@ class Fun(Module):
 
     @Command.register(name="pushup")
     async def pushup(host, state):
-        count = int(float(state.args[1]) + 1)
+        args = Command.split(state.content)
+        count = int(float(args[1]) + 1)
         await state.message.channel.send(f"that's cool but i can do {count} pushups")
 
     @Command.register(name="roll")
     async def roll(host, state):
         '''Operators are added automatically, separated by spaces.
            4d6 5d9 1d12 +4 -3 = 4 rolls of 6 side + 5 rolls of 9 side + 1 roll of 12 side, add 4, subtract 3.'''
-        state.args.pop(0)
+        args = Command.split(state.content)
+        args.pop(0)
+        print(args)
         sum = 0
         try:
-            for index in range(len(state.args) - 1):
-                roll = state.args[index]
+            for index in range(len(args)):
+                roll = args[index]
                 if "d" in roll:  # dice roll
+                    print(roll)
                     rollstat = roll.split("d")
                     dicecount = int(rollstat[0])
                     rollmax = int(rollstat[1])
@@ -84,11 +91,12 @@ class Fun(Module):
                         sum += random.randint(1, rollmax)
                         dicecount -= 1
                 else:
+                    print("test")
                     int_roll = int(roll)
                     sum += int_roll
                     # fix display
-                    state.args[index] = int_roll
-            await state.message.channel.send("Rolled " + " + ".join(state.args) + f" and got **{sum}!**")
+                    args[index] = str(int_roll)
+            await state.message.channel.send("Rolled " + " + ".join(args) + f" and got **{sum}!**")
         except Exception as e:
             # avoid double exception print
             if not isinstance(e, OverflowError):
@@ -182,6 +190,23 @@ class Fun(Module):
                 await chan.send(return_string)
         else:
             chan.send("Could not fetch trivia questions from server.")
+
+    @Command.register(name="poll")
+    async def poll(host, state):
+        chan = state.message.channel
+        args = Command.split(state.content)
+        args.pop(0)
+        timer = None
+        if len(args) < 2:
+            await chan.send("Make sure to provide both a time limit and a question name!")
+            return
+        args[0]
+        try:
+            timer = int(args[1])
+        except:
+            await chan.send("Please provide a duration for the poll.")
+            return
+        pass
 
     # 32 bit xorshift. used for state dependent PRNG.
     def _xorshift(num):

@@ -12,7 +12,8 @@ class Steam(Module):
     @Command.register(name="steamid")
     async def steamid(host, state):
         await state.message.channel.trigger_typing()
-        userID = state.args[1]
+        args = Command.split(state.content)
+        userID = args[1]
         response = await state.command_host.steam_profile_request(userID)
         # make status check
         #   There's not really a way for the function to halt up. We could throw an exception on 404 but that's a bit lame

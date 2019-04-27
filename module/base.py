@@ -4,6 +4,7 @@
 import asyncio
 import aiohttp
 import time
+import re
 from enum import Enum
 # we're doing it all from scratch baby
 
@@ -85,8 +86,8 @@ class Module:
         The default assumes that the bot needs to read the contents of all messages-- you are encouraged
         to overwrite this! It will save some compute time and it will make the bot smile at you :)
         '''
-        if state.args:
-            return state.args[0] in self.command_list
+        if state.command_host:
+            return self == state.command_host
         return False
 
     async def handle_message(self, state):
@@ -95,14 +96,9 @@ class Module:
         Defaults to checking the command list and passing the context to the command.
         '''
         if state.command_host == self:
-            await self.command_list[state.args[0]](self.host, state)
+            await self.command_list[state.command_name](self.host, state)
 
-    # mimicking promises :-)
-    # i think futures should cover this as well
-    # add coros and shit and doll this up a bunch
-    # reformat name scheme :)
     async def _http_get_request(domain):
-        # e6 fails w/o user agent
         async with aiohttp.ClientSession(headers={"user-agent":
                                                   "Government(Discord.py) / 0.02 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
                                                   }) as session:
@@ -114,21 +110,6 @@ class Module:
                     "text": text
                 }
 
-
-# decorator class for funky functions
-# self is redefined, and thus will not work.
-# give commands access to their parent module
-
-# implementing cooldowns:
-#       - Commands are constructed with an optional (ENUM?) scope, determining if the cooldown is per user, per channel, etc
-#           - If not set, default to some value indicating no cooldown
-#       - If a cooldown is present, the command needs to keep a record of the relevant unique ID, and check for it on run
-#       - If present, return a default cooldown message (can be set via the function wrapper)
-#       - An internal data structure would track ID keys and epochTime calls. If curTime > callTime + cooldown, clear the cooldown from the array
-#       - Use a Number input on the wrapper to determine cooldown -- if number present and no scope, default to user.
-#         If scope present and no number, default to 15sec
-#         If neither present, ignore cooldown.
-#         Note: functions without cooldown parameters should not bother checking. Just set it to None or something and perform a check in the call.
 
 class Command:
     '''Commands make up the bulk of each module, referring to a function of the bot.
@@ -157,6 +138,7 @@ class Command:
                 - message, referring to the passed message.
     '''
     def __init__(self, func, **kwargs):
+        # command_host could just as easily be passed here
         self.name = kwargs.get("name", func.__name__)
         # check if coroutine
         if not asyncio.iscoroutinefunction(func):
@@ -202,18 +184,13 @@ class Command:
                     # eh
                     return
         await self.func(host, state, *args, **kwargs)
-        # we guarantee it is set here, since if it wasn't it was set to the old time earlier.
-        if not uid == 0 and self.cooldown >= 4:  # one more check on uid
+        if not uid == 0 and self.cooldown >= 4:
             self.cooldown_array[uid] = time.time()
-            # in the event that we're running off the function call, set current time once the call finishes.
-            # if run, update to end of run. typically this should be set to 0
 
     def _get_cooldown_id(self, message):
         cool = None
         if self.cooldown is not None:
             cool = self.cooldown & 3
-        # uses scope values (no idea if the switch bundle is faster but whatever)
-        if cool == 0:
             return message.author.id
         elif cool == 1:
             return message.channel.id
@@ -241,8 +218,6 @@ class Command:
             return Command(func, *args, **kwargs)
         return wrapper
 
-    # receives command object, or alternatively performs a function and then receives the cooldown.
-    # messes with some easy values and bumps it out
     def cooldown(cmd=None, scope=Scope.CHANNEL, type=Scope.TIME, time=15):
         if cmd:
             cmd.cooldown = scope
@@ -255,3 +230,7 @@ class Command:
             return cmd
 
         return wrapper
+
+    def split(message):
+        args = re.split(" +", message)
+        return args

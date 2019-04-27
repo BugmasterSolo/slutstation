@@ -1,7 +1,6 @@
 # todo: modules build their help strings on init. strings are passed to the bot object, and the bot splices them together.
 #       thus, it's very easy to separate things out by module.
 
-import re
 import asyncio
 
 from discord import Client, Game
@@ -26,53 +25,44 @@ class State:
 
 class Government(Client):
     def __init__(self, prefix):
-        # dynamically import available modules and add them to internals
-        # append space when referring to the bot commands
         super().__init__()
         self.uptime = time.time()
         self.prefix = prefix
-        self.owner = 186944167308427264  # hello :)  used if the bot needs to do anything executive :)
+        self.owner = 186944167308427264
         print("Up and running!")
         self.module_list = []
         self.loop = asyncio.get_event_loop()
         self.loop.run_until_complete(self.import_all())
-        # ensuring commands don't overlap.
         self.unique_commands = {}
         for mod in self.module_list:
             for command in mod.command_list:
                 if command in self.unique_commands:
                     raise ValueError(f"Duplicate commands: {command} in {mod.__name__} and {self.unique_commands[command].__name__}")
-                # this might be pointless, if not implement it,
-                # it'll save some guts
                 self.unique_commands[command] = mod
-
-    # rework parsing of commands. the bot should only respond to mentions
-    # if they do not involve a command.
 
     async def on_ready(self):
         await self.change_presence(activity=Game(name="mike craft"))
 
-    # incorporate everything into the "message.author != self.user" check
     async def on_message(self, message):
         if message.author.id != self.user.id:
             trimmed_message = message.content
-            # instantiate args-- if args = none: no prefix.
-            args = None
             command_host = None
             if (trimmed_message.startswith(self.prefix)):
                 trimmed_message = trimmed_message.strip(self.prefix)
-                args = re.split(" +", trimmed_message)
-                if args[0] in self.unique_commands:
-                    # TODO: eliminate unique_commands, it's unwieldy and can be eliminated
-                    command_host = self.unique_commands[args[0]]
-            state = State(self, message, args=args, command_host=command_host)
+                word_cut = trimmed_message.find(" ")
+                command_name = None
+                if word_cut < 0:
+                    command_name = trimmed_message
+                else:
+                    command_name = trimmed_message[:word_cut]
+                command_host = self.unique_commands[command_name]
+            state = State(self, message, command_host=command_host, content=trimmed_message, command_name=command_name)
             for mod in self.module_list:
                 if await mod.check(state):
                     await mod.handle_message(state)
                     # guaranteed that commands only belong to one
                     break
 
-    # g :)
     async def import_all(self):
         await self.import_extension(module.Fun)
         await self.import_extension(module.NSFW)

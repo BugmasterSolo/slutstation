@@ -1,7 +1,7 @@
 from .base import Module, Command, Scope
 from discord import Embed
 import json
-import datetime
+import datetime # move to time!
 import random
 import xml.etree.ElementTree as ET
 # todo : move from datetime to time
@@ -11,19 +11,19 @@ class NSFW(Module):
     async def handle_message(self, state):
         if state.command_host == self:
             if not state.message.channel.nsfw:
-                await state.message.channel.send(f'```Command "{state.args[0]}" for NSFW channels only!```')
+                await state.message.channel.send(f'```Command "{state.command_name}" for NSFW channels only!```')
             else:
-                await self.command_list[state.args[0]](self.host, state)
+                await self.command_list[state.command_name](self.host, state)
 
     # TODO:
-    #   - implement per (user, guild, ...) cooldowns (DB?)
     #       - add bantags (please, per-server)
     @Command.cooldown(scope=Scope.CHANNEL, time=5)
     @Command.register(name="e621")
     async def esix(host, state):
         # check if the command is it
         chan = state.message.channel
-        tag_array, pagenum = await NSFW._parse_tags(state.args, chan)
+        args = Command.split(state.content)
+        tag_array, pagenum = await NSFW._parse_tags(args, chan)
         tagstring = ("+".join(tag_array))
         if pagenum is not None:
             tagstring += "&page=" + str(pagenum)
@@ -88,7 +88,8 @@ class NSFW(Module):
     @Command.register(name="rule34")
     async def rule34(host, state):
         chan = state.message.channel
-        tag_array, pagenum = await NSFW._parse_tags(state.args, chan)
+        args = Command.split(state.content)
+        tag_array, pagenum = await NSFW._parse_tags(args, chan)
         tagstring = "+".join(tag_array)
         url = f"https://rule34.xxx/index.php?page=dapi&s=post&q=index&limit=50&tags={tagstring}"
         if pagenum is not None:
@@ -121,3 +122,5 @@ class NSFW(Module):
                 response_embed.set_image(url=image_url)
                 response_embed.set_author(name="RULE34.XXX")
                 await chan.send(embed=response_embed)
+        else:
+            await chan.send("Response failed. Remind me to provide more info here :)")
