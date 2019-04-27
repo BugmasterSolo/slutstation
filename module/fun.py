@@ -221,7 +221,7 @@ class Fun(Module):
             timer = 30
             print(e)
         msg = msg[end_index + 1:].strip()
-        answer_list = re.split(" *\| *", msg)
+        answer_list = re.split("\s*\|\s*", msg)
         answer_count = len(answer_list)
         loop_list = range(0, answer_count)
         description = "*Duration: " + Fun.format_duration(timer) + "*\n\n"
@@ -284,15 +284,15 @@ class Fun(Module):
         if timer >= 3600:
             await asyncio.sleep(timer - 1800)
             warning = await chan.send(f"***30 minutes remaining: '{descrip}'***")
-            await asyncio.sleep(5)
+            await asyncio.sleep(60)
             await warning.delete()
-            timer = 1795
+            timer = 1740
         if timer >= 900:
             await asyncio.sleep(timer - 600)
             warning = await chan.send(f"***10 minutes remaining: '{descrip}'***")
-            await asyncio.sleep(5)
+            await asyncio.sleep(30)
             await warning.delete()
-            timer = 595
+            timer = 570
         if timer >= 300:
             await asyncio.sleep(timer - 180)
             warning = await chan.send("***3 minutes remaining!***")
