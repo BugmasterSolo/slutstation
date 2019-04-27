@@ -47,14 +47,16 @@ class Government(Client):
         if message.author.id != self.user.id:
             trimmed_message = message.content
             command_host = None
+            command_name = None
             if (trimmed_message.startswith(self.prefix)):
                 trimmed_message = trimmed_message.strip(self.prefix)
                 word_cut = trimmed_message.find(" ")
-                command_name = None
                 if word_cut < 0:
                     command_name = trimmed_message
                 else:
                     command_name = trimmed_message[:word_cut]
+                # this is dumb
+                trimmed_message = trimmed_message[word_cut:].strip()
                 command_host = self.unique_commands[command_name]
             state = State(self, message, command_host=command_host, content=trimmed_message, command_name=command_name)
             for mod in self.module_list:

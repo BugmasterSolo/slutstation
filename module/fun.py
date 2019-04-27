@@ -7,7 +7,8 @@ import random
 import json
 import asyncio
 import html
-import string
+import re
+from string import ascii_uppercase as letters
 
 
 class Fun(Module):
@@ -15,8 +16,9 @@ class Fun(Module):
     # also: this is a significant limitation of the current structure.
     # + i dont like it.
     MAX_INT = 4294967295
+    A_EMOJI = 0x0001F1E6
     FORTUNE_LIST = []
-    TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001F1E6", "\U0001F1E7", "\U0001F1E8", "\U0001F1E9", "\U0001F1EA", "\U0001F1EB", "\U0001F1EC", "\U0001F1ED", "\U0001F1EE", "\U0001F1EF", "\U0001F1F0", "\U0001F1F0", "\U0001F1F1")
+    TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001F1E6", "\U0001F1E7", "\U0001F1E8", "\U0001F1E9")
     # referred to from host, with command_host this can be a module value
     with open("./module/module_resources/fortune_cookie.json", "r") as fortune:
         FORTUNE_LIST = json.loads(fortune.read())
@@ -64,7 +66,7 @@ class Fun(Module):
     @Command.register(name="pushup")
     async def pushup(host, state):
         args = Command.split(state.content)
-        count = int(float(args[1]) + 1)
+        count = int(float(args[0]) + 1)
         await state.message.channel.send(f"that's cool but i can do {count} pushups")
 
     @Command.register(name="roll")
@@ -72,7 +74,6 @@ class Fun(Module):
         '''Operators are added automatically, separated by spaces.
            4d6 5d9 1d12 +4 -3 = 4 rolls of 6 side + 5 rolls of 9 side + 1 roll of 12 side, add 4, subtract 3.'''
         args = Command.split(state.content)
-        args.pop(0)
         print(args)
         sum = 0
         try:
@@ -131,82 +132,145 @@ class Fun(Module):
             type = triv['type']
             correct_index = None
             msg = None
+            # TODO: reduce diffeerences
             if type == "boolean":
                 correct_index = 0 if triv['correct_answer'] == "True" else 1
                 descrip = "*You have 20 seconds to answer the following question.*\n\nTrue or False:\n\n" + descrip
-                # not worth breaking out of this if statement for two lines lol
                 trivia_embed = Embed(title=f"{triv['category']} -- {triv['difficulty']}",
                                      description=descrip,
                                      color=0x8050ff)
-                msg = await chan.send(embed=trivia_embed)
-                await msg.add_reaction(Fun.TRIVIA_REACTION_LIST[0])
-                await msg.add_reaction(Fun.TRIVIA_REACTION_LIST[1])
+                char_list = [Fun.TRIVIA_REACTION_LIST[0], Fun.TRIVIA_REACTION_LIST[1]]
+                msg = await Fun.add_reactions(chan, trivia_embed, 15, loop=range(0, 2), char_list=char_list)
             elif type == "multiple":
                 answer_array = triv['incorrect_answers']
                 correct_index = random.randint(0, len(answer_array))
                 answer_array.insert(correct_index, triv['correct_answer'])
-                # hopefully general case isn't too necessary (bad string concat)
                 descrip = "*You have 20 seconds to answer the following question.*\n\n" + descrip + f"A) {answer_array[0]}\nB) {answer_array[1]}\nC) {answer_array[2]}\nD) {answer_array[3]}\n\n"
-                correct_index += 2  # abcd stored two indices over in the emoji str tuple
+                #
+                #
+                # use the unicode constant for this?
+                #
+                #
+                correct_index += 2
                 trivia_embed = Embed(title=f"{triv['category']} - {triv['difficulty']}",
                                      description=descrip,
                                      color=0x8050ff)
-                msg = await chan.send(embed=trivia_embed)
-                for i in range(2, 6):
-                    await msg.add_reaction(Fun.TRIVIA_REACTION_LIST[i])
-            await asyncio.sleep(10)
-            warning = await chan.send("*10 seconds remaining!*")
-            await asyncio.sleep(5)
-            await warning.delete()
-            await asyncio.sleep(5)
+                msg = await Fun.add_reactions(chan, trivia_embed, 15, loop=range(0, 4))
             # refresh the reaction list
             done = await chan.send("***Time's up!***")
-            msg_reactions = await chan.fetch_message(msg.id)
+            msg_reactions = await chan.fetch_message(msg)
             msg_reactions = msg_reactions.reactions
             correct_users = []
             incorrect_users = []
             for reaction in msg_reactions:
-                if str(reaction.emoji) in Fun.TRIVIA_REACTION_LIST:
-                    answer_index = Fun.TRIVIA_REACTION_LIST.index(str(reaction.emoji))
+                if str(reaction) in Fun.TRIVIA_REACTION_LIST:
+                    answer_index = Fun.TRIVIA_REACTION_LIST.index(str(reaction))
                     async for user in reaction.users():
                         if not user == host.user:
                             if answer_index == correct_index:
                                 if user not in incorrect_users:
                                     print(str(user.name) + " answered correctly!")
-                                    correct_users.append(user)
+                                    correct_users.append(user.id)
                             else:
                                 if user in correct_users:
                                     print(str(user.name) + " cheated!")
-                                    correct_users.remove(user)
+                                    correct_users.remove(user.id)
                                 else:
                                     print(str(user.name) + " was incorrect!")
-                                    incorrect_users.append(user)
+                                    incorrect_users.append(user.id)
             await done.delete()
             if len(correct_users) == 0:
                 await chan.send(f"Sorry, no one answered correctly.\nThe correct answer was {triv['correct_answer']}.")
             else:
-                user_ids = map(lambda u: "<@" + str(u.id) + ">", correct_users)
+                user_ids = map(lambda u: "<@" + str(u) + ">", correct_users)
                 return_string = f"The correct answer was {triv['correct_answer']}!\n\nCongratulations to " + ", ".join(user_ids) + " for answering correctly!"
                 await chan.send(return_string)
         else:
             chan.send("Could not fetch trivia questions from server.")
 
+    # todo: "reduce cyclomatic complexity"
+    # there's a lot of interdependent code in here
     @Command.register(name="poll")
     async def poll(host, state):
         chan = state.message.channel
-        args = Command.split(state.content)
-        args.pop(0)
-        timer = None
-        if len(args) < 2:
-            await chan.send("Make sure to provide both a time limit and a question name!")
+        msg = state.content
+        question = None
+        time = None
+        end_index = None
+        if msg[0] == "\"":  # user passed a question string
+            end_index = msg.find("\"", 1)
+            if end_index == -1:
+                await chan.send("Unclosed quote, sorry bud :(")
+                return
+            question = msg[1:end_index]
+        else:
+            await chan.send("Please put your questions in quotes or I can't find them.")
             return
-        args[0]
-        try:
-            timer = int(args[1])
-        except:
-            await chan.send("Please provide a duration for the poll.")
-            return
-        pass
+        msg = msg[end_index + 1:].strip()
+        end_index = msg.find(" ")
+        time = int(msg[:end_index])
+        msg = msg[end_index + 1:].strip()
+        answer_list = re.split(" *\| *", msg)
+        answer_count = len(answer_list)
+        loop_list = range(0, answer_count)
+        description = ""
+        for i in loop_list:
+            description += letters[i] + f") {answer_list[i]}\n"
+        question_embed = Embed(title=question, description=description, color=0x8050ff)
+        poll_id = await Fun.add_reactions(chan, question_embed, time, loop_list)
+        poll = await chan.fetch_message(poll_id)
+        poll_reactions = poll.reactions
+        poll_responses = [None] * answer_count
+        counted_users = []
+        for emoji in poll_reactions:
+            emoji_string = str(emoji)
+            if not emoji_string.startswith("<"):  # is not custom
+                unicode = ord(emoji_string) - Fun.A_EMOJI
+                if unicode < answer_count:
+                    tally = 0
+                    # switch to IDs.
+                    async for user in emoji.users():
+                        if not user == host.user and user.id not in counted_users:
+                            counted_users.append(user.id)
+                            tally += 1
+                    poll_responses[unicode] = tally
+        max = 0
+        maxindex = [0]
+        for i in loop_list:
+            tally = poll_responses[i]
+            if tally > max:
+                maxindex = [i]
+                max = tally
+            elif tally == max:
+                maxindex.append(i)
+        # deal with tie case
+        if max == 0:
+            await chan.send("No one voted :(")
+        elif len(maxindex) == 1:
+            await chan.send(f"{answer_list[maxindex[0]]} won with {max} votes!")
+        else:
+            top_answers = ", ".join(map(lambda i: answer_list[i], maxindex))
+            await chan.send(f"{top_answers} tied with {max} votes!")
+
+    async def add_reactions(chan, embed, time, loop=None, char_list=None):
+        poll = await chan.send(embed=embed)
+        # specifics!
+        if char_list:
+            for emote in char_list:
+                await poll.add_reaction(emote)
+        else:
+            for i in loop:
+                await poll.add_reaction(chr(Fun.A_EMOJI + i))
+        if time > 10:
+            await asyncio.sleep(time - 10)
+            warning = await chan.send("***10 seconds remaining!***")
+            await asyncio.sleep(5)
+            await warning.delete()
+            await asyncio.sleep(5)
+        else:
+            await asyncio.sleep(time)
+        return poll.id
+        # jump back into loop
 
     # 32 bit xorshift. used for state dependent PRNG.
     def _xorshift(num):

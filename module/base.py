@@ -159,9 +159,6 @@ class Command:
         if not uid == 0:
             cur_time = time.time()
             call_time = self.cooldown_array.get(uid)
-            # if 0, no cooldown. call function.
-            # else, add the relevant uid to the cooldown array with the time if there is no cooldown.
-            # dict is O(1) (WC O(n)), all of our keys are 64 bit ints so should be safe
             if call_time is None:
                 # poppin
                 if self.cooldown >= 4:

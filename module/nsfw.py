@@ -1,7 +1,7 @@
 from .base import Module, Command, Scope
 from discord import Embed
 import json
-import datetime # move to time!
+import datetime  # move to time!
 import random
 import xml.etree.ElementTree as ET
 # todo : move from datetime to time
@@ -70,7 +70,6 @@ class NSFW(Module):
         # worry about edge cases in a sec
 
     async def _parse_tags(tag_array, chan):
-        tag_array.pop(0)
         pagenum = None
         if len(tag_array) >= 1 and tag_array[-1].startswith("page"):
             pagenum = tag_array.pop(-1)

@@ -13,7 +13,7 @@ class Steam(Module):
     async def steamid(host, state):
         await state.message.channel.trigger_typing()
         args = Command.split(state.content)
-        userID = args[1]
+        userID = args[0]
         response = await state.command_host.steam_profile_request(userID)
         # make status check
         #   There's not really a way for the function to halt up. We could throw an exception on 404 but that's a bit lame
