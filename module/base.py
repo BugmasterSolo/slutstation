@@ -43,6 +43,9 @@ class Module:
     This pretty much mimicks the "discord.ext.commands.Cog" functionality,
     or at least that is the goal.
     '''
+
+    QUOTE_TYPES = "\"“”'"
+
     # getting the event loop inside of the module and passing it to all of the functions.
     def __init__(self, host, *args, **kwargs):
         self.command_list = {}
@@ -109,6 +112,16 @@ class Module:
                     "status": resp.status,
                     "text": text
                 }
+
+    def get_closing_quote(quote):
+        # add relevant exceptions
+        if quote in Module.QUOTE_TYPES:
+            if quote == "“":
+                return "”"
+            elif quote == "”":
+                return "“"
+            else:
+                return quote
 
 
 class Command:

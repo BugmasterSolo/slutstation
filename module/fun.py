@@ -76,13 +76,11 @@ class Fun(Module):
         '''Operators are added automatically, separated by spaces.
            4d6 5d9 1d12 +4 -3 = 4 rolls of 6 side + 5 rolls of 9 side + 1 roll of 12 side, add 4, subtract 3.'''
         args = Command.split(state.content)
-        print(args)
         sum = 0
         try:
             for index in range(len(args)):
                 roll = args[index]
                 if "d" in roll:  # dice roll
-                    print(roll)
                     rollstat = roll.split("d")
                     dicecount = int(rollstat[0])
                     rollmax = int(rollstat[1])
@@ -94,7 +92,6 @@ class Fun(Module):
                         sum += random.randint(1, rollmax)
                         dicecount -= 1
                 else:
-                    print("test")
                     int_roll = int(roll)
                     sum += int_roll
                     # fix display
@@ -201,8 +198,10 @@ class Fun(Module):
         question = None
         timer = None
         end_index = None
-        if msg[0] == "\"":  # user passed a question string
-            end_index = msg.find("\"", 1)
+        quote = None
+        if msg[0] in Fun.QUOTE_TYPES:  # user passed a question string
+            quote = Module.get_closing_quote(msg[0])
+            end_index = msg.find(quote, 1)
             if end_index == -1:
                 await chan.send("Unclosed quote, sorry bud :(")
                 return
@@ -214,13 +213,13 @@ class Fun(Module):
         end_index = msg.find(" ")
         try:
             timer = int(msg[:end_index])
+            msg = msg[end_index + 1:].strip()
             if timer < 0:
                 chan.send("alright smartass cut it with the negative polls")
                 return
         except Exception as e:
             timer = 30
             print(e)
-        msg = msg[end_index + 1:].strip()
         answer_list = re.split("\s*\|\s*", msg)
         answer_count = len(answer_list)
         loop_list = range(0, answer_count)
