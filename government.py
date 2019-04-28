@@ -1,11 +1,14 @@
 # todo: modules build their help strings on init. strings are passed to the bot object, and the bot splices them together.
 #       thus, it's very easy to separate things out by module.
+# yield: generator (pauses on yield, can be picked back up)
 
 import asyncio
 
 from discord import Client, Game
 import module
 import time
+import json
+import aiomysql as sql
 # import all modules, construct them in the bot code
 # commands will be parsed with spaces
 # todo: fast dict traversal for double checking long lists!
@@ -32,13 +35,22 @@ class Government(Client):
         print("Up and running!")
         self.module_list = []
         self.loop = asyncio.get_event_loop()
+        self.db = None
+        self.cur = None
         self.loop.run_until_complete(self.import_all())
+        self.loop.run_until_complete(self.create_db())
         self.unique_commands = {}
         for mod in self.module_list:
             for command in mod.command_list:
                 if command in self.unique_commands:
                     raise ValueError(f"Duplicate commands: {command} in {mod.__name__} and {self.unique_commands[command].__name__}")
                 self.unique_commands[command] = mod
+
+    async def create_db(self):
+        sql_cred_array = None
+        with open("db_token.json", "r") as f:
+            sql_cred_array = json.loads(f.read().strip())
+        self.db = await sql.create_pool(loop=self.loop, **sql_cred_array)
 
     async def on_ready(self):
         await self.change_presence(activity=Game(name="mike craft"))

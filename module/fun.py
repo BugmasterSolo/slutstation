@@ -139,7 +139,7 @@ class Fun(Module):
                                      description=descrip,
                                      color=0x8050ff)
                 char_list = [Fun.TRIVIA_REACTION_LIST[0], Fun.TRIVIA_REACTION_LIST[1]]
-                msg = await Fun.add_reactions(chan, trivia_embed, 15, loop=range(0, 2), char_list=char_list)
+                msg = await Fun.add_reactions(chan, trivia_embed, 20, loop=range(2), char_list=char_list)
             elif type == "multiple":
                 answer_array = triv['incorrect_answers']
                 correct_index = random.randint(0, len(answer_array))
@@ -154,7 +154,7 @@ class Fun(Module):
                 trivia_embed = Embed(title=f"{triv['category']} - {triv['difficulty']}",
                                      description=descrip,
                                      color=0x8050ff)
-                msg = await Fun.add_reactions(chan, trivia_embed, 15, loop=range(0, 4))
+                msg = await Fun.add_reactions(chan, trivia_embed, 20, loop=range(4))
             # refresh the reaction list
             done = await chan.send("***Time's up!***")
             msg_reactions = await chan.fetch_message(msg)
@@ -169,21 +169,32 @@ class Fun(Module):
                             if answer_index == correct_index:
                                 if user not in incorrect_users:
                                     print(str(user.name) + " answered correctly!")
-                                    correct_users.append(user.id)
+                                    correct_users.append(user)
                             else:
                                 if user in correct_users:
                                     print(str(user.name) + " cheated!")
-                                    correct_users.remove(user.id)
+                                    correct_users.remove(user)
+                                    incorrect_users.append(user)
                                 else:
                                     print(str(user.name) + " was incorrect!")
-                                    incorrect_users.append(user.id)
+                                    incorrect_users.append(user)
             await done.delete()
             if len(correct_users) == 0:
                 await chan.send(f"Sorry, no one answered correctly.\nThe correct answer was {triv['correct_answer']}.")
             else:
-                user_ids = map(lambda u: "<@" + str(u) + ">", correct_users)
+                user_ids = map(lambda u: "<@" + str(u.id) + ">", correct_users)
                 return_string = f"The correct answer was {triv['correct_answer']}!\n\nCongratulations to " + ", ".join(user_ids) + " for answering correctly!"
                 await chan.send(return_string)
+            # this is at the end so it can all occur behind the scenes
+            async with host.db.acquire() as conn:
+                async with conn.cursor() as cur:
+                    for user in correct_users:
+                        await Command.checkuser(cur, user)
+                        await cur.callproc("TRIVIACALL", (True, user.id))
+                    for user in incorrect_users:
+                        await Command.checkuser(cur, user)
+                        await cur.callproc("TRIVIACALL", (False, user.id))
+                await conn.commit()  # im retadad
         else:
             chan.send("Could not fetch trivia questions from server.")
 
@@ -262,7 +273,6 @@ class Fun(Module):
             result_string = f"***Result: '{answer_list[maxindex[0]]}' won with {max} votes!***"
         else:
             top_answers = ", ".join(map(lambda i: answer_list[i], maxindex))
-            # highlighting the winners in the embed? nah too much work
             result_string = f"***Result: '{top_answers}' tied with {max} votes!***"
         notify = await chan.send(result_string)
         await asyncio.sleep(5)

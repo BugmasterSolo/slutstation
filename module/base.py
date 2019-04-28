@@ -244,3 +244,7 @@ class Command:
     def split(message):
         args = re.split(" +", message)
         return args
+
+    async def checkuser(cur, user):
+        await cur.callproc("USEREXISTS", (user.id, user.name))
+        # more checks might be necessary who knows
