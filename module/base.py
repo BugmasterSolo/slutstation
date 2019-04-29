@@ -251,5 +251,5 @@ class Command:
         return args
 
     async def checkuser(cur, user):
-        await cur.callproc("USEREXISTS", (user.id, user.name))
+        await cur.callproc("USEREXISTS", (user.id, f"{user.name}#{user.discriminator}"))
         # more checks might be necessary who knows
