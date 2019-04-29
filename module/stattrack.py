@@ -5,7 +5,7 @@ import re
 
 class Stattrack(Module):
     async def check(self, state):
-        if not state.command_host:
+        if not state.command_host and not state.message.author.bot:
             # read the message content, ensure it's None (if not, ignore, even if invalid).
             # multiple shorter messages take priority
             # might want to move this into a separate thread later

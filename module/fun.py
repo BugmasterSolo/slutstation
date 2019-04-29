@@ -118,6 +118,7 @@ class Fun(Module):
     #       - Modify trivia around cooldown -- trivia should be able to run based on its cooldown.
     #       - add cooldown in, but have a Trivia module that keeps track of the time since last "Money Q".
     #       - unfortunately this requires an extra time check outside of the cooldown scope, but that's fine in this 1/1000 case.
+    # https://opentdb.com/api.php?amount=10&category=17
     @Command.cooldown(scope=Scope.CHANNEL, time=0, type=Scope.RUN)
     @Command.register(name="trivia")
     async def trivia(host, state):
