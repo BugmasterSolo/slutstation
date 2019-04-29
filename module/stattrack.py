@@ -11,7 +11,7 @@ class Stattrack(Module):
             # might want to move this into a separate thread later
             strleng = len(state.content)
             if not strleng <= 0:
-                strleng = math.floor(math.log(len(strleng)) * 3)
+                strleng = math.floor(math.log(strleng) * 3)
             # for exp
             n_counter = re.findall("(nigg\w+|nig\s+)", state.content)
             # if you say niggardly you are getting penalized smartass
