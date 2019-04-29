@@ -9,7 +9,9 @@ class Stattrack(Module):
             # read the message content, ensure it's None (if not, ignore, even if invalid).
             # multiple shorter messages take priority
             # might want to move this into a separate thread later
-            strleng = math.floor(math.log(len(state.content)) * 3)
+            strleng = len(state.content)
+            if not strleng <= 0:
+                strleng = math.floor(math.log(len(strleng)) * 3)
             # for exp
             n_counter = re.findall("(nigg\w+|nig\s+)", state.content)
             # if you say niggardly you are getting penalized smartass
