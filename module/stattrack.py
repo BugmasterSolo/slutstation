@@ -26,3 +26,4 @@ class Stattrack(Module):
                     await Command.checkuser(cur, auth)
                     await cur.callproc("MESSAGE", (auth.id, strleng, hard, soft))
                 await conn.commit()
+        return False
