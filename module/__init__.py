@@ -16,3 +16,4 @@ from .base import Module, Command
 from .fun import *
 from .nsfw import *
 from .steam import *
+from .stattrack import *
