@@ -105,8 +105,6 @@ class MusicPlayer:
                 return
             channel = None
             try:
-                print(source.author)
-                print(source.author.voice)
                 channel = source.author.voice.channel
 
             except Exception as e:
@@ -166,6 +164,9 @@ class Player(Module):
     @Command.register(name="play")
     async def play(host, state):
         # call the proper instance of ytdl
+        if not state.message.author.voice:
+            await state.message.channel.send("Please join a voice channel first!")
+            return
         player = state.command_host.active_players.get(state.message.guild.id)
         if player and player.active_vc.is_paused():
             player.active_vc.resume()
