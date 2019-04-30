@@ -61,7 +61,7 @@ class Government(Client):
             command_host = None
             command_name = None
             if (trimmed_message.startswith(self.prefix)):
-                trimmed_message = trimmed_message.strip(self.prefix)
+                trimmed_message = trimmed_message[len(self.prefix):]
                 word_cut = trimmed_message.find(" ")
                 if word_cut < 0:
                     command_name = trimmed_message
