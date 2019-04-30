@@ -193,9 +193,13 @@ class Command:
                         await state.message.channel.send(f"`That function is on cooldown for {self.cooltime - abs(time_diff):.2f} more seconds.`")
                     # eh
                     return
-
+        try:
             await self.func(host, state, *args, **kwargs)
-
+        except Exception as e:
+            print(f"Function {self.name} threw an error. Watch out for this one: ")
+            for key in e:
+                print(e[key])
+            pass
         if not uid == 0 and self.cooldown >= 4:
             self.cooldown_array[uid] = time.time()
 
