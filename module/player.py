@@ -108,6 +108,7 @@ class MusicPlayer:
         host.loop.create_task(self.player())
         self.active_vc = None
         self.parent = player
+        self.voice_channel = state.message.author.voice.channel
 
     async def player(self):
         source = None
@@ -127,7 +128,7 @@ class MusicPlayer:
                 return
             channel = None
             try:
-                channel = source.author.voice.channel
+                channel = self.voice_channel
 
             except Exception as e:
                 print("hehemoment")
