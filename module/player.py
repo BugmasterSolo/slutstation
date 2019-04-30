@@ -8,7 +8,7 @@ from youtube_dl import YoutubeDL
 import os
 
 opts = {
-    "outtmpl": "~/Desktop/filecache/%(title)s.%(ext)s",  # temporary storage only. files are deleted after play; no limits yet :)
+    "outtmpl": "~/Desktop/filecache/%(title)s+%(epoch)s.%(ext)s",  # temporary storage only. files are deleted after play; no limits yet :)
     "format": "bestaudio/best",
     "default_search": "auto",
     "restrict_filenames": True
@@ -70,7 +70,17 @@ class YTPlayer:
     async def format_source_local(cls, host, state, url: str):
         loop = host.loop
         infop = partial(ytdl.extract_info, url=url, download=True)  # partial bundles a function and args into a single callable
-        data = await loop.run_in_executor(None, infop)  # asyncs synchronous function
+        try:
+            data = await loop.run_in_executor(None, infop)  # asyncs synchronous function
+        except PermissionError:
+            await state.message.channel.send("Look, something went wrong. I'm sorry.")
+            # ahaha
+            # no joke: deal with this exception soon. something along the lines of:
+            #   - fetch the false download case
+            #   - prepare the file anyway
+            #   - add a prng string based on some ambient system variables
+            #   - cross fingers and hope
+            pass
 
         if 'entries' in data:
             data = data['entries'][0]
