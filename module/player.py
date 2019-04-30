@@ -17,6 +17,7 @@ opts = {
 ytdl = YoutubeDL(opts)
 
 
+# hodged solution -- resolve quick + soon
 class StreamContainer:
     def __init__(self, source, data, message, loop, loc):
         self.page_url = data['webpage_url']
@@ -117,7 +118,7 @@ class MusicPlayer:
                     self.directory = source.dir
             except asyncio.TimeoutError:
                 await self.source.channel.send("Disconnecting from current voice channel.")
-                await self.destroy()
+                await self.destroy(self.directory)
                 return
             channel = None
             try:
@@ -126,7 +127,7 @@ class MusicPlayer:
             except Exception as e:
                 print("hehemoment")
                 print(e)
-                await self.destroy()
+                await self.destroy(self.directory)
             stream = None
             if isinstance(source, YTPlayer):
                 try:
