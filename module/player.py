@@ -4,17 +4,22 @@ from .base import Module, Command
 from functools import partial
 import asyncio
 import async_timeout
+import time
 from youtube_dl import YoutubeDL
 import os
 
 opts = {
-    "outtmpl": "~/Desktop/filecache/%(title)s+%(epoch)s.%(ext)s",  # temporary storage only. files are deleted after play; no limits yet :)
+    "outtmpl": "~/Desktop/filecache/%(title)s.%(ext)s",  # temporary storage only. files are deleted after play; no limits yet :)
     "format": "bestaudio/best",
     "default_search": "auto",
     "restrict_filenames": True
 }  # add later
 
 ytdl = YoutubeDL(opts)
+
+stream_history = {}
+
+# set up a once/hour loop that removes unused files from here
 
 
 # hodged solution -- resolve quick + soon
@@ -51,25 +56,9 @@ class YTPlayer:
         # apparently we can't save the stream but might be worth? nah probably not
 
     @classmethod
-    async def format_source(cls, host, state, url: str):
-        loop = host.loop
-        infop = partial(ytdl.extract_info, url=url, download=False)  # partial bundles a function and args into a single callable
-        data = await loop.run_in_executor(None, infop)  # asyncs synchronous function
-
-        if 'entries' in data:
-            data = data['entries'][0]
-            # tbd: get the whole playlist as YTPlayers
-        descrip = f"*{data['title']}\nby {data['uploader']}*"
-        response_embed = discord.Embed(title="Added to queue!", color=0xff0000,
-                                       description=descrip)
-        response_embed.set_thumbnail(url=data['thumbnail'])
-        await state.message.channel.send(embed=response_embed)
-        return cls(data=data, message=state.message, loop=loop)
-
-    @classmethod
     async def format_source_local(cls, host, state, url: str):
         loop = host.loop
-        infop = partial(ytdl.extract_info, url=url, download=True)  # partial bundles a function and args into a single callable
+        infop = partial(ytdl.extract_info, url=url, download=False)  # partial bundles a function and args into a single callable
         try:
             data = await loop.run_in_executor(None, infop)  # asyncs synchronous function
         except PermissionError:
@@ -85,7 +74,13 @@ class YTPlayer:
         if 'entries' in data:
             data = data['entries'][0]
             # tbd: get the whole playlist as YTPlayers
+        # no way to get the path prior to search -- this works though
         source = ytdl.prepare_filename(data)
+        if not os.path.exists(source):
+            infop = partial(ytdl.extract_info, url=url, download=True)
+            data = await loop.run_in_executor(None, infop)
+            if 'entries' in data:
+                data = data['entries'][0]
         descrip = f"*{data['title']}\nby {data['uploader']}*"
         response_embed = discord.Embed(title="Added to queue!", color=0xff0000,
                                        description=descrip)
@@ -100,6 +95,7 @@ class YTPlayer:
         return discord.FFmpegPCMAudio(data['url'])
 
 
+# need some sort of key/val structure to remove files that haven't been called in 24 hours
 class MusicPlayer:
     def __del__(self):
         print("im gone")
@@ -111,7 +107,6 @@ class MusicPlayer:
         self.state = asyncio.Event()
         host.loop.create_task(self.player())
         self.active_vc = None
-        self.directory = None
         self.parent = player
 
     async def player(self):
@@ -125,7 +120,7 @@ class MusicPlayer:
                 # waits 60 seconds until the item is available
                 async with async_timeout.timeout(60):
                     source = await self.queue.get()
-                    self.directory = source.dir
+                    stream_history[source.dir] = time.time()
             except asyncio.TimeoutError:
                 await self.source.channel.send("Disconnecting from current voice channel.")
                 await self.destroy(self.directory)
@@ -157,22 +152,24 @@ class MusicPlayer:
                                       icon_url=source.author.avatar_url_as(static_format="png", size=128))
             self.active_vc.play(stream, after=lambda _: self.host.loop.call_soon_threadsafe(self.state.set))  # ok this lambda carried over
             await source.message_host.send(embed=response_embed)
-
+            print("waiting...")
             await self.state.wait()
             print("song finished!")
             stream.cleanup()
+            print("stream cleaned!")
             if self.queue.empty():
                 break
                 # destroy player here as well
         # loop over. destroy this instance.
-        await self.destroy(source.dir)
+        print("loop broken.")
+        await self.destroy()
 
-    async def destroy(self, dir):
+    # evidently disconnecting the vc calls destroy
+    # incorporating this into the del statement may be more reliable
+    async def destroy(self, isStopped=False):
         await self.active_vc.disconnect()
-        file_cleanup = partial(os.remove, path=dir)
-        await self.host.loop.run_in_executor(None, file_cleanup)
-        self.parent.pop_player(self.source.guild.id)
-        print(self.parent.active_players)
+        if not isStopped:
+            self.parent.pop_player(self.source.guild.id)
         del self
 
 
@@ -181,7 +178,6 @@ class Player(Module):
     def __init__(self, host, *args, **kwargs):
         super().__init__(host, *args, **kwargs)
         self.active_players = {}
-        self.isPaused = False
 
     def get_player(self, host, state):
         player = self.active_players.get(state.message.guild.id)
@@ -227,4 +223,4 @@ class Player(Module):
     async def stop(host, state):
         player = state.command_host.active_players.get(state.message.guild.id)
         if player:
-            await player.destroy(player.directory)
+            await player.destroy(True)
