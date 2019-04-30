@@ -17,3 +17,4 @@ from .fun import *
 from .nsfw import *
 from .steam import *
 from .stattrack import *
+from .player import *

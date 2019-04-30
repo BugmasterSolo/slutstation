@@ -71,7 +71,7 @@ class Government(Client):
                 trimmed_message = trimmed_message[word_cut:].strip()
                 # will default it to none + string checks for invalid input
                 command_host = self.unique_commands.get(command_name, "INVALID")
-            state = State(self, message, command_host=command_host, content=trimmed_message, command_name=command_name)
+            state = State(host=self, message=message, command_host=command_host, content=trimmed_message, command_name=command_name)
             for mod in self.module_list:
                 if await mod.check(state):
                     await mod.handle_message(state)
@@ -83,6 +83,7 @@ class Government(Client):
         await self.import_extension(module.NSFW)
         await self.import_extension(module.Steam)
         await self.import_extension(module.Stattrack)
+        await self.import_extension(module.Player)
 
     async def import_extension(self, cls):
         try:
