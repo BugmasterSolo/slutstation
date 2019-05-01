@@ -175,7 +175,10 @@ class MusicPlayer:
             else:
                 stream = source.source
             if not self.active_vc:
+                # bot crashes here if channel is private
+                print("here?")
                 self.active_vc = await channel.connect()
+                print("here")
             print("here")
             descrip = f"*{source.title}\nby {source.channel}*\n\n{source.description}"
             response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip)
