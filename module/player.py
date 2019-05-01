@@ -112,10 +112,10 @@ class MusicPlayer:
         self.source = state.message  # one player to a guild, you can't have the bot all to yourself
         self.queue = asyncio.Queue()
         self.state = asyncio.Event()
-        host.loop.create_task(self.player())
         self.active_vc = None
         self.parent = player
         self.voice_channel = state.message.author.voice.channel
+        host.loop.create_task(self.player())
 
     async def player(self):
         source = None
@@ -136,7 +136,6 @@ class MusicPlayer:
             channel = None
             try:
                 channel = self.voice_channel
-
             except Exception as e:
                 print("hehemoment")
                 print(e)
@@ -154,10 +153,12 @@ class MusicPlayer:
             if not self.active_vc:
                 self.active_vc = await channel.connect()
 
-            descrip = f"*{source.title}\nby {source.channel}*\n\n{source.description}"
-            response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip, thumbnail=source.thumb)
+            descrip = f"*{source.title}\nby {source.channel}*\n\n{source.description}```"
+            response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip)
+            response_embed.set_thumbnail(url=source.thumb)
             response_embed.set_footer(text=f"Added by {source.author.name}#{source.author.discriminator}",
                                       icon_url=source.author.avatar_url_as(static_format="png", size=128))
+            # TODO: add ".stop" here to shut the bot up
             self.active_vc.play(stream, after=lambda _: self.host.loop.call_soon_threadsafe(self.state.set))  # ok this lambda carried over
             await source.message_host.send(embed=response_embed)
             print("waiting...")
@@ -173,10 +174,10 @@ class MusicPlayer:
         await self.destroy()
 
     # evidently disconnecting the vc calls destroy
-    async def destroy(self, isStopped=False):
+    async def destroy(self):
+        self.active_vc.stop()
         await self.active_vc.disconnect()
-        if not isStopped:
-            self.parent.pop_player(self.source.guild.id)
+        self.parent.pop_player(self.source.guild.id)
         del self
 
 
@@ -230,5 +231,8 @@ class Player(Module):
     @Command.register(name="stop")
     async def stop(host, state):
         player = state.command_host.active_players.get(state.message.guild.id)
+        temp = player.queue
+        del temp
+        player.queue = asyncio.Queue()
         if player:
-            await player.destroy(True)
+            player.active_vc.stop()
