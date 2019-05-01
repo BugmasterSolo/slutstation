@@ -32,6 +32,7 @@ class Government(Client):
         self.uptime = time.time()
         self.prefix = prefix
         self.owner = 186944167308427264
+        self.logged_users = {}
         print("Up and running!")
         self.module_list = []
         self.loop = asyncio.get_event_loop()

@@ -25,7 +25,7 @@ class Stattrack(Module):
                     soft += 1
             async with self.host.db.acquire() as conn:
                 async with conn.cursor() as cur:
-                    await Command.checkuser(cur, auth)
+                    await Command.checkuser(cur, auth, state.host)  # i dont like that we have to resend the host
                     await cur.callproc("MESSAGE", (auth.id, strleng, hard, soft))
                 await conn.commit()
         return False

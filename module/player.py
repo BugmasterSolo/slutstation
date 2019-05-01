@@ -11,6 +11,7 @@ import os
 opts = {
     "outtmpl": "~/Desktop/filecache/%(title)s.%(ext)s",  # temporary storage only. files are deleted after play; no limits yet :)
     "format": "bestaudio/best",
+    "noplaylist": True,
     "default_search": "auto",
     "restrict_filenames": True
 }  # add later
@@ -40,6 +41,8 @@ class StreamContainer:
 
 
 # massive cred: https://gist.github.com/EvieePy/ab667b74e9758433b3eb806c53a19f34
+# i don't think i would understand this shit otherwise
+# btw: every uptight prick shit in the discordpy issue comments can eat shit
 class YTPlayer:
     def __init__(self, *, data, message, loop):
         self.page_url = data['webpage_url']
@@ -55,6 +58,10 @@ class YTPlayer:
         # init'd on add, this is ok.
         # apparently we can't save the stream but might be worth? nah probably not
 
+    # If you want to find out whether a given URL is supported, simply call youtube-dl with it.
+    # If you get no videos back, chances are the URL is either not referring to a video or unsupported.
+    # You can find out which by examining the output (if you run youtube-dl on the console) or catching an
+    # UnsupportedError exception if you run it from a Python program.
     @classmethod
     async def format_source_local(cls, host, state, url: str):
         loop = host.loop
@@ -166,7 +173,6 @@ class MusicPlayer:
         await self.destroy()
 
     # evidently disconnecting the vc calls destroy
-    # incorporating this into the del statement may be more reliable
     async def destroy(self, isStopped=False):
         await self.active_vc.disconnect()
         if not isStopped:
@@ -175,6 +181,7 @@ class MusicPlayer:
 
 
 # todo: add proper exception for invalid URL
+# run through some edge case tests over the next few days
 class Player(Module):
     def __init__(self, host, *args, **kwargs):
         super().__init__(host, *args, **kwargs)
@@ -197,7 +204,7 @@ class Player(Module):
             await state.message.channel.send("Please join a voice channel first!")
             return
         player = state.command_host.active_players.get(state.message.guild.id)
-        if player and player.active_vc.is_paused():
+        if player is not None and player.active_vc.is_paused():
             player.active_vc.resume()
         url = Command.split(state.content)
         print(url)

@@ -8,6 +8,9 @@ import re
 from enum import Enum
 # we're doing it all from scratch baby
 
+# todo: get on the more complex asyncio stuff (events, queues, etc -- those were extremely helpful in the YT player
+#                                              and I guarantee they will be helpful elsewhere as well :)
+
 
 # lower two bits: cooldown scope.
 # upper bit: cooldown type.
@@ -99,7 +102,7 @@ class Module:
         Defaults to checking the command list and passing the context to the command.
         '''
         if state.command_host == self:
-            await self.command_list[state.command_name](self.host, state)
+            await self.command_list[state.command_name](self.host, state)  # TODO: get rid of host in all cases, since it's included in "state"
 
     async def _http_get_request(domain):
         async with aiohttp.ClientSession(headers={"user-agent":
@@ -251,6 +254,10 @@ class Command:
         args = re.split(" +", message)
         return args
 
-    async def checkuser(cur, user):
-        await cur.callproc("USEREXISTS", (user.id, f"{user.name}#{user.discriminator}"))
+    async def checkuser(cur, user, host):
+        isLogged = host.logged_users.get(user.id)
+        if not isLogged:
+            await cur.callproc("USEREXISTS", (user.id, f"{user.name}#{user.discriminator}"))
+            host.logged_users[user.id] = True  # ensures above logic passes
+            print(host.logged_users)
         # more checks might be necessary who knows
