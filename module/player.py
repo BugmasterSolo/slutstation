@@ -20,12 +20,28 @@ ytdl = YoutubeDL(opts)
 
 stream_history = {}
 
+
+async def check_stream_history():
+    print("ok")
+    while True:
+        curtime = time.time()
+        for key in stream_history:
+            past = curtime - stream_history[key]
+            if past > 86399:
+                stream_history.pop(key)
+                os.path.remove(key)
+        await asyncio.sleep(3600)
+
+loop = asyncio.get_event_loop()
+
+loop.create_task(check_stream_history())
+
 # set up a once/hour loop that removes unused files from here
 
 
 # hodged solution -- resolve quick + soon
 class StreamContainer:
-    def __init__(self, source, data, message, loop, loc):
+    def __init__(self, source, data, message, loc):
         self.page_url = data['webpage_url']
         self.author = message.author
         self.title = data['title']
@@ -33,7 +49,6 @@ class StreamContainer:
         self.description = data['description'][:200]
         self.channel = data['uploader']
         self.message_host = message.channel
-        self.loop = loop
         self.source = source
         self.dir = loc
         if len(self.description) >= 200:
@@ -44,7 +59,7 @@ class StreamContainer:
 # i don't think i would understand this shit otherwise
 # btw: every uptight prick shit in the discordpy issue comments can eat shit
 class YTPlayer:
-    def __init__(self, *, data, message, loop):
+    def __init__(self, *, data, message):
         self.page_url = data['webpage_url']
         self.author = message.author
         self.title = data['title']
@@ -52,7 +67,6 @@ class YTPlayer:
         self.description = data['description'][:200]
         self.channel = data['uploader']
         self.message_host = message.channel
-        self.loop = loop
         if len(self.description) >= 200:
             self.description += "..."
         # init'd on add, this is ok.
@@ -63,11 +77,9 @@ class YTPlayer:
     # You can find out which by examining the output (if you run youtube-dl on the console) or catching an
     # UnsupportedError exception if you run it from a Python program.
     @classmethod
-    async def format_source_local(cls, host, state, url: str):
-        loop = host.loop
-        infop = partial(ytdl.extract_info, url=url, download=False)  # partial bundles a function and args into a single callable
+    async def format_source_local(cls, host, state, url: str):  # partial bundles a function and args into a single callable
         try:
-            data = await loop.run_in_executor(None, infop)  # asyncs synchronous function
+            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=False))  # asyncs synchronous function
         except PermissionError:
             await state.message.channel.send("Look, something went wrong. I'm sorry.")
             # ahaha
@@ -84,8 +96,7 @@ class YTPlayer:
         # no way to get the path prior to search -- this works though
         source = ytdl.prepare_filename(data)
         if not os.path.exists(source):
-            infop = partial(ytdl.extract_info, url=url, download=True)
-            data = await loop.run_in_executor(None, infop)
+            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=True))
             if 'entries' in data:
                 data = data['entries'][0]
         descrip = f"*{data['title']}\nby {data['uploader']}*"
@@ -94,11 +105,10 @@ class YTPlayer:
         response_embed.set_thumbnail(url=data['thumbnail'])
         await state.message.channel.send(embed=response_embed)
 
-        return StreamContainer(source=discord.FFmpegPCMAudio(source), data=data, message=state.message, loop=loop, loc=source)
+        return StreamContainer(source=discord.FFmpegPCMAudio(source), data=data, message=state.message, loc=source)
 
     async def tether_stream(self):
-        infop = partial(ytdl.extract_info, url=self.page_url, download=False)
-        data = await self.loop.run_in_executor(None, infop)
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=self.page_url, download=False))
         return discord.FFmpegPCMAudio(data['url'])
 
 
@@ -115,7 +125,7 @@ class MusicPlayer:
         self.active_vc = None
         self.parent = player
         self.voice_channel = state.message.author.voice.channel
-        host.loop.create_task(self.player())
+        loop.create_task(self.player())
 
     async def player(self):
         source = None
@@ -128,7 +138,13 @@ class MusicPlayer:
                 # waits 60 seconds until the item is available
                 async with async_timeout.timeout(60):
                     source = await self.queue.get()
+                    if not os.path.exists(source.dir):
+                        # our stream expired in the interim, refetch
+                        # prepare as object with implicit params
+                        # use lambda lol
+                        await loop.run_in_executor(None, lambda: ytdl.extract_info(url=source.page_url, download=True))  # download is predictable
                     stream_history[source.dir] = time.time()
+                    print(stream_history[source.dir])
             except asyncio.TimeoutError:
                 await self.source.channel.send("Disconnecting from current voice channel.")
                 await self.destroy(self.directory)
@@ -153,13 +169,13 @@ class MusicPlayer:
             if not self.active_vc:
                 self.active_vc = await channel.connect()
 
-            descrip = f"*{source.title}\nby {source.channel}*\n\n{source.description}```"
+            descrip = f"*{source.title}\nby {source.channel}*\n\n{source.description}"
             response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip)
             response_embed.set_thumbnail(url=source.thumb)
             response_embed.set_footer(text=f"Added by {source.author.name}#{source.author.discriminator}",
                                       icon_url=source.author.avatar_url_as(static_format="png", size=128))
             # TODO: add ".stop" here to shut the bot up
-            self.active_vc.play(stream, after=lambda _: self.host.loop.call_soon_threadsafe(self.state.set))  # ok this lambda carried over
+            self.active_vc.play(stream, after=lambda _: loop.call_soon_threadsafe(self.state.set))  # _ absorbs error handler
             await source.message_host.send(embed=response_embed)
             print("waiting...")
             await self.state.wait()
@@ -216,6 +232,7 @@ class Player(Module):
             return
         player = state.command_host.get_player(host, state)
         source = await YTPlayer.format_source_local(host, state, url=url)
+        stream_history[source.dir] = time.time()  # queue once when downloaded.
         print("source formatted")
         await player.queue.put(source)
 
@@ -234,5 +251,11 @@ class Player(Module):
         temp = player.queue
         del temp
         player.queue = asyncio.Queue()
+        if player:
+            player.active_vc.stop()
+
+    @Command.register(name="skip")
+    async def skip(host, state):
+        player = state.command_host.active_players.get(state.message.guild.id)
         if player:
             player.active_vc.stop()
