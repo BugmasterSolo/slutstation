@@ -37,7 +37,6 @@ class Government(Client):
         self.module_list = []
         self.loop = asyncio.get_event_loop()
         self.db = None
-        self.cur = None
         self.loop.run_until_complete(self.import_all())
         self.loop.run_until_complete(self.create_db())
         self.unique_commands = {}
@@ -58,6 +57,10 @@ class Government(Client):
 
     async def on_message(self, message):
         if message.author.id != self.user.id:
+            # recreate connection here
+            # reuse cursor throughout?
+            await self.checkuser(message.author)
+            # very first thing: ensure user exists
             trimmed_message = message.content
             command_host = None
             command_name = None
@@ -93,6 +96,15 @@ class Government(Client):
             err_string = str(e)
             print(f"Exception occurred: \n{err_string}")
             pass
+
+    async def checkuser(self, user):
+        isLogged = self.logged_users.get(user.id)
+        if not isLogged:
+            async with self.db.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.callproc("USEREXISTS", (user.id, f"{user.name}#{user.discriminator}"))
+            self.logged_users[user.id] = True  # ensures above logic passes
+            print(self.logged_users)
 
 
 def load_token():

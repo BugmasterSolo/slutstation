@@ -1,4 +1,4 @@
-from .base import Module, Command
+from .base import Module
 import math
 import re
 
@@ -13,6 +13,7 @@ class Stattrack(Module):
             if not strleng <= 0:
                 strleng = math.floor(math.log(strleng) * 3)
             # for exp
+            # run in executor if possible
             n_counter = re.findall("(nigg\w+|nig\s+)", state.content)
             # if you say niggardly you are getting penalized smartass
             soft = 0
@@ -25,7 +26,6 @@ class Stattrack(Module):
                     soft += 1
             async with self.host.db.acquire() as conn:
                 async with conn.cursor() as cur:
-                    await Command.checkuser(cur, auth, state.host)  # i dont like that we have to resend the host
                     await cur.callproc("MESSAGE", (auth.id, strleng, hard, soft))
                 await conn.commit()
         return False

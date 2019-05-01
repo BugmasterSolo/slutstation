@@ -253,11 +253,4 @@ class Command:
     def split(message):
         args = re.split(" +", message)
         return args
-
-    async def checkuser(cur, user, host):
-        isLogged = host.logged_users.get(user.id)
-        if not isLogged:
-            await cur.callproc("USEREXISTS", (user.id, f"{user.name}#{user.discriminator}"))
-            host.logged_users[user.id] = True  # ensures above logic passes
-            print(host.logged_users)
         # more checks might be necessary who knows

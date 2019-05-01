@@ -190,10 +190,8 @@ class Fun(Module):
             async with host.db.acquire() as conn:
                 async with conn.cursor() as cur:
                     for user in correct_users:
-                        await Command.checkuser(cur, user)
                         await cur.callproc("TRIVIACALL", (True, user.id))
                     for user in incorrect_users:
-                        await Command.checkuser(cur, user)
                         await cur.callproc("TRIVIACALL", (False, user.id))
                 await conn.commit()  # im retadad
         else:

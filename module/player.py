@@ -143,6 +143,7 @@ class MusicPlayer:
                 print("player initiated")
                 # waits 60 seconds until the item is available
                 async with async_timeout.timeout(60):
+                    # if something goes wrong, wait for the queue to fill up.
                     source = await self.queue.get()
                     if not os.path.exists(source.dir):
                         # our stream expired in the interim, refetch
@@ -177,6 +178,7 @@ class MusicPlayer:
             if not self.active_vc:
                 # bot crashes here if channel is private
                 print("here?")
+                # check active_vc permissions_for
                 self.active_vc = await channel.connect()
                 print("here")
             print("here")
