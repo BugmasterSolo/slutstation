@@ -99,7 +99,7 @@ class Government(Client):
 
     async def checkuser(self, user):
         isLogged = self.logged_users.get(user.id)
-        if not isLogged:
+        if not isLogged and not user.bot:
             async with self.db.acquire() as conn:
                 async with conn.cursor() as cur:
                     await cur.callproc("USEREXISTS", (user.id, f"{user.name}#{user.discriminator}"))
