@@ -1,7 +1,6 @@
 import discord
 
 from .base import Module, Command
-from functools import partial
 import asyncio
 import async_timeout
 import time
@@ -16,11 +15,18 @@ opts = {
     "restrict_filenames": True
 }  # add later
 
+# add voting for skips and stops (admin trumps)
+# polish out the code (bug test the stream_history deal)
+# might be a good idea to rewrite this over the WKND (outside of grading :)
+# with some better planning
+
 ytdl = YoutubeDL(opts)
 
 stream_history = {}
 
 
+# purges unused streams once per hour. unused means it has not been played in 24 hours
+# requeueing a stream within this period resets the counter.
 async def check_stream_history():
     print("ok")
     while True:
@@ -34,7 +40,7 @@ async def check_stream_history():
 
 loop = asyncio.get_event_loop()
 
-loop.create_task(check_stream_history())
+loop.create_task(check_stream_history())  # task runs in bg, runtilcomplete is priority
 
 # set up a once/hour loop that removes unused files from here
 
@@ -149,6 +155,7 @@ class MusicPlayer:
                 await self.source.channel.send("Disconnecting from current voice channel.")
                 await self.destroy(self.directory)
                 return
+            print("ok")
             channel = None
             try:
                 channel = self.voice_channel
@@ -157,6 +164,7 @@ class MusicPlayer:
                 print(e)
                 await self.destroy(self.directory)
             stream = None
+            print("channel fetched")
             if isinstance(source, YTPlayer):
                 try:
                     stream = await source.tether_stream()
@@ -168,7 +176,7 @@ class MusicPlayer:
                 stream = source.source
             if not self.active_vc:
                 self.active_vc = await channel.connect()
-
+            print("here")
             descrip = f"*{source.title}\nby {source.channel}*\n\n{source.description}"
             response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip)
             response_embed.set_thumbnail(url=source.thumb)
