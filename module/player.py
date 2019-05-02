@@ -209,7 +209,7 @@ class MusicPlayer:
     async def process_skip(self, member):
         # member count is important here, so let's get the channel again
         self.voice_channel = self.host.get_guild(self.source.guild.id).voice_client.channel  # i mean this should exist i think
-        listener_threshold = math.ceil(len(self.voice_channel.members)) - 1  # bot doesn't count
+        listener_threshold = math.ceil((len(self.voice_channel.members) - 1) / 2)  # bot doesn't count
         if member in self.voice_channel.members:
             if member not in self.skip_list:
                 self.skip_list.append(member)
