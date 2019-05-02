@@ -76,8 +76,10 @@ class YTPlayer:
     @classmethod
     async def format_source_local(cls, host, state, url: str):  # partial bundles a function and args into a single callable
         try:
+            print("testhere")
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=False))  # asyncs synchronous function
         except PermissionError:
+            print("exc")
             await state.message.channel.send("Look, something went wrong. I'm sorry.")
             # ahaha
             # no joke: deal with this exception soon. something along the lines of:
@@ -155,7 +157,7 @@ class MusicPlayer:
                     stream_history[source.dir] = time.time()
             except asyncio.TimeoutError:
                 await self.source.channel.send("Disconnecting from current voice channel.")
-                await self.destroy(self.directory)
+                await self.destroy()
                 return
             channel = None
             channel = self.voice_channel  # guaranteed earlier
@@ -268,7 +270,12 @@ class Player(Module):
             await state.message.channel.send("Please pass a valid URL.")
             return
         player = state.command_host.get_player(host, state)
-        source = await YTPlayer.format_source_local(host, state, url=url)
+        try:
+            source = await YTPlayer.format_source_local(host, state, url=url)
+        except Exception as e:
+            state.message.channel.send("Something went wrong while processing that link.")
+            print(e)
+            return
         stream_history[source.dir] = time.time()  # queue once when downloaded.
         print("source formatted")
         print(player)
