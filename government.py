@@ -83,7 +83,6 @@ class Government(Client):
                     # gag the bot if the channel can't be sent to
                     # this looks shitty
                     try:
-                        print("test")
                         await mod.handle_message(state)
                     except discord.errors.Forbidden:
                         print("request in locked channel. ignoring...")
@@ -112,7 +111,6 @@ class Government(Client):
                 async with conn.cursor() as cur:
                     await cur.callproc("USEREXISTS", (user.id, f"{user.name}#{user.discriminator}"))
             self.logged_users[user.id] = True  # ensures above logic passes
-            print(self.logged_users)
 
 
 def load_token():
