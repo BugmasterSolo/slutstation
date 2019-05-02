@@ -269,17 +269,12 @@ class Player(Module):
         if not url.startswith("http"):
             await state.message.channel.send("Please pass a valid URL.")
             return
-        player = state.command_host.get_player(host, state)
         try:
             source = await YTPlayer.format_source_local(host, state, url=url)
         except Exception as e:
             await state.message.channel.send("Something went wrong while processing that link.")
-            try:
-                state.message.author.voice.channel.disconnect()
-            except:
-                pass
-            print(e)
             return
+        player = state.command_host.get_player(host, state)
         stream_history[source.dir] = time.time()  # queue once when downloaded.
         print("source formatted")
         print(player)
