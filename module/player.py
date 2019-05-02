@@ -273,7 +273,11 @@ class Player(Module):
         try:
             source = await YTPlayer.format_source_local(host, state, url=url)
         except Exception as e:
-            state.message.channel.send("Something went wrong while processing that link.")
+            await state.message.channel.send("Something went wrong while processing that link.")
+            try:
+                state.message.author.voice.channel.disconnect()
+            except:
+                pass
             print(e)
             return
         stream_history[source.dir] = time.time()  # queue once when downloaded.
