@@ -171,40 +171,41 @@ class Command:
             self.alias.append(kwargs.get("alias"))
 
     async def __call__(self, host, state, *args, **kwargs):
-        uid = self._get_cooldown_id(state.message)
-        if not uid == 0:
-            cur_time = time.time()
-            call_time = self.cooldown_array.get(uid)
-            if call_time is None:
-                # poppin
-                if self.cooldown >= 4:
-                    cur_time = cur_time * -1
-                self.cooldown_array[uid] = cur_time
-            else:
-                time_diff = cur_time - call_time
-                if time_diff > self.cooltime and call_time > 0:
+        try:
+            uid = self._get_cooldown_id(state.message)
+            if not uid == 0:
+                cur_time = time.time()
+                call_time = self.cooldown_array.get(uid)
+                if call_time is None:
+                    # poppin
                     if self.cooldown >= 4:
                         cur_time = cur_time * -1
                     self.cooldown_array[uid] = cur_time
                 else:
-                    chan = state.message.channel
-                    if call_time < 0:
-                        warn = await chan.send("*please be patient i am trying my hardest already*")
-                        await asyncio.sleep(3)
-                        await warn.delete()
+                    time_diff = cur_time - call_time
+                    if time_diff > self.cooltime and call_time > 0:
+                        if self.cooldown >= 4:
+                            cur_time = cur_time * -1
+                        self.cooldown_array[uid] = cur_time
                     else:
-                        await state.message.channel.send(f"`That function is on cooldown for {self.cooltime - abs(time_diff):.2f} more seconds.`")
-                    # eh
-                    return
-        try:
+                        chan = state.message.channel
+                        if call_time < 0:
+                            warn = await chan.send("*please be patient i am trying my hardest already*")
+                            await asyncio.sleep(3)
+                            await warn.delete()
+                        else:
+                            await state.message.channel.send(f"`That function is on cooldown for {self.cooltime - abs(time_diff):.2f} more seconds.`")
+                        # eh
+                        return
+                print("called")
             await self.func(host, state, *args, **kwargs)
+            if not uid == 0 and self.cooldown >= 4:
+                self.cooldown_array[uid] = time.time()
         except Exception as e:
-            print(f"Function {self.name} threw an error. Watch out for this one: ")
-            for key in e:
-                print(e[key])
-            pass
-        if not uid == 0 and self.cooldown >= 4:
-            self.cooldown_array[uid] = time.time()
+            print("Something went wrong during a command call. The following exception was thrown: ")
+            print(e)
+            if not uid == 0:
+                self.cooldown_array[uid] = time.time()
 
     def _get_cooldown_id(self, message):
         cool = None

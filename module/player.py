@@ -133,7 +133,7 @@ class MusicPlayer:
 
         channel = self.voice_channel
         if not self.active_vc:
-            m = channel.guild.get_member(self.host.user.id)
+            m = await loop.run_in_executor(None, lambda: channel.guild.get_member(self.host.user.id))
             perm = channel.permissions_for(m)
             if not perm.connect:
                 await self.source.channel.send("I can't join that voice channel!")  # only relevant on first play, we can use this channel
@@ -183,7 +183,7 @@ class MusicPlayer:
             response_embed.set_footer(text=f"Added by {source.author.name}#{source.author.discriminator}",
                                       icon_url=source.author.avatar_url_as(static_format="png", size=128))
             self.active_vc.play(stream, after=lambda _: loop.call_soon_threadsafe(self.state.set))  # _ absorbs error handler
-            await source.message_host.send(embed=response_embed)
+            await self.source.channel.send(embed=response_embed)  # this zone is definitely safe
             print("waiting...")
             await self.state.wait()
             print("song finished!")
@@ -215,11 +215,12 @@ class MusicPlayer:
                 if skip_count >= listener_threshold:
                     self.active_vc.stop()
                     await self.source.channel.send("Song skipped!")
+                    self.skip_list.clear()
                 else:
                     await self.source.channel.send(f"User {member.name}#{member.discriminator} voted to skip.\n{skip_count}/{listener_threshold} votes.")
             else:
                 self.skip_list.remove(member)
-                await self.source.channel.send("User {member.name}#{member.discriminator} unskipped.\n{skip_count}/{listener_threshold} votes.")
+                await self.source.channel.send(f"User {member.name}#{member.discriminator} unskipped.\n{skip_count}/{listener_threshold} votes.")
         else:
             await self.source.channel.send("nice try bucko")
 

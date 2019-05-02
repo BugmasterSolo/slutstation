@@ -4,6 +4,7 @@
 
 import asyncio
 
+import discord
 from discord import Client, Game
 import module
 import time
@@ -56,6 +57,7 @@ class Government(Client):
         await self.change_presence(activity=Game(name="mike craft"))
 
     async def on_message(self, message):
+        # commands in unreachable places do not get parsed.
         if message.author.id != self.user.id:
             # recreate connection here
             # reuse cursor throughout?
@@ -78,9 +80,15 @@ class Government(Client):
             state = State(host=self, message=message, command_host=command_host, content=trimmed_message, command_name=command_name)
             for mod in self.module_list:
                 if await mod.check(state):
-                    await mod.handle_message(state)
+                    # gag the bot if the channel can't be sent to
+                    # this looks shitty
+                    try:
+                        print("test")
+                        await mod.handle_message(state)
+                    except discord.errors.Forbidden:
+                        print("request in locked channel. ignoring...")
+                        continue
                     # guaranteed that commands only belong to one
-                    break
 
     async def import_all(self):
         await self.import_extension(module.Fun)
