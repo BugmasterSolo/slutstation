@@ -30,28 +30,28 @@ class State:
 class Government(Client):
     def __init__(self, prefix):
         super().__init__()
-        self.uptime = time.time()
-        self.prefix = prefix
-        self.owner = 186944167308427264
-        self.logged_users = {}
-        print("Up and running!")
-        self.module_list = []
-        self.loop = asyncio.get_event_loop()
-        self.db = None
+        self.uptime = time.time()                           # for tracking current uptime.
+        self.prefix = prefix                                # bot prefix for commands.
+        self.owner = 186944167308427264                     # me
+        self.logged_users = {}                              # dict of users known to exist in DB.
+        self.module_list = []                               # list of all instantiated modules
+        self.loop = asyncio.get_event_loop()                # current running event looped (started by discord py)
+        self.db = None                                      # current database connection (aiomysql pool)
         self.loop.run_until_complete(self.import_all())
         self.loop.run_until_complete(self.create_db())
-        self.unique_commands = {}
+        self.unique_commands = {}                           # dict of unique commands (k: command name or alias -- v: modules)
         for mod in self.module_list:
             for command in mod.command_list:
                 if command in self.unique_commands:
                     raise ValueError(f"Duplicate commands: {command} in {mod.__name__} and {self.unique_commands[command].__name__}")
                 self.unique_commands[command] = mod
+        print("Up and running!")
 
     async def create_db(self):
         sql_cred_array = None
         with open("db_token.json", "r") as f:
             sql_cred_array = json.loads(f.read().strip())
-        self.db = await sql.create_pool(loop=self.loop, **sql_cred_array)
+        self.db = await sql.create_pool(loop=self.loop, **sql_cred_array)  # minsize = 0?
 
     async def on_ready(self):
         await self.change_presence(activity=Game(name="mike craft"))
@@ -61,7 +61,7 @@ class Government(Client):
         if message.author.id != self.user.id:
             # recreate connection here
             # reuse cursor throughout?
-            await self.checkuser(message.author)
+            await self.checkuser(message)
             # very first thing: ensure user exists
             trimmed_message = message.content
             command_host = None
@@ -104,13 +104,18 @@ class Government(Client):
             print(f"Exception occurred: \n{err_string}")
             pass
 
-    async def checkuser(self, user):
-        isLogged = self.logged_users.get(user.id)
-        if not isLogged and not user.bot:
+    async def checkuser(self, message):
+        isLogged = self.logged_users.get(message.channel.id)
+        if not isLogged:
+            self.logged_users[message.channel.id] = {}
+        isLogged = self.logged_users[message.channel.id].get(message.author.id)
+        if not isLogged and not message.author.bot:
             async with self.db.acquire() as conn:
                 async with conn.cursor() as cur:
-                    await cur.callproc("USEREXISTS", (user.id, f"{user.name}#{user.discriminator}"))
-            self.logged_users[user.id] = True  # ensures above logic passes
+                    await cur.callproc("USEREXISTS", (message.author.id, f"{message.author.name}#{message.author.discriminator}", message.channel.id))
+                await conn.commit()
+            self.logged_users[message.channel.id][message.author.id] = True  # ensures above logic passes
+
 
 
 def load_token():
