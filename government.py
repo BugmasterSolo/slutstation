@@ -112,7 +112,7 @@ class Government(Client):
         if not isLogged and not message.author.bot:
             async with self.db.acquire() as conn:
                 async with conn.cursor() as cur:
-                    await cur.callproc("USEREXISTS", (message.author.id, f"{message.author.name}#{message.author.discriminator}", message.channel.id))
+                    await cur.callproc("USEREXISTS", (message.author.id, f"{message.author.name}#{message.author.discriminator}", message.guild.id))
                 await conn.commit()
             self.logged_users[message.channel.id][message.author.id] = True  # ensures above logic passes
 
