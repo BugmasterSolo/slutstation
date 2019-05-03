@@ -1,4 +1,4 @@
-from .base import Module
+from .base import Module, Command
 import math
 import re
 
@@ -14,7 +14,7 @@ class Stattrack(Module):
                 strleng = math.floor(math.log(strleng) * 3)
             # for exp
             # run in executor if possible
-            n_counter = re.findall("(nigg\w+|nig\s+)", state.content)
+            n_counter = re.findall("(nigger\s|nigg\w+|nig\s+)", state.content)
             # if you say niggardly you are getting penalized smartass
             soft = 0
             hard = 0
@@ -26,6 +26,6 @@ class Stattrack(Module):
                     soft += 1
             async with self.host.db.acquire() as conn:
                 async with conn.cursor() as cur:
-                    await cur.callproc("MESSAGE", (auth.id, strleng, hard, soft))
+                    await cur.callproc("MESSAGE", (auth.id, strleng, hard, soft, state.message.channel.id))
                 await conn.commit()
-        return False
+        return self == state.command_host

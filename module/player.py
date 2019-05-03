@@ -67,14 +67,15 @@ class StreamContainer:
 # i don't think i would understand this shit otherwise
 # btw: every impatient pencil pusher in the discordpy issue comments can eat shit
 # non necessary, flush out (left over gunk and gook)
+# param types: https://stackoverflow.com/questions/2489669/function-parameter-types-in-python
 class YTPlayer:
 
-    # If you want to find out whether a given URL is supported, simply call youtube-dl with it.
-    # If you get no videos back, chances are the URL is either not referring to a video or unsupported.
-    # You can find out which by examining the output (if you run youtube-dl on the console) or catching an
-    # UnsupportedError exception if you run it from a Python program.
-    @classmethod
-    async def format_source_local(cls, host, state, url: str):  # partial bundles a function and args into a single callable
+    # from the docs:
+    #   If you want to find out whether a given URL is supported, simply call youtube-dl with it.
+    #   If you get no videos back, chances are the URL is either not referring to a video or unsupported.
+    #   You can find out which by examining the output (if you run youtube-dl on the console) or catching an
+    #   UnsupportedError exception if you run it from a Python program.
+    async def format_source_local(host, state, url: str):  # partial bundles a function and args into a single callable (url of type str)
         try:
             print("testhere")
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=False))  # asyncs synchronous function
