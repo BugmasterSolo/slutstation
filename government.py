@@ -61,6 +61,10 @@ class Government(Client):
         if message.author.id != self.user.id:
             # recreate connection here
             # reuse cursor throughout?
+            # ignore commands sent before this -- DM specific commands can be dealt with elsewhere
+            if isinstance(message.channel, discord.DMChannel):
+                await message.channel.send("dont be a pussy")
+                return
             await self.checkuser(message)
             # very first thing: ensure user exists
             trimmed_message = message.content
