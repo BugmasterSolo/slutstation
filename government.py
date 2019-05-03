@@ -74,7 +74,10 @@ class Government(Client):
                 else:
                     command_name = trimmed_message[:word_cut]
                 # this is dumb
-                trimmed_message = trimmed_message[word_cut:].strip()
+                if word_cut == -1:
+                    trimmed_message = ""
+                else:
+                    trimmed_message[word_cut:].strip()
                 # will default it to none + string checks for invalid input
                 command_host = self.unique_commands.get(command_name, "INVALID")
             state = State(host=self, message=message, command_host=command_host, content=trimmed_message, command_name=command_name)
@@ -86,7 +89,6 @@ class Government(Client):
                         await mod.handle_message(state)
                     except discord.errors.Forbidden:
                         print("request in locked channel. ignoring...")
-                        continue
                     # guaranteed that commands only belong to one
 
     async def import_all(self):

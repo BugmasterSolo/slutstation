@@ -16,8 +16,8 @@ CREATE TABLE users (
   PRIMARY KEY (user_id)
 ) ENGINE=InnoDB
 
-CREATE TABLE channels (
-  channel_id      BIGINT          UNSIGNED NOT NULL,
+CREATE TABLE guilds (
+  guild_id        BIGINT          UNSIGNED NOT NULL,
   user_id         BIGINT          UNSIGNED NOT NULL,
   guildexp        INT(10)         DEFAULT 0
 ) ENGINE=InnoDB
