@@ -10,13 +10,8 @@ import module
 import time
 import json
 import aiomysql as sql
-# import all modules, construct them in the bot code
-# commands will be parsed with spaces
-# todo: fast dict traversal for double checking long lists!
-# additionally: local/remote storage of vars based on associated delay!
 
 
-# lol
 class State:
     '''Wrapper for variables provided in message event, includes some added values as necessary.
         TODO: remove the need for state and move the function parsing to a hidden module var.'''
@@ -57,16 +52,11 @@ class Government(Client):
         await self.change_presence(activity=Game(name="mike craft"))
 
     async def on_message(self, message):
-        # commands in unreachable places do not get parsed.
         if message.author.id != self.user.id:
-            # recreate connection here
-            # reuse cursor throughout?
-            # ignore commands sent before this -- DM specific commands can be dealt with elsewhere
             if isinstance(message.channel, discord.DMChannel):
                 await message.channel.send("dont be a pussy")
                 return
             await self.checkuser(message)
-            # very first thing: ensure user exists
             trimmed_message = message.content
             command_host = None
             command_name = None
@@ -77,23 +67,18 @@ class Government(Client):
                     command_name = trimmed_message
                 else:
                     command_name = trimmed_message[:word_cut]
-                # this is dumb
                 if word_cut == -1:
                     trimmed_message = ""
                 else:
                     trimmed_message[word_cut:].strip()
-                # will default it to none + string checks for invalid input
                 command_host = self.unique_commands.get(command_name, "INVALID")
             state = State(host=self, message=message, command_host=command_host, content=trimmed_message, command_name=command_name)
             for mod in self.module_list:
                 if await mod.check(state):
-                    # gag the bot if the channel can't be sent to
-                    # this looks shitty
                     try:
                         await mod.handle_message(state)
                     except discord.errors.Forbidden:
                         print("request in locked channel. ignoring...")
-                    # guaranteed that commands only belong to one
 
     async def import_all(self):
         await self.import_extension(module.Fun)
