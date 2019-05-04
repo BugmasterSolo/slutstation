@@ -61,11 +61,11 @@ Local rankings for {state.message.guild.name}:
                     msg += '''```
 ```py'''
                 for i in range(3, min(count, 10)):
-                    msg += f'''{i}
+                    msg += f'''
+{i}
 # {board[i][0]}
            {board[i][1]}'''
                 msg += "```"
-                print(msg)  # format properly (javascript yielded moderate results, check bitch too)
                 await state.message.channel.send(msg)
 
         pass
