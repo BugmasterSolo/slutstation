@@ -34,8 +34,38 @@ class Stattrack(Module):
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
                 statement = "SELECT users.username, guilds.guildexp FROM guilds JOIN users on users.user_id = guilds.user_id WHERE guild_id = %s ORDER BY guildexp DESC LIMIT 10"
-                val = (state.message.channel.id)
+                val = (state.message.guild.id)
+                print(val)
                 await cur.execute(statement, val)
                 board = await cur.fetchall()
-                print(board)  # format properly (javascript yielded moderate results, check bitch too)
+                count = len(board)
+                msg = f'''```markdown
+Local rankings for {state.message.guild.name}:
+'''
+                if count >= 1:
+                    msg += f'''
+<  1.  >
+# {board[0][0]}
+           {board[0][1]}'''
+                if count >= 2:
+                    msg += f'''
+>  2.
+# {board[1][0]}
+           {board[1][1]}'''
+                if count >= 3:
+                    msg += f'''
+/* 3. *
+# {board[2][0]}
+           {board[2][1]}'''
+                if count >= 4:
+                    msg += '''```
+```py'''
+                for i in range(3, min(count, 10)):
+                    msg += f'''{i}
+# {board[i][0]}
+           {board[i][1]}'''
+                msg += "```"
+                print(msg)  # format properly (javascript yielded moderate results, check bitch too)
+                await state.message.channel.send(msg)
+
         pass

@@ -6,6 +6,7 @@ import aiohttp
 import time
 import re
 from enum import Enum
+import traceback
 # we're doing it all from scratch baby
 
 # todo: get on the more complex asyncio stuff (events, queues, etc -- those were extremely helpful in the YT player
@@ -206,6 +207,7 @@ class Command:
             print(e)
             if not uid == 0:
                 self.cooldown_array[uid] = time.time()
+            traceback.print_exc()
 
     def _get_cooldown_id(self, message):
         cool = None

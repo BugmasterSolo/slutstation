@@ -20,7 +20,7 @@ class Fun(Module):
     MAX_INT = 4294967295
     A_EMOJI = 0x0001F1E6
     FORTUNE_LIST = []
-    TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001F1E6", "\U0001F1E7", "\U0001F1E8", "\U0001F1E9")
+    TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB")
     # referred to from host, with command_host this can be a module value
     with open("./module/module_resources/fortune_cookie.json", "r") as fortune:
         FORTUNE_LIST = json.loads(fortune.read())
