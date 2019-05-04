@@ -20,7 +20,24 @@ class Fun(Module):
     MAX_INT = 4294967295
     A_EMOJI = 0x0001F1E6
     FORTUNE_LIST = []
-    TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB")
+    TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001f1e6", "\U0001f1e7", "\U0001f1e8", "\U0001f1e9")
+    EIGHT_BALL = ("It is certain",
+                  "It is decidedly so",
+                  "Without a doubt",
+                  "Sure, why not",
+                  "Definitely",
+                  "Yeah that sounds good",
+                  "Outlook good",
+                  "Signs point to yes",
+                  "I guess so",
+                  "It may result in your favor",
+                  "I never doubted it",
+                  "Don't count on it",
+                  "The ether is telling me otherwise",
+                  "Unlikely",
+                  "Please do not count on it",
+                  "You will not be pleased with the result",
+                  "I'm very sorry")
     # referred to from host, with command_host this can be a module value
     with open("./module/module_resources/fortune_cookie.json", "r") as fortune:
         FORTUNE_LIST = json.loads(fortune.read())
@@ -209,6 +226,9 @@ class Fun(Module):
         timer = None
         end_index = None
         quote = None
+        if len(msg) <= 0:
+            await chan.send("Unformatted poll. Add a question first!")
+            return
         if msg[0] in Fun.QUOTE_TYPES:  # user passed a question string
             quote = Module.get_closing_quote(msg[0])
             end_index = msg.find(quote, 1)
@@ -225,13 +245,16 @@ class Fun(Module):
             timer = int(msg[:end_index])
             msg = msg[end_index + 1:].strip()
             if timer < 0:
-                chan.send("alright smartass cut it with the negative polls")
+                await chan.send("alright smartass cut it with the negative polls")
                 return
         except Exception as e:
             timer = 30
             print(e)
         answer_list = re.split("\s*\|\s*", msg)
         answer_count = len(answer_list)
+        if len(answer_count) <= 0:
+            await chan.send("Please provide your poll with some possible responses!")
+            return
         loop_list = range(0, answer_count)
         description = "*Duration: " + Fun.format_duration(timer) + "*\n\n"
         for i in loop_list:
@@ -277,6 +300,13 @@ class Fun(Module):
         await asyncio.sleep(5)
         await notify.delete()
         await poll.edit(content=result_string)
+
+    @Command.register(name="8ball")
+    async def eightball(host, state):
+        if len(state.content) <= 0:
+            await state.message.channel.send("Please ask a question before harnessing the 8ball!")
+            return
+        await state.message.channel.send("\U0001f3b1 | *" + random.choice(Fun.EIGHT_BALL) + "...*")
 
     # desc's are not necessary for short queries, such as trivia.
     async def add_reactions(chan, embed, timer, loop=None, char_list=None, descrip="Get your answer in!"):
