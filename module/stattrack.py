@@ -51,13 +51,23 @@ class Stattrack(Module):
     async def rank(host, state):
         msg = state.message
         if len(msg.mentions) > 0:
-            userid = msg.mentions[0]  # don't fetch all mentioned users
+            target = msg.mentions[0]
+            if target == host.user:
+                await msg.channel.send("*beep boop*")
+                return
+            elif target.bot:
+                await msg.channel.send("Sorry, I don't track other bots.")
+            userid = msg.mentions[0].id  # don't fetch all mentioned users
         else:
             userid = msg.author.id
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.callproc("GLOBALINFO", (userid,))
                 res = await cur.fetchone()
+        print(res)
+        if res is None:
+            await msg.channel.send("I have no record of that user! They should probably say something first.")
+            return
         descrip = f"""**Experience:** {res[1]} EXP\n
 **Global rank:** #{res[6]}\n
 **Trivia record:** {res[2]} / {res[3]} ({((res[2]/res[3])*100):.2f}%)\n
