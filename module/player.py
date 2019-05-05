@@ -304,4 +304,4 @@ class Player(Module):
         if not player or not embed:
             await state.message.channel.send("*Nothing is currently playing!*")
         else:
-            await state.message.channel.send(embed)
+            await state.message.channel.send(embed=embed)
