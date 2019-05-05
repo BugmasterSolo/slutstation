@@ -203,7 +203,7 @@ class Command:
             if not uid == 0 and self.cooldown >= 4:
                 self.cooldown_array[uid] = time.time()
         except Exception as e:
-            print("Something went wrong during a command call. The following exception was thrown: ")
+            print("Something went wrong during a command call. The following exception was thrown: ")  # still throws, should be more graceful
             print(e)
             if not uid == 0:
                 self.cooldown_array[uid] = time.time()
