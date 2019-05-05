@@ -29,14 +29,15 @@ stream_history = {}
 # purges unused streams once per hour. unused means it has not been played in 24 hours
 # requeueing a stream within this period resets the counter.
 async def check_stream_history():
-    print("ok")
     while True:
+        print("ok")
         curtime = time.time()
         for key in stream_history:
             past = curtime - stream_history[key]
             if past > 86399:
+                loop.run_in_executor(None, lambda: os.path.remove(key))
+                print(f"Deleted item in directory {key} .")
                 stream_history.pop(key)
-                os.path.remove(key)
         await asyncio.sleep(3600)
 
 loop = asyncio.get_event_loop()
@@ -92,13 +93,11 @@ class YTPlayer:
 
         if 'entries' in data:
             data = data['entries'][0]
-            # tbd: get the whole playlist as YTPlayers
-        # no way to get the path prior to search -- this works though
         source = ytdl.prepare_filename(data)
         if not os.path.exists(source):
             # synchronous blocking calls run in the executor
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=True))
-            if 'entries' in data:
+            if 'entries' in data:  # duped
                 data = data['entries'][0]
 
         descrip = f"*{data['title']}\nby {data['uploader']}*"
@@ -106,10 +105,6 @@ class YTPlayer:
                                        description=descrip)
         response_embed.set_thumbnail(url=data['thumbnail'])
         return StreamContainer(source=discord.FFmpegPCMAudio(source), data=data, message=state.message, loc=source, embed=response_embed)  # gross
-
-    async def tether_stream(self):
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=self.page_url, download=False))
-        return discord.FFmpegPCMAudio(data['url'])
 
 
 # need some sort of key/val structure to remove files that haven't been called in 24 hours
@@ -125,8 +120,9 @@ class MusicPlayer:
         self.active_vc = None                                       # the currently active voice client
         self.parent = player                                        # the "command_host", in this case our Player module
         self.voice_channel = state.message.author.voice.channel     # the currently active voice channel
-        self.queue_event = asyncio.Event()
-        self.skip_list = []
+        self.queue_event = asyncio.Event()                          # tbh im pretty sure i can get rid of this
+        self.skip_list = []                                         # tracks the number of users willing to skip
+        self.now_playing = None                                     # currently playing source
 
         self.queue_event.clear()
         loop.create_task(self.player())
@@ -150,36 +146,25 @@ class MusicPlayer:
             # runs per loop
             try:
                 print("player initiated")
-                async with async_timeout.timeout(60):
-                    # if something goes wrong, wait for the queue to fill up.
+                async with async_timeout.timeout(120):
+                    # if something goes wrong, wait for the queue to fill up. this works when delays appear in the DL process.
                     source = await self.queue.get()
                     if not os.path.exists(source.dir):
                         await loop.run_in_executor(None, lambda: ytdl.extract_info(url=source.page_url, download=True))  # download is predictable
                     stream_history[source.dir] = time.time()
             except asyncio.TimeoutError:
-                await self.source.channel.send("Disconnecting from current voice channel.")
+                await self.source.channel.send("Failed to fetch source. Disconnecting from current voice channel.")
                 await self.destroy()
                 return
-            channel = None
             channel = self.voice_channel  # guaranteed earlier
-            stream = None
-            # not necessary
-            if isinstance(source, YTPlayer):
-                try:
-                    stream = await source.tether_stream()
-                except Exception as e:
-                    print(e)
-                # check if already connected due to some bug.
-            else:
-                stream = source.source
+            stream = source.source  # we're always downloadin ...
             if not self.active_vc:
-                m = channel.guild.get_member(self.host.user.id)
+                m = channel.guild.get_member(self.host.user.id)  # frustrating
                 perm = channel.permissions_for(m)
                 if not perm.connect:
                     await source.message_host.send("I can't join that voice channel!")
                     break
                 self.active_vc = await channel.connect()
-            print("here")
             descrip = f"*{source.title}\nby {source.channel}*\n\n{source.description}"
             response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip)
             response_embed.set_thumbnail(url=source.thumb)
@@ -187,6 +172,7 @@ class MusicPlayer:
                                       icon_url=source.author.avatar_url_as(static_format="png", size=128))
             self.active_vc.play(stream, after=lambda _: loop.call_soon_threadsafe(self.state.set))  # _ absorbs error handler
             await self.source.channel.send(embed=response_embed)  # this zone is definitely safe
+            self.now_playing = response_embed
             print("waiting...")
             await self.state.wait()
             print("song finished!")
@@ -226,7 +212,6 @@ class MusicPlayer:
                 await self.source.channel.send(f"User {member.name}#{member.discriminator} unskipped.\n{skip_count}/{listener_threshold} votes.")
         else:
             await self.source.channel.send("nice try bucko")
-
 
     async def destroy(self):
         if self.active_vc:
@@ -288,7 +273,7 @@ class Player(Module):
         if player:
             player.active_vc.pause()
         else:
-            await state.message.channel.send("*i didn't even play anything...")
+            await state.message.channel.send("*i didn't even play anything...*")
 
     # throws an error, check it out later.
     @Command.register(name="stop")
@@ -309,3 +294,14 @@ class Player(Module):
         player = state.command_host.active_players.get(state.message.guild.id)
         if player:
             await player.process_skip(state.message.author)
+
+    @Command.register(name="playing")
+    async def now_playing(host, state):
+        player = state.command_host.active_players.get(state.message.guild.id)
+        embed = None
+        if player:
+            embed = player.now_playing
+        if not player or not embed:
+            state.message.channel.send("*Nothing is currently playing!*")
+        else:
+            state.message.channel.send(embed)

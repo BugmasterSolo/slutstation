@@ -1,6 +1,5 @@
-# todo: modules build their help strings on init. strings are passed to the bot object, and the bot splices them together.
-#       thus, it's very easy to separate things out by module.
-# yield: generator (pauses on yield, can be picked back up)
+# todo: give the bot some consistency across the board (formatting guidelines, style, syntax, etc)
+#       create the help docs and get them online
 
 import asyncio
 
