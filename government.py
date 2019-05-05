@@ -67,10 +67,11 @@ class Government(Client):
                     command_name = trimmed_message
                 else:
                     command_name = trimmed_message[:word_cut]
+
                 if word_cut == -1:
                     trimmed_message = ""
                 else:
-                    trimmed_message[word_cut:].strip()
+                    trimmed_message = trimmed_message[word_cut:].strip()
                 command_host = self.unique_commands.get(command_name, "INVALID")
             state = State(host=self, message=message, command_host=command_host, content=trimmed_message, command_name=command_name)
             for mod in self.module_list:

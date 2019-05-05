@@ -264,6 +264,7 @@ class Player(Module):
         player = state.command_host.active_players.get(state.message.guild.id)
         if player is not None and player.active_vc.is_paused():
             player.active_vc.resume()
+        print(state.content)
         url = Command.split(state.content)
         print(url)
         url = url[0]
@@ -272,7 +273,7 @@ class Player(Module):
             return
         try:
             source = await YTPlayer.format_source_local(host, state, url=url)
-        except Exception as e:
+        except Exception as e:  # dont know the error type
             await state.message.channel.send("Something went wrong while processing that link.")
             return
         player = state.command_host.get_player(host, state)
@@ -292,11 +293,16 @@ class Player(Module):
     # throws an error, check it out later.
     @Command.register(name="stop")
     async def stop(host, state):
+        # check if admin
+        perms = state.message.author.permissions_in(state.message.channel)
         player = state.command_host.active_players.get(state.message.guild.id)
-        if player:
-            del player.queue
-            player.queue = asyncio.Queue()  # sub the queue for an empty one (probably better way to accomp)
-            player.active_vc.stop()
+        if perms.administrator:
+            if player:
+                del player.queue
+                player.queue = asyncio.Queue()  # sub the queue for an empty one (probably better way to accomp)
+                player.active_vc.stop()  # stop the current stream, calling on the empty queue
+        else:
+            await state.message.channel.send("\U0001f6d1 | **You do not have permission to stop the stream. Use 'g skip' instead!** | \U0001f6d1")
 
     @Command.register(name="skip")
     async def skip(host, state):
