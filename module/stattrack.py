@@ -60,6 +60,7 @@ class Stattrack(Module):
             userid = msg.mentions[0].id  # don't fetch all mentioned users
         else:
             userid = msg.author.id
+            target = msg.author
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.callproc("GLOBALINFO", (userid,))
@@ -72,6 +73,6 @@ class Stattrack(Module):
 **Global rank:** #{res[6]}\n
 **Trivia record:** {res[2]} / {res[3]} ({((res[2]/res[3])*100):.2f}%)\n
 **Power:** {res[4]}H/{res[5]}S"""  # todo: level tracking (beyond just experience)
-        response_embed = Embed(title=(msg.author.name + "#" + msg.author.discriminator), description=descrip, color=0x7289da)
-        response_embed.set_thumbnail(url=msg.author.avatar_url_as(static_format="png", size=512))
+        response_embed = Embed(title=(target.name + "#" + target.discriminator), description=descrip, color=0x7289da)
+        response_embed.set_thumbnail(url=target.avatar_url_as(static_format="png", size=512))
         await msg.channel.send(embed=response_embed)
