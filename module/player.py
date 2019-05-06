@@ -46,6 +46,14 @@ loop = asyncio.get_event_loop()
 
 loop.create_task(check_stream_history())  # task runs in bg, runtilcomplete is priority
 
+
+def format_time(time):
+    min = math.floor(time / 60)
+    sec = math.floor(time % 60)
+    if sec < 10:
+        sec = f"0{sec}"
+    return f"{min}:{sec}"
+
 # set up a once/hour loop that removes unused files from here
 
 
@@ -102,10 +110,9 @@ class YTPlayer:
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=True))
             if 'entries' in data:  # duped
                 data = data['entries'][0]
-
-        descrip = f"*{data['title']}\nby {data['uploader']}*"
+        descrip = f"*{data['title']}\nby {data['uploader']}*\n\n"
         response_embed = discord.Embed(title="Added to queue!", color=0xff0000,
-                                       description=descrip)
+                                       description=descrip, url=data['webpage_url'])
         response_embed.set_thumbnail(url=data['thumbnail'])
         return StreamContainer(source=discord.FFmpegPCMAudio(source), data=data, message=state.message, loc=source, embed=response_embed)  # gross
 
@@ -123,6 +130,8 @@ class MusicPlayer:
         self.queue_event = asyncio.Event()                          # tbh im pretty sure i can get rid of this
         self.skip_list = []                                         # tracks the number of users willing to skip
         self.now_playing = None                                     # currently playing source
+        self.queue_duration = 0
+        self.start_time = time.time()
         self.queue_event.clear()
         loop.create_task(self.player())
 
@@ -163,8 +172,9 @@ class MusicPlayer:
                         await source.message_host.send("I can't join that voice channel!")
                         break
                     self.active_vc = await channel.connect()
-                descrip = f"*{source.title}\nby {source.channel}*\n\n{source.description}"
-                response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip)
+                duration_string = format_time(source.duration)
+                descrip = f"*{source.title}\nby {source.channel}*\n\n**Duration:** {duration_string}\n\n{source.description}"
+                response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip, url=source.page_url)
                 response_embed.set_thumbnail(url=source.thumb)
                 response_embed.set_footer(text=f"Added by {source.author.name}#{source.author.discriminator}",
                                           icon_url=source.author.avatar_url_as(static_format="png", size=128))
@@ -184,6 +194,10 @@ class MusicPlayer:
         await self.queue_event.wait()
         if self.active_vc:
             await self.queue.put(stream)
+            time_until_playing = max((self.queue_duration + self.start_time) - time.time(), 0)
+            duration_string = format_time(time_until_playing)
+            self.queue_duration += stream.duration
+            stream.embed.set_footer(text=("\n\nTime until playing: " + duration_string))
             await self.source.channel.send(embed=stream.embed)
 
     # integrate permissions into here (and all over frankly)
