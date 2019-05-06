@@ -32,11 +32,11 @@ stream_history = {}
 # might want to move this into player module
 async def check_stream_history():
     while True:
-        print("ok")
+        print("Purging stream cache...")
         curtime = time.time()
         for key in stream_history:
             past = curtime - stream_history[key]
-            if past > 86399:
+            if past > 10799:
                 loop.run_in_executor(None, lambda: os.path.remove(key))
                 print(f"Deleted item in directory {key} .")
                 stream_history.pop(key)
@@ -80,7 +80,6 @@ class YTPlayer:
     #   UnsupportedError exception if you run it from a Python program.
     async def format_source_local(host, state, url: str):  # partial bundles a function and args into a single callable (url of type str)
         try:
-            print("testhere")
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=False))  # asyncs synchronous function
         except PermissionError:
             print("exc")
@@ -111,9 +110,6 @@ class YTPlayer:
 
 # need some sort of key/val structure to remove files that haven't been called in 24 hours
 class MusicPlayer:
-    def __del__(self):
-        print("im gone")
-
     def __init__(self, host, state, player):
         self.host = host                                            # Government
         self.source = state.message                                 # one player to a guild, you can't have the bot all to yourself
@@ -147,7 +143,6 @@ class MusicPlayer:
             self.state.clear()
             # runs per loop
             try:
-                print("player initiated")
                 async with async_timeout.timeout(120):
                     # if something goes wrong, wait for the queue to fill up. this works when delays appear in the DL process.
                     source = await self.queue.get()
@@ -175,22 +170,17 @@ class MusicPlayer:
             self.active_vc.play(stream, after=lambda _: loop.call_soon_threadsafe(self.state.set))  # _ absorbs error handler
             await self.source.channel.send(embed=response_embed)  # this zone is definitely safe
             self.now_playing = response_embed
-            print("waiting...")
             await self.state.wait()
-            print("song finished!")
             stream.cleanup()
-            print("stream cleaned!")
             if self.queue.empty():
                 break
                 # destroy player here as well
         # loop over. destroy this instance.
-        print("loop broken.")
         await self.destroy()
 
     # adds to queue. ignores if process fails.
     async def add_to_queue(self, stream):
         await self.queue_event.wait()
-        print("waited")
         if self.active_vc:
             await self.queue.put(stream)
             await self.source.channel.send(embed=stream.embed)
@@ -238,7 +228,6 @@ class Player(Module):
         if not player:
             player = MusicPlayer(host, state, self)
             self.active_players[state.message.guild.id] = player
-        print(player)
         return player
 
     def pop_player(self, id):
@@ -247,35 +236,44 @@ class Player(Module):
     @Command.register(name="play")
     async def play(host, state):
         # call the proper instance of ytdl
+        chan = state.message.channel
         if not state.message.author.voice:
             await state.message.channel.send("Please join a voice channel first!")
             return
         # no idea why this does not work
         player = state.command_host.active_players.get(state.message.guild.id)
-        if player is not None and player.active_vc.is_paused():
-            player.active_vc.resume()
-        url = state.content # todo: deal with additional arguments
+        url = state.content  # todo: deal with additional arguments
+        if len(url) == 0:
+            if not player:  # inactive -- url required
+                await chan.send("Please provide a valid URL!")
+                return  # if paused: skips if cases
+            else:  # something playing
+                if player.is_playing():  # no url, playing already
+                    await chan.send("I'm already playing something!")
+                    return
+                elif player.active_vc.is_paused():  # no url, paused (active)
+                    player.active_vc.resume()
         if not url.startswith("http"):
             # engage search api
             # if search then include all queries
             return_query = await Module._http_get_request(f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q={state.content}&type=video&key={state.command_host.api_key}")
             return_query = json.loads(return_query['text'])
             if len(return_query['items']) == 0:
-                await state.message.channel.send("No results found for that query.")
+                await chan.send("No results found for that query.")
                 return
             return_query = return_query['items'][0]
-            print(return_query)
-            print(return_query['id'])
             url = "https://www.youtube.com/watch?v=" + return_query['id']['videoId']
+        msg = await chan.send("```Searching...```")
+        await chan.trigger_typing()
         try:
             source = await YTPlayer.format_source_local(host, state, url=url)
         except Exception as e:  # dont know the error type
-            await state.message.channel.send("Something went wrong while processing that link.")
+            await chan.send("Something went wrong while processing that link.")
+            await msg.delete()
             return
         player = state.command_host.get_player(host, state)
         stream_history[source.dir] = time.time()  # queue once when downloaded.
-        print("source formatted")
-        print(player)
+        await msg.delete()
         await player.add_to_queue(source)
 
     @Command.register(name="pause")
