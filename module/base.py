@@ -220,8 +220,7 @@ class Command:
                 return message.guild.id
             elif cool == 3:
                 return 1
-            else:
-                return 0
+        return 0
 
     def register(func=None, *args, **kwargs):
         '''
