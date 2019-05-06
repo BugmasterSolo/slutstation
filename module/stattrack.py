@@ -26,7 +26,11 @@ class Stattrack(Module):
                 soft += 1
         async with self.host.db.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.callproc("MESSAGE", (auth.id, strleng, hard, soft, state.message.guild.id))
+                try:
+                    await cur.callproc("MESSAGE", (auth.id, strleng, hard, soft, state.message.guild.id))
+                except ConnectionResetError:
+                    print("Error in DB communication")
+                    return self == state.command_host  # ignore the line which caused the error and move on
             await conn.commit()
         return self == state.command_host
 

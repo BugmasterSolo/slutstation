@@ -105,7 +105,7 @@ class Module:
         if state.command_host == self:
             await self.command_list[state.command_name](self.host, state)  # TODO: get rid of host in all cases, since it's included in "state"
 
-    async def _http_get_request(domain):
+    async def _http_get_request(domain):  # todo: deal with exceptions cleanly
         async with aiohttp.ClientSession(headers={"user-agent":
                                                   "Government(Discord.py) / 0.02 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
                                                   }) as session:
@@ -210,18 +210,18 @@ class Command:
             traceback.print_exc()
 
     def _get_cooldown_id(self, message):
-        cool = None
         if self.cooldown is not None:
             cool = self.cooldown & 3
-            return message.author.id
-        elif cool == 1:
-            return message.channel.id
-        elif cool == 2:
-            return message.guild.id
-        elif cool == 3:
-            return 1
-        else:
-            return 0
+            if cool == 0:
+                return message.author.id
+            elif cool == 1:
+                return message.channel.id
+            elif cool == 2:
+                return message.guild.id
+            elif cool == 3:
+                return 1
+            else:
+                return 0
 
     def register(func=None, *args, **kwargs):
         '''

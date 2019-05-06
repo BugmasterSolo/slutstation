@@ -37,7 +37,7 @@ async def check_stream_history():
         for key in stream_history:
             past = curtime - stream_history[key]
             if past > 10799:
-                loop.run_in_executor(None, lambda: os.path.remove(key))
+                loop.run_in_executor(None, lambda: os.remove(key))
                 print(f"Deleted item in directory {key} .")
                 stream_history.pop(key)
         await asyncio.sleep(3600)
@@ -58,12 +58,14 @@ class StreamContainer:
         self.thumb = data['thumbnail']
         self.description = data['description'][:200]
         self.channel = data['uploader']
+        self.duration = data['duration']
         self.message_host = message.channel
         self.source = source
         self.dir = loc
         self.embed = embed
         if len(self.description) >= 200:
             self.description += "..."
+        print(self.duration)
 
 
 # massive cred: https://gist.github.com/EvieePy/ab667b74e9758433b3eb806c53a19f34
@@ -121,7 +123,6 @@ class MusicPlayer:
         self.queue_event = asyncio.Event()                          # tbh im pretty sure i can get rid of this
         self.skip_list = []                                         # tracks the number of users willing to skip
         self.now_playing = None                                     # currently playing source
-
         self.queue_event.clear()
         loop.create_task(self.player())
 
@@ -139,44 +140,44 @@ class MusicPlayer:
                 return
             self.active_vc = await channel.connect()
             self.queue_event.set()  # active_vc exists, so we're in the clear
-        while True:
-            self.state.clear()
-            # runs per loop
-            try:
-                async with async_timeout.timeout(120):
-                    # if something goes wrong, wait for the queue to fill up. this works when delays appear in the DL process.
-                    source = await self.queue.get()
-                    if not os.path.exists(source.dir):
-                        await loop.run_in_executor(None, lambda: ytdl.extract_info(url=source.page_url, download=True))  # download is predictable
-                    stream_history[source.dir] = time.time()
-            except asyncio.TimeoutError:
-                await self.source.channel.send("Failed to fetch source. Disconnecting from current voice channel.")
-                await self.destroy()
-                return
-            channel = self.voice_channel  # guaranteed earlier
-            stream = source.source  # we're always downloadin ...
-            if not self.active_vc:
-                m = channel.guild.get_member(self.host.user.id)  # frustrating
-                perm = channel.permissions_for(m)
-                if not perm.connect:
-                    await source.message_host.send("I can't join that voice channel!")
+            while True:
+                self.state.clear()
+                # runs per loop
+                try:
+                    async with async_timeout.timeout(120):
+                        # if something goes wrong, wait for the queue to fill up. this works when delays appear in the DL process.
+                        source = await self.queue.get()
+                        if not os.path.exists(source.dir):
+                            await loop.run_in_executor(None, lambda: ytdl.extract_info(url=source.page_url, download=True))  # download is predictable
+                        stream_history[source.dir] = time.time()
+                except asyncio.TimeoutError:
+                    await self.source.channel.send("Failed to fetch source. Disconnecting from current voice channel.")
+                    await self.destroy()
+                    return
+                channel = self.voice_channel  # guaranteed earlier
+                stream = source.source  # we're always downloadin ...
+                if not self.active_vc:
+                    m = channel.guild.get_member(self.host.user.id)  # frustrating
+                    perm = channel.permissions_for(m)
+                    if not perm.connect:
+                        await source.message_host.send("I can't join that voice channel!")
+                        break
+                    self.active_vc = await channel.connect()
+                descrip = f"*{source.title}\nby {source.channel}*\n\n{source.description}"
+                response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip)
+                response_embed.set_thumbnail(url=source.thumb)
+                response_embed.set_footer(text=f"Added by {source.author.name}#{source.author.discriminator}",
+                                          icon_url=source.author.avatar_url_as(static_format="png", size=128))
+                self.active_vc.play(stream, after=lambda _: loop.call_soon_threadsafe(self.state.set))  # _ absorbs error handler
+                await self.source.channel.send(embed=response_embed)  # this zone is definitely safe
+                self.now_playing = response_embed
+                await self.state.wait()
+                stream.cleanup()
+                if self.queue.empty():
                     break
-                self.active_vc = await channel.connect()
-            descrip = f"*{source.title}\nby {source.channel}*\n\n{source.description}"
-            response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip)
-            response_embed.set_thumbnail(url=source.thumb)
-            response_embed.set_footer(text=f"Added by {source.author.name}#{source.author.discriminator}",
-                                      icon_url=source.author.avatar_url_as(static_format="png", size=128))
-            self.active_vc.play(stream, after=lambda _: loop.call_soon_threadsafe(self.state.set))  # _ absorbs error handler
-            await self.source.channel.send(embed=response_embed)  # this zone is definitely safe
-            self.now_playing = response_embed
-            await self.state.wait()
-            stream.cleanup()
-            if self.queue.empty():
-                break
-                # destroy player here as well
-        # loop over. destroy this instance.
-        await self.destroy()
+                    # destroy player here as well
+            # loop over. destroy this instance.
+            await self.destroy()
 
     # adds to queue. ignores if process fails.
     async def add_to_queue(self, stream):
@@ -188,7 +189,11 @@ class MusicPlayer:
     # integrate permissions into here (and all over frankly)
     async def process_skip(self, member):
         # member count is important here, so let's get the channel again
-        self.voice_channel = self.host.get_guild(self.source.guild.id).voice_client.channel  # i mean this should exist i think
+        self.voice_channel = self.host.get_guild(self.source.guild.id).voice_client  # i mean this should exist i think
+        if self.voice_channel is None:
+            print("Error in voice. Disconnecting completely.")
+            pass
+        self.voice_channel = self.voice_channel.channel
         listener_threshold = math.ceil((len(self.voice_channel.members) - 1) / 2)  # bot doesn't count
         if member in self.voice_channel.members:
             if member not in self.skip_list:
@@ -268,12 +273,15 @@ class Player(Module):
         try:
             source = await YTPlayer.format_source_local(host, state, url=url)
         except Exception as e:  # dont know the error type
-            await chan.send("Something went wrong while processing that link.")
+            await chan.send("Something went wrong while processing that link. Feel free to try it again though.")
+            print(e)
             await msg.delete()
             return
+
         player = state.command_host.get_player(host, state)
         stream_history[source.dir] = time.time()  # queue once when downloaded.
         await msg.delete()
+        print("added")
         await player.add_to_queue(source)
 
     @Command.register(name="pause")
