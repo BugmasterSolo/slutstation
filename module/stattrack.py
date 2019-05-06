@@ -57,6 +57,7 @@ class Stattrack(Module):
                 return
             elif target.bot:
                 await msg.channel.send("Sorry, I don't track other bots.")
+                return
             userid = msg.mentions[0].id  # don't fetch all mentioned users
         else:
             userid = msg.author.id
@@ -69,10 +70,14 @@ class Stattrack(Module):
         if res is None:
             await msg.channel.send("I have no record of that user! They should probably say something first.")
             return
+        if res[3] == 0:
+            trivia_percent = 0  # avoid div by 0
+        else:
+            trivia_percent = (res[2] / res[3]) * 100
         descrip = f"""**Experience:** {res[1]} EXP\n
 **Global rank:** #{res[6]}\n
-**Trivia record:** {res[2]} / {res[3]} ({((res[2]/res[3])*100):.2f}%)\n
-**Power:** {res[4]}H/{res[5]}S"""  # todo: level tracking (beyond just experience)
+**Trivia record:** {res[2]} / {res[3]} ({trivia_percent:.2f}%)\n
+**Power:** {res[4]}H / {res[5]}S"""  # todo: level tracking (beyond just experience)
         response_embed = Embed(title=(target.name + "#" + target.discriminator), description=descrip, color=0x7289da)
         response_embed.set_thumbnail(url=target.avatar_url_as(static_format="png", size=512))
         await msg.channel.send(embed=response_embed)
