@@ -108,7 +108,6 @@ class Government(Client):
             self.logged_users[message.channel.id][message.author.id] = True  # ensures above logic passes
 
 
-
 def load_token():
     with open("secret_token.txt", "r") as f:
         return f.read().strip()

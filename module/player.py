@@ -5,6 +5,7 @@ import asyncio
 import async_timeout
 import time
 import math
+import json
 from youtube_dl import YoutubeDL
 import os
 
@@ -28,6 +29,7 @@ stream_history = {}
 
 # purges unused streams once per hour. unused means it has not been played in 24 hours
 # requeueing a stream within this period resets the counter.
+# might want to move this into player module
 async def check_stream_history():
     while True:
         print("ok")
@@ -188,6 +190,7 @@ class MusicPlayer:
     # adds to queue. ignores if process fails.
     async def add_to_queue(self, stream):
         await self.queue_event.wait()
+        print("waited")
         if self.active_vc:
             await self.queue.put(stream)
             await self.source.channel.send(embed=stream.embed)
@@ -227,6 +230,8 @@ class Player(Module):
     def __init__(self, host, *args, **kwargs):
         super().__init__(host, *args, **kwargs)
         self.active_players = {}
+        with open("youtube_api.txt", "r") as ytapi:
+            self.api_key = ytapi.read().strip()
 
     def get_player(self, host, state):
         player = self.active_players.get(state.message.guild.id)
@@ -249,13 +254,19 @@ class Player(Module):
         player = state.command_host.active_players.get(state.message.guild.id)
         if player is not None and player.active_vc.is_paused():
             player.active_vc.resume()
-        print(state.content)
-        url = Command.split(state.content)
-        print(url)
-        url = url[0]
+        url = state.content # todo: deal with additional arguments
         if not url.startswith("http"):
-            await state.message.channel.send("Please pass a valid URL.")
-            return
+            # engage search api
+            # if search then include all queries
+            return_query = await Module._http_get_request(f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q={state.content}&type=video&key={state.command_host.api_key}")
+            return_query = json.loads(return_query['text'])
+            if len(return_query['items']) == 0:
+                await state.message.channel.send("No results found for that query.")
+                return
+            return_query = return_query['items'][0]
+            print(return_query)
+            print(return_query['id'])
+            url = "https://www.youtube.com/watch?v=" + return_query['id']['videoId']
         try:
             source = await YTPlayer.format_source_local(host, state, url=url)
         except Exception as e:  # dont know the error type
