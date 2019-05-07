@@ -110,7 +110,7 @@ class YTPlayer:
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=True))
             if 'entries' in data:  # duped
                 data = data['entries'][0]
-        descrip = f"*{data['title']}\nby {data['uploader']}*\n\n**Duration: {format_time(data['duration'])}"
+        descrip = f"*{data['title']}\nby {data['uploader']}*\n\n**Duration: {format_time(data['duration'])}**"
         response_embed = discord.Embed(title="Added to queue!", color=0xff0000,
                                        description=descrip, url=data['webpage_url'])
         response_embed.set_thumbnail(url=data['thumbnail'])
@@ -129,9 +129,11 @@ class MusicPlayer:
         self.voice_channel = state.message.author.voice.channel     # the currently active voice channel
         self.queue_event = asyncio.Event()                          # tbh im pretty sure i can get rid of this
         self.skip_list = []                                         # tracks the number of users willing to skip
-        self.now_playing = None                                     # currently playing source
-        self.queue_duration = 0
-        self.start_time = time.time()
+        self.now_playing = None                                     # embed representing currently playing song
+        self.queue_duration = 0                                     # current queue duration (s)
+        self.start_time = time.time()                               # start time of player (unix epoch)
+        self.last_start_time = None                                 # start time of last track
+        self.now_playing_duration = None                            # duration of current track
         self.queue_event.clear()
         loop.create_task(self.player())
 
@@ -178,7 +180,9 @@ class MusicPlayer:
                 response_embed.set_thumbnail(url=source.thumb)
                 response_embed.set_footer(text=f"Added by {source.author.name}#{source.author.discriminator}",
                                           icon_url=source.author.avatar_url_as(static_format="png", size=128))
+                self.now_playing_duration = source.duration  # optimize
                 self.active_vc.play(stream, after=lambda _: loop.call_soon_threadsafe(self.state.set))  # _ absorbs error handler
+                self.last_start_time = time.time()
                 await self.source.channel.send(embed=response_embed)  # this zone is definitely safe
                 self.now_playing = response_embed
                 await self.state.wait()
@@ -216,8 +220,8 @@ class MusicPlayer:
                 if skip_count >= listener_threshold:
                     # on skip: add skipped time to start time
                     self.active_vc.stop()
-                    time_skip = time.time() - (self.queue_duration + self.start_time)
-                    self.start_time += time_skip
+                    time_skip = self.now_playing_duration - (time.time() - self.last_start_time)
+                    self.queue_duration -= time_skip  # retain context of start time in case it matters
                     await self.source.channel.send("Song skipped!")
                     self.skip_list.clear()
                 else:
