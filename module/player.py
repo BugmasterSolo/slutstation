@@ -110,7 +110,7 @@ class YTPlayer:
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=True))
             if 'entries' in data:  # duped
                 data = data['entries'][0]
-        descrip = f"*{data['title']}\nby {data['uploader']}*\n\n"
+        descrip = f"*{data['title']}\nby {data['uploader']}*\n\n**Duration: {format_time(data['duration'])}"
         response_embed = discord.Embed(title="Added to queue!", color=0xff0000,
                                        description=descrip, url=data['webpage_url'])
         response_embed.set_thumbnail(url=data['thumbnail'])
@@ -214,7 +214,10 @@ class MusicPlayer:
                 self.skip_list.append(member)
                 skip_count = len(self.skip_list)
                 if skip_count >= listener_threshold:
+                    # on skip: add skipped time to start time
                     self.active_vc.stop()
+                    time_skip = time.time() - (self.queue_duration + self.start_time)
+                    self.start_time += time_skip
                     await self.source.channel.send("Song skipped!")
                     self.skip_list.clear()
                 else:
