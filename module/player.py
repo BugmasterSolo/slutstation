@@ -22,6 +22,11 @@ opts = {
 # might be a good idea to rewrite this over the WKND (outside of grading :)
 # with some better planning
 
+
+class DurationError(Exception):
+    pass
+
+
 ytdl = YoutubeDL(opts)
 
 stream_history = {}
@@ -104,6 +109,9 @@ class YTPlayer:
 
         if 'entries' in data:
             data = data['entries'][0]
+        if data['duration'] > 7200:  # downloads can run concurrently, but slow things down
+        # side note: look into streaming options in FFMpeg. I bookmarked some documentation but it's definitely doable
+            raise DurationError(f"Song length: {data['duration']}")
         source = ytdl.prepare_filename(data)
         if not os.path.exists(source):
             # synchronous blocking calls run in the executor
@@ -289,13 +297,16 @@ class Player(Module):
                 return
             return_query = return_query['items'][0]
             url = "https://www.youtube.com/watch?v=" + return_query['id']['videoId']
-        msg = await chan.send("```Searching...```")
+        msg = await chan.send("```Searching...\nThis can take a while for longer videos...```")
         await chan.trigger_typing()
         try:
             source = await YTPlayer.format_source_local(host, state, url=url)
         except Exception as e:  # dont know the error type
-            await chan.send("Something went wrong while processing that link. Feel free to try it again though.")
-            print(e)
+            if isinstance(e, DurationError):
+                await chan.send("Keep your songs below 2 hours, please :)")
+            else:
+                await chan.send("Something went wrong while processing that link. Feel free to try it again though.")
+                print(e)
             await msg.delete()
             return
 
