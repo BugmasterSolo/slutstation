@@ -39,12 +39,15 @@ async def check_stream_history():
     while True:
         print("Purging stream cache...")
         curtime = time.time()
+        del_list = []
         for key in stream_history:
             past = curtime - stream_history[key]
             if past > 10799:
                 loop.run_in_executor(None, lambda: os.remove(key))
                 print(f"Deleted item in directory {key} .")
-                stream_history.pop(key)
+                del_list.append(key)
+        for dir in del_list:
+            del stream_history[dir]
         await asyncio.sleep(3600)
 
 loop = asyncio.get_event_loop()
@@ -110,7 +113,7 @@ class YTPlayer:
         if 'entries' in data:
             data = data['entries'][0]
         if data['duration'] > 7200:  # downloads can run concurrently, but slow things down
-        # side note: look into streaming options in FFMpeg. I bookmarked some documentation but it's definitely doable
+            # side note: look into streaming options in FFMpeg. I bookmarked some documentation but it's definitely doable
             raise DurationError(f"Song length: {data['duration']}")
         source = ytdl.prepare_filename(data)
         if not os.path.exists(source):
