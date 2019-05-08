@@ -223,7 +223,7 @@ class Fun(Module):
     # todo:
     #   - probably keep trying to reduce cyclomatic complexity (if necessary)
     #   - add time of creation + duration to the poll embed
-    @Command.cooldown(scope=Scope.CHANNEL, time=30, type=Scope.TIME)
+    @Command.cooldown(scope=Scope.CHANNEL, time=10, type=Scope.TIME)
     @Command.register(name="poll")
     async def poll(host, state):
         chan = state.message.channel
