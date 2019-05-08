@@ -156,7 +156,8 @@ class Fun(Module):
                 trivia_embed = Embed(title=f"{triv['category']} -- {triv['difficulty']}",
                                      description=descrip,
                                      color=0x8050ff)
-                char_list = [Fun.TRIVIA_REACTION_LIST[0], Fun.TRIVIA_REACTION_LIST[1]]
+                trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
+                char_list = [Fun.TRIVIA_REACTION_LIST[0], Fun.TRIVIA_REACTION_LIST[1]]  # what
                 msg = await Fun.add_reactions(chan, trivia_embed, 20, loop=range(2), char_list=char_list)
             elif type == "multiple":
                 answer_array = triv['incorrect_answers']
@@ -173,6 +174,7 @@ class Fun(Module):
                 trivia_embed = Embed(title=f"{triv['category']} - {triv['difficulty']}",
                                      description=descrip,
                                      color=0x8050ff)
+                trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
                 msg = await Fun.add_reactions(chan, trivia_embed, 20, loop=range(4))
             # refresh the reaction list
             done = await chan.send("***Time's up!***")
@@ -256,7 +258,7 @@ class Fun(Module):
             print(e)
         answer_list = re.split("\s*\|\s*", msg)
         answer_count = len(answer_list)
-        if len(answer_count) <= 0:
+        if answer_count <= 0:
             await chan.send("Please provide your poll with some possible responses!")
             return
         loop_list = range(0, answer_count)
