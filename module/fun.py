@@ -162,7 +162,8 @@ class Fun(Module):
                 answer_array = triv['incorrect_answers']
                 correct_index = random.randint(0, len(answer_array))
                 answer_array.insert(correct_index, triv['correct_answer'])
-                descrip = "*You have 20 seconds to answer the following question.*\n\n" + descrip + html.unescape(f"A) {answer_array[0]}\nB) {answer_array[1]}\nC) {answer_array[2]}\nD) {answer_array[3]}\n\n")
+                answer_array = list(map(html.unescape, answer_array))
+                descrip = "*You have 20 seconds to answer the following question.*\n\n" + descrip + f"A) {answer_array[0]}\nB) {answer_array[1]}\nC) {answer_array[2]}\nD) {answer_array[3]}\n\n"
                 #
                 #
                 # use the unicode constant for this?
@@ -201,7 +202,10 @@ class Fun(Module):
                 await chan.send(f"Sorry, no one answered correctly.\nThe correct answer was {triv['correct_answer']}.")
             else:
                 user_ids = map(lambda u: "<@" + str(u.id) + ">", correct_users)
-                return_string = f"The correct answer was {triv['correct_answer']}!\n\nCongratulations to " + ", ".join(user_ids) + " for answering correctly!"
+                # answer array not dependable, we just have to reparse it for now
+
+                # todo: fix that maybe if necessary
+                return_string = f"The correct answer was {html.unescape(triv['correct_answer'])}!\n\nCongratulations to " + ", ".join(user_ids) + " for answering correctly!"
                 await chan.send(return_string)
             # this is at the end so it can all occur behind the scenes
             async with host.db.acquire() as conn:
