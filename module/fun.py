@@ -162,7 +162,7 @@ class Fun(Module):
                 answer_array = triv['incorrect_answers']
                 correct_index = random.randint(0, len(answer_array))
                 answer_array.insert(correct_index, triv['correct_answer'])
-                descrip = "*You have 20 seconds to answer the following question.*\n\n" + descrip + f"A) {answer_array[0]}\nB) {answer_array[1]}\nC) {answer_array[2]}\nD) {answer_array[3]}\n\n"
+                descrip = "*You have 20 seconds to answer the following question.*\n\n" + descrip + html.unescape(f"A) {answer_array[0]}\nB) {answer_array[1]}\nC) {answer_array[2]}\nD) {answer_array[3]}\n\n")
                 #
                 #
                 # use the unicode constant for this?
