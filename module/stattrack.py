@@ -14,7 +14,7 @@ class Stattrack(Module):
         # for exp
         # run in executor if possible
         # n counter checks commands, exp does not
-        n_counter = re.findall("(nigger|nigg\w+|nig\s+)", state.message.content)
+        n_counter = re.findall("(nigger|nigg\w+|nig\s+)", lower(state.message.content))
         # if you say niggardly you are getting penalized smartass
         soft = 0
         hard = 0
