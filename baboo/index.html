@@ -2,8 +2,115 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <link type="text/css" rel="stylesheet" href="style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix.js">
+    </script>
+    <script src="canvas-gl.js"></script>
     <title>Government Website</title>
+    <!-- add in glMatrix js
+
+    also: "out" is OK! -->
+    <script id="vertex-print" type="vertex-shader">
+      #define PI 3.1415926535
+
+      precision highp float;
+
+      attribute vec4 aPosition;
+      attribute vec4 aNormal;
+      attribute vec4 aWedgeNormal;
+
+      varying vec4 vNormal;
+      varying vec4 vPosition;
+      varying vec4 iNormal;
+      varying vec4 vWedgeNormal;
+
+      uniform mat4 projectionMatrix;  // add in view matrix to projection matrix
+      uniform mat4 modelMatrix;
+      uniform mat4 viewMatrix;
+      uniform mat4 normalMatrix;
+
+      uniform float iTime;
+
+      const float COS_MAG = 0.11;
+      const float SIN_MAG = 0.11;
+      // .78 to 1.22
+      // no show on 0.639
+
+      // we can guarantee a range based on the vertex results and skip rendering if inside of that
+
+      void main() {
+        float ratio = 0.9 + SIN_MAG * sin(aWedgeNormal.y * 15.6 * PI + (iTime * 1.62)) + COS_MAG * cos(aWedgeNormal.z * 15.5 * PI + (iTime * -2.12));
+        vec4 modelTransform = modelMatrix * vec4(aPosition.xyz * ratio * 0.9, aPosition.w);
+        vPosition = modelTransform;
+        iNormal = aNormal;
+        vNormal = normalMatrix * aNormal * (ratio > 0.0 ? 1. : -1.);
+        vWedgeNormal = normalMatrix * aWedgeNormal;  // consistently pass it on to the frag shader
+        gl_Position = projectionMatrix * viewMatrix * modelTransform;
+      }
+    </script>
+    <script id="fragment-print" type="fragment-shader">
+
+      precision highp float;
+
+      struct PointLight {
+        vec3 worldPosition;
+        vec3 color;
+        float intensity;
+      };
+
+      varying vec4 vNormal;
+      varying vec4 vPosition;
+      varying vec4 iNormal;
+      varying vec4 vWedgeNormal;
+
+      const float WEDGE_MAG = 0.56;  // fudged a bit
+
+      uniform float uAmbientStrength;
+      const float specFalloff = 32.0;
+      const float specIntensity = 0.2;
+
+      uniform vec3 uCameraPosition;  // first step: turn it green
+      uniform vec3 uGeometryColor;
+
+      uniform PointLight uLight;
+
+      const vec3 GREEN = vec3(.625, 1, .6875);
+      const vec3 GRAY = vec3(0.25, 0.25, 0.25);
+
+      // todo: switch out diffuse/spec for pbr alternatives
+
+      // currently lambertian, replace with oren nayar
+      vec3 diffuseGeometry(vec4 pos, vec4 norm, PointLight light) {
+        vec3 posToLight = normalize(light.worldPosition - pos.xyz);
+        return max(dot(posToLight, normalize(norm.xyz)), 0.0) * light.color;
+      }
+
+      vec3 specularGeometry(vec4 pos, vec4 norm, PointLight light) {
+        vec3 posToEye = normalize(uCameraPosition.xyz - pos.xyz);
+        vec3 posToCam = normalize(light.worldPosition.xyz - pos.xyz);  // cam position need not be passed
+        vec3 reflectSight = reflect(posToEye, normalize(norm.xyz));
+        return pow(max(dot(reflectSight, posToCam), 0.0), specFalloff) * light.color * specIntensity;
+      }
+
+      // final lighting color multiplied by material color (reflectance * incoming)
+
+      void main() {
+        if (length(vPosition.xyz) >= WEDGE_MAG) {
+          vec3 trueColor = (fract(sin(vWedgeNormal.z * 1.0)) > 0.5) ? GREEN : GRAY;
+          vec3 diffuse = diffuseGeometry(vPosition, vNormal, uLight);
+          vec3 specular = specularGeometry(vPosition, vNormal, uLight);
+          vec3 outputColor = vec3(uAmbientStrength) + (diffuse + specular) * uLight.intensity;
+          gl_FragColor = vec4((outputColor * trueColor), 1);  // this should be ok
+        }
+      }
+    </script>
   </head>
   <body>
+    <header>
+      <h2><span>g</span>overnment</h2>
+    </header>
+    <canvas width=1920 height=1080 class="canvas-header" id="primary-canvas">  <!--Size based on window, leave some room as well.-->
+    </canvas>
+    <p><span>0</span> FPS</p>
   </body>
 </html>
