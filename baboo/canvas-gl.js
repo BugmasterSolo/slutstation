@@ -26,12 +26,17 @@
     arrayWorker.onmessage = function(e) {
       glSetup(e.data);
     };
-
-    arrayWorker.postMessage("2");
+    arrayWorker.postMessage("4");
   }
 
   function glSetup(response) {
     gl = document.getElementById("primary-canvas").getContext("webgl");
+
+    let ext = gl.getExtension("WEBGL_debug_renderer_info");
+    if (ext) {
+      console.log(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL));
+      console.log(gl.getParameter(ext.UNMASKED_VENDOR_WEBGL));
+    }
 
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
@@ -140,6 +145,15 @@
   /* todo: render to frame buffer and add postFX
   * framebuffer should allow for optimization on lower hardware, just by scaling it down
   * account for less powerful hardware w performance analytics (time per frame, from last)
+  * like uh figure out how to get gpu info on the fly and roll w it
+
+  * what i would love for animation:
+  *   - rotation appears random.
+  *   - about once a second, extrudes update w lerp animation. calc perlin twice and interpolate between (expensive?)
+  *   - colors should do the same, but instantly.
+  *   - background: low resolution plain icospheres floating about as particles.
+  *       - take some cues on interface design and give it some flair and personality.
+  *         (that means looking at reference material!!!)
   */
   function drawLoop(gl, prog, index) {
     let p2 = performance.now();
@@ -147,9 +161,7 @@
     if (framePast.length > 60) {
       framePast.shift();
     }
-    console.log(framePast);
     let timer = framePast.reduce((acc, cur) => acc + cur, 0);
-    console.log(timer);
     document.querySelector("p span").innerText = "" + Math.floor(60 / (timer / 1000));
     p1 = p2;
     // spits out frame times, which could be necessary

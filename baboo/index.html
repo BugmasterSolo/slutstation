@@ -31,15 +31,15 @@
 
       uniform float iTime;
 
-      const float COS_MAG = 0.11;
-      const float SIN_MAG = 0.11;
+      const float COS_MAG = 0.08;
+      const float SIN_MAG = 0.08;
       // .78 to 1.22
       // no show on 0.639
 
       // we can guarantee a range based on the vertex results and skip rendering if inside of that
 
       void main() {
-        float ratio = 0.9 + SIN_MAG * sin(aWedgeNormal.y * 15.6 * PI + (iTime * 1.62)) + COS_MAG * cos(aWedgeNormal.z * 15.5 * PI + (iTime * -2.12));
+        float ratio = 1.0 + SIN_MAG * sin(aWedgeNormal.y * 15.6 * PI + (iTime * 1.62)) + COS_MAG * cos(aWedgeNormal.z * 15.5 * PI + (iTime * -2.12));
         vec4 modelTransform = modelMatrix * vec4(aPosition.xyz * ratio * 0.9, aPosition.w);
         vPosition = modelTransform;
         iNormal = aNormal;
@@ -63,7 +63,7 @@
       varying vec4 iNormal;
       varying vec4 vWedgeNormal;
 
-      const float WEDGE_MAG = 0.56;  // fudged a bit
+      const float WEDGE_MAG = 0.70;  // fudged a bit
 
       uniform float uAmbientStrength;
       const float specFalloff = 32.0;
