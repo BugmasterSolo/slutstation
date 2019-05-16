@@ -7,11 +7,12 @@ const reducerFunction = (acc, val) => acc + (val * val);
 
 const origin = [0, 0, 0];
 
+const scaleFactor = 1.0; // todo.
+
 /**
 * Normalizes a point between two vertices.
-* @param {Number[]} v1 - The first vertex.
-* @param {Number[]} v2 - The second vertex.
-* @returns {Number[]} - A vertex interpolated between the two parameters and normalized
+* @param {...Number[3]} vertices - List of all passed vertices.
+* @returns {Number[3]} - A vertex interpolated between the two parameters and normalized
 *                       to a distance of 1 unit away from the origin.
 */
 function averageVertices(...vertices) {
@@ -32,14 +33,25 @@ function averageVertices(...vertices) {
   return result;
 }
 
+/**
+* Flips all values of a given vertex. Useful in the event that a point is negatively scaled.
+* @param {Number[]} v1 - Inputted n-dimensional vertex.
+* @returns {Number[]} Flipped vertex.
+*/
 function flip(v1) {
   for (let i = 0; i < v1.length; i++) {
     v1[i] = -v1[i];
   }
 }
 
+/**
+* Takes the cross product of two 3-dimensional arrays.
+* @param {Number[]} v1 - The first input vector.
+* @param {Number[]} v2 - The second input vector.
+* @returns {Number[]} The cross product v1 x v2.
+*/
 function crossProduct(v1, v2) {
-  if (v1.length !== v2.length || v1.length !== 3) {
+  if (v2.length !== 3 || v1.length !== 3) {
     throw "Cross Product must be taken in 3D space.";
     // please do not calculate 7d cross products which supposedly exist
   }
@@ -47,6 +59,12 @@ function crossProduct(v1, v2) {
   return [(v1[1] * v2[2]) - (v1[2] * v2[1]), (v1[2] * v2[0]) - (v1[0] * v2[2]), (v1[0] * v2[1]) - (v1[1] * v2[0])];
 }
 
+/**
+* Takes the dot product of two n-dimensional arrays, provided they are the same length.
+* @param {Number[]} v1 - The first input vector.
+* @param {Number[]} v2 - The second input vector.
+* @returns {Number} - The dot product v1 . v2.
+*/
 function dotProduct(v1, v2) {
   if (v1.length !== v2.length) {
     throw "Dot product vectors must be equal length.";
@@ -142,68 +160,82 @@ function degreesToRadians(n) {
   return n * (Math.PI / 180);
 }
 
+// deal with passing multiple pieces of data
+// pass array pairs to onmessage, parse one by one, return array of polished geometry
 onmessage = function(e) {
   if (e.data) {
     let faceArray;
     let vertexArray;
-
-    try {
-      parseInt(e.data);
-    }
-    catch (e) {
-      console.error("Invalid data passed to worker thread. Make sure you're providing an integer here.");
-    }
-
-
-    [vertexArray, faceArray] = generateIcosphere(parseInt(e.data));
-
-    let returnVertex = [];        // contains all vertices
-    let returnFace = [];          // contains all face indices
-    let returnNormal = [];        // contains all normals
-    let returnWedgeNormal = [];   // direction of outward face normal; used for transforming wedges
-
-    for (let i = 0; i < faceArray.length; i++) {
-      // outward face
-      const faceIndex = 12 * i;
-      v0 = vertexArray[faceArray[i][0]];
-      v1 = vertexArray[faceArray[i][1]];
-      v2 = vertexArray[faceArray[i][2]];
-      vFace = [vertexArray[faceArray[i][0]], vertexArray[faceArray[i][1]], vertexArray[faceArray[i][2]]];
-      nv = averageVertices.apply(this, vFace);  // shouldn't matter
-
-      for (let i = 0; i < 3; i++) {
-        Array.prototype.push.apply(returnVertex, vFace[i]);
-        Array.prototype.push.apply(returnNormal, nv);
+    let subdiv;
+    let message = [];
+    for (let n = 0; n < e.data.length; n++) {
+      try {
+        console.log(e.data[n].subdivisions);
+        subdiv = parseInt(e.data[n].subdivisions);
       }
-      returnFace.push(faceIndex, faceIndex + 1, faceIndex + 2);
+      catch (e) {
+        console.error("Invalid data passed to worker thread. Make sure you're providing an integer here.");
+      }
 
-      // wedges
-      nWedge = [crossProduct(v0, subtract(v1, v0)), crossProduct(v1, subtract(v1, v2)), crossProduct(v2, subtract(v2, v0))];
 
-      // make consistent
-      for (let i = 0; i < 3; i++) {
-        if (dotProduct(nWedge[i], nv) > 0) {
-          flip(nWedge[i]);
+      [vertexArray, faceArray] = generateIcosphere(subdiv);
+
+      let returnVertex = [];        // contains all vertices
+      let returnFace = [];          // contains all face indices
+      let returnNormal = [];        // contains all normals
+      let returnWedgeNormal = [];   // direction of outward face normal; used for transforming wedges
+
+      for (let i = 0; i < faceArray.length; i++) {
+        // outward face
+        const faceIndex = 12 * i;
+        v0 = vertexArray[faceArray[i][0]];
+        v1 = vertexArray[faceArray[i][1]];
+        v2 = vertexArray[faceArray[i][2]];
+        vFace = [vertexArray[faceArray[i][0]], vertexArray[faceArray[i][1]], vertexArray[faceArray[i][2]]];
+        nv = averageVertices.apply(this, vFace);  // shouldn't matter
+
+        for (let i = 0; i < 3; i++) {
+          Array.prototype.push.apply(returnVertex, vFace[i]);
+          Array.prototype.push.apply(returnNormal, nv);
         }
-        Array.prototype.push.apply(returnVertex, vFace[i]);
-        Array.prototype.push.apply(returnVertex, vFace[(i + 1) % 3]);
-        Array.prototype.push.apply(returnVertex, origin);
-        for (let j = 0; j < 3; j++) {
-          Array.prototype.push.apply(returnNormal, nWedge[i]);
+        returnFace.push(faceIndex, faceIndex + 1, faceIndex + 2);
+
+        if (e.data[n].wedge) {
+
+          // wedges generated here. allow this to be skipped.
+          // these are particles that can be drawn for cheap in an additional draw call.
+          nWedge = [crossProduct(v0, subtract(v1, v0)), crossProduct(v1, subtract(v1, v2)), crossProduct(v2, subtract(v2, v0))];
+
+          // make consistent
+          for (let i = 0; i < 3; i++) {
+            if (dotProduct(nWedge[i], nv) > 0) {
+              flip(nWedge[i]);
+            }
+            Array.prototype.push.apply(returnVertex, vFace[i]);
+            Array.prototype.push.apply(returnVertex, vFace[(i + 1) % 3]);
+            Array.prototype.push.apply(returnVertex, origin);
+            for (let j = 0; j < 3; j++) {
+              Array.prototype.push.apply(returnNormal, nWedge[i]);
+            }
+            returnFace.push(faceIndex + 3 + (3 * i), faceIndex + 4 + (3 * i), faceIndex + 5 + (3 * i));
+          }
+
+          for (let i = 0; i < 12; i++) {
+            Array.prototype.push.apply(returnWedgeNormal, nv);
+          }
         }
-        returnFace.push(faceIndex + 3 + (3 * i), faceIndex + 4 + (3 * i), faceIndex + 5 + (3 * i));
       }
 
-      for (let i = 0; i < 12; i++) {
-        Array.prototype.push.apply(returnWedgeNormal, nv);
-      }
-    }
-
-    postMessage({
+      temp = {
         faces: returnFace,
         vertices: returnVertex,
         normals: returnNormal,
-        wedgeNormal: returnWedgeNormal
-      });
+        wedgeNormal: (e.data[n].wedge ? returnWedgeNormal : null)
+      };
+
+      message.push(temp);
+
+    }
+    postMessage(message);
   }
 }

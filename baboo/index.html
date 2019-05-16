@@ -9,11 +9,15 @@
     <title>Government Website</title>
     <!-- add in glMatrix js
 
-    also: "out" is OK! -->
-    <script id="vertex-print" type="vertex-shader">
-      #define PI 3.1415926535
+    also: "out" is OK!
+
+
+    +++ CLEAN UP THE GLSL -->
+    <script id="vertex-wedge" type="vertex-shader">
+      #define PI 3.1415926536
 
       precision highp float;
+      precision mediump int;
 
       attribute vec4 aPosition;
       attribute vec4 aNormal;
@@ -21,36 +25,56 @@
 
       varying vec4 vNormal;
       varying vec4 vPosition;
-      varying vec4 iNormal;
       varying vec4 vWedgeNormal;
+      varying vec3 vColor;
 
-      uniform mat4 projectionMatrix;  // add in view matrix to projection matrix
       uniform mat4 modelMatrix;
       uniform mat4 viewMatrix;
+      uniform mat4 projectionMatrix;  // add in view matrix to projection matrix
       uniform mat4 normalMatrix;
 
       uniform float iTime;
 
-      const float COS_MAG = 0.08;
-      const float SIN_MAG = 0.08;
-      // .78 to 1.22
-      // no show on 0.639
+      // note: animation, color, ... can all be calculated in the vertex shader
+      //       using the vWedgeNormal value (saves time + energy :)
 
-      // we can guarantee a range based on the vertex results and skip rendering if inside of that
+      const float DEPTH = 0.2;
+
+      const vec3 GREEN = vec3(.625, 1, .6875);
+      const vec3 GRAY = vec3(0.25, 0.25, 0.25);
+
+      // modification of the "ubiquitous celebrity"
+      float rand(vec3 coord) {
+        return (fract(sin(dot(coord, vec3(628.9797, 895.233, 892.1146))) * 43758.5453));
+      }
+
+      float fade(float t) {
+        return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+      }
+
+      float easeOut(float t) {
+        return pow(t, 0.2); // something that pops
+      }
 
       void main() {
-        float ratio = 1.0 + SIN_MAG * sin(aWedgeNormal.y * 15.6 * PI + (iTime * 1.62)) + COS_MAG * cos(aWedgeNormal.z * 15.5 * PI + (iTime * -2.12));
-        vec4 modelTransform = modelMatrix * vec4(aPosition.xyz * ratio * 0.9, aPosition.w);
+        float goalTime = ceil(iTime);
+        float fadeCurve = easeOut(fract(iTime));
+        vec3 initVec = vec3(floor(iTime)) + aWedgeNormal.xyz;
+        vec3 goalVec = vec3(goalTime) + aWedgeNormal.xyz;
+        vec3 colorInit = vec3(ceil(iTime)) - aWedgeNormal.xyz;
+        float ratio = 0.9 + mix((DEPTH * rand(initVec)), (DEPTH * rand(goalVec)), fadeCurve);
+        vColor = (rand(colorInit) > 0.5 ? GREEN : GRAY);
+        vec4 modelTransform = modelMatrix * vec4(aPosition.xyz * ratio, aPosition.w);
         vPosition = modelTransform;
-        iNormal = aNormal;
         vNormal = normalMatrix * aNormal * (ratio > 0.0 ? 1. : -1.);
         vWedgeNormal = normalMatrix * aWedgeNormal;  // consistently pass it on to the frag shader
         gl_Position = projectionMatrix * viewMatrix * modelTransform;
       }
     </script>
-    <script id="fragment-print" type="fragment-shader">
+    <script id="fragment-wedge" type="fragment-shader">
 
       precision highp float;
+      precision mediump int;
 
       struct PointLight {
         vec3 worldPosition;
@@ -60,10 +84,10 @@
 
       varying vec4 vNormal;
       varying vec4 vPosition;
-      varying vec4 iNormal;
       varying vec4 vWedgeNormal;
+      varying vec3 vColor;
 
-      const float WEDGE_MAG = 0.70;  // fudged a bit
+      const float WEDGE_MAG = 0.81;  // fudged a bit
 
       uniform float uAmbientStrength;
       const float specFalloff = 32.0;
@@ -96,13 +120,78 @@
 
       void main() {
         if (length(vPosition.xyz) >= WEDGE_MAG) {
-          vec3 trueColor = (fract(sin(vWedgeNormal.z * 1.0)) > 0.5) ? GREEN : GRAY;
+          vec3 trueColor = vColor;
           vec3 diffuse = diffuseGeometry(vPosition, vNormal, uLight);
           vec3 specular = specularGeometry(vPosition, vNormal, uLight);
           vec3 outputColor = vec3(uAmbientStrength) + (diffuse + specular) * uLight.intensity;
           gl_FragColor = vec4((outputColor * trueColor), 1);  // this should be ok
         }
       }
+    </script>
+    <!-- similar functionality
+    as it turns out there's no way to cleanly pass the same values to several functions -->
+    <script id="vertex-particle" type="vertex-shader">
+      // probably ok to gouraud shade these
+
+      precision highp float;
+
+      // copied from fragment-wedge
+      struct PointLight {
+        vec3 worldPosition;
+        vec3 color;
+        float intensity;
+      };
+
+      attribute vec4 aPosition;
+      attribute vec4 aNormal;
+
+      varying vec3 vVertexColor;
+      // figure out what to do for color
+
+      uniform mat4 modelMatrix;
+      uniform mat4 viewMatrix;
+      uniform mat4 projectionMatrix;
+      uniform mat4 normalMatrix;
+
+      uniform PointLight uLight;
+
+      uniform vec3 uCameraPosition;
+      uniform vec3 uGeometryColor;
+
+      uniform float uAmbientStrength;
+
+      const float specFalloff = 32.0;
+
+      vec3 diffuseGeometry(vec4 pos, vec4 norm, PointLight light) {
+        vec3 posToLight = normalize(light.worldPosition - pos.xyz);
+        return max(dot(norm.xyz, posToLight), 0.0) * light.color;  // not necessary to normalize again, should be done
+      }
+
+      vec3 specularGeometry(vec4 pos, vec4 norm, PointLight light) {
+        vec3 posThree = pos.xyz;
+        vec3 posToCam = normalize(uCameraPosition - posThree);
+        vec3 posToLight = normalize(light.worldPosition - posThree);
+        return pow(max(dot(reflect(posToCam, norm.xyz), posToLight), 0.0), specFalloff) * light.color;
+      }
+
+      void main() {
+        vec4 modelPosition = modelMatrix * aPosition;
+        vec4 modelNormal = normalMatrix * aNormal;
+        vec3 color = (diffuseGeometry(modelPosition, modelNormal, uLight) + specularGeometry(modelPosition, modelNormal, uLight) + vec3(uAmbientStrength)) * uGeometryColor;
+        vVertexColor = color;
+        gl_Position = projectionMatrix * viewMatrix * modelPosition;
+      }
+
+      // side note: these functions are not very interesting. look into doing something interesting with the geometry
+    </script>
+    <script id="fragment-particle" type="fragment-shader">
+    precision highp float;
+
+    varying vec3 vVertexColor;
+
+    void main() {
+      gl_FragColor = vec4(vVertexColor, 1.0);
+    }
     </script>
   </head>
   <body>
