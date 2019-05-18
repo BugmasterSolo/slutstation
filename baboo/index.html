@@ -53,7 +53,7 @@
       }
 
       float easeOut(float t) {
-        return pow(t, 0.2); // something that pops
+        return pow(t, 0.6); // something that pops
       }
 
       void main() {
@@ -111,9 +111,9 @@
 
       vec3 specularGeometry(vec4 pos, vec4 norm, PointLight light) {
         vec3 posToEye = normalize(uCameraPosition.xyz - pos.xyz);
-        vec3 posToCam = normalize(light.worldPosition.xyz - pos.xyz);  // cam position need not be passed
-        vec3 reflectSight = reflect(posToEye, normalize(norm.xyz));
-        return pow(max(dot(reflectSight, posToCam), 0.0), specFalloff) * light.color * specIntensity;
+        vec3 posToLight = normalize(light.worldPosition.xyz - pos.xyz);  // cam position need not be passed
+        vec3 halfway = normalize(posToEye + posToLight);
+        return pow(max(dot(halfway, norm.xyz), 0.0), specFalloff) * light.color * specIntensity;
       }
 
       // final lighting color multiplied by material color (reflectance * incoming)
@@ -163,21 +163,22 @@
       const float specFalloff = 32.0;
 
       vec3 diffuseGeometry(vec4 pos, vec4 norm, PointLight light) {
-        vec3 posToLight = normalize(light.worldPosition - pos.xyz);
-        return max(dot(norm.xyz, posToLight), 0.0) * light.color;  // not necessary to normalize again, should be done
+        vec3 posToLight = light.worldPosition - pos.xyz;
+        float distance = length(posToLight) / 1.5;
+        return max(dot(normalize(norm.xyz), normalize(posToLight)) / pow(distance, 0.8), 0.0) * light.color;  // not necessary to normalize again, should be done
       }
 
       vec3 specularGeometry(vec4 pos, vec4 norm, PointLight light) {
-        vec3 posThree = pos.xyz;
-        vec3 posToCam = normalize(uCameraPosition - posThree);
-        vec3 posToLight = normalize(light.worldPosition - posThree);
-        return pow(max(dot(reflect(posToCam, norm.xyz), posToLight), 0.0), specFalloff) * light.color;
+        vec3 posToEye = normalize(uCameraPosition - pos.xyz);
+        vec3 posToLight = normalize(light.worldPosition - pos.xyz);
+        vec3 halfway = normalize(posToEye + posToLight);
+        return pow(max(dot(normalize(norm.xyz), halfway), 0.0), 4.0) * light.color * 0.2;
       }
 
       void main() {
         vec4 modelPosition = modelMatrix * aPosition;
-        vec4 modelNormal = normalMatrix * aNormal;
-        vec3 color = (diffuseGeometry(modelPosition, modelNormal, uLight) + specularGeometry(modelPosition, modelNormal, uLight) + vec3(uAmbientStrength)) * uGeometryColor;
+        vec4 modelNormal = normalize(normalMatrix * aNormal);
+        vec3 color = (vec3(uAmbientStrength) + diffuseGeometry(modelPosition, modelNormal, uLight)) * uGeometryColor;
         vVertexColor = color;
         gl_Position = projectionMatrix * viewMatrix * modelPosition;
       }
@@ -198,7 +199,7 @@
     <header>
       <h2><span>g</span>overnment</h2>
     </header>
-    <canvas width=1920 height=1080 class="canvas-header" id="primary-canvas">  <!--Size based on window, leave some room as well.-->
+    <canvas width=1920 height=720 class="canvas-header" id="primary-canvas">  <!--Size based on window, leave some room as well.-->
     </canvas>
     <p><span>0</span> FPS</p>
   </body>

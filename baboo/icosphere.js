@@ -1,13 +1,11 @@
 
-
+"use strict";
 // worker internally handles with onMessage
 // thread receives with the "message" event
 
 const reducerFunction = (acc, val) => acc + (val * val);
 
 const origin = [0, 0, 0];
-
-const scaleFactor = 1.0; // todo.
 
 /**
 * Normalizes a point between two vertices.
@@ -16,7 +14,7 @@ const scaleFactor = 1.0; // todo.
 *                       to a distance of 1 unit away from the origin.
 */
 function averageVertices(...vertices) {
-  [x, y, z] = [0, 0, 0];
+  let [x, y, z] = [0, 0, 0];
   for (let v of vertices) {
     x += v[0];
     y += v[1];
@@ -91,7 +89,7 @@ function baseIcosphere() {
 
   vertexArray.push([0, 1, 0]);
   vertexArray.push([0, -1, 0]);
-  theta = 0;
+  let theta = 0;
 
   for (let i = 0; i < 10; i++) {
     let phi = (i % 2 ? HALF_PI + ARCTAN : HALF_PI - ARCTAN);
@@ -117,15 +115,15 @@ function generateIcosphere(n) {
     return baseIcosphere();
   } else {
 
-    [vertexArray, faceArray] = generateIcosphere(n - 1);
+    let [vertexArray, faceArray] = generateIcosphere(n - 1);
     let facelen = faceArray.length;
     let vertlen = vertexArray.length;
 
     for (let i = 0; i < facelen; i++) {
       let f = faceArray.shift(); // write this out
-      v1 = vertexArray[f[0]];
-      v2 = vertexArray[f[1]];
-      v3 = vertexArray[f[2]];
+      let v1 = vertexArray[f[0]];
+      let v2 = vertexArray[f[1]];
+      let v3 = vertexArray[f[2]];
       vertexArray.push(averageVertices(v1, v2));
       vertexArray.push(averageVertices(v2, v3));
       vertexArray.push(averageVertices(v3, v1));
@@ -156,10 +154,6 @@ function sphericalToCartesian(phi, theta, rho) {
   return [x, z, y];
 }
 
-function degreesToRadians(n) {
-  return n * (Math.PI / 180);
-}
-
 // deal with passing multiple pieces of data
 // pass array pairs to onmessage, parse one by one, return array of polished geometry
 onmessage = function(e) {
@@ -187,12 +181,12 @@ onmessage = function(e) {
 
       for (let i = 0; i < faceArray.length; i++) {
         // outward face
-        const faceIndex = 12 * i;
-        v0 = vertexArray[faceArray[i][0]];
-        v1 = vertexArray[faceArray[i][1]];
-        v2 = vertexArray[faceArray[i][2]];
-        vFace = [vertexArray[faceArray[i][0]], vertexArray[faceArray[i][1]], vertexArray[faceArray[i][2]]];
-        nv = averageVertices.apply(this, vFace);  // shouldn't matter
+        const faceIndex = (e.data[n].wedge ? 12 : 3) * i;
+        let v0 = vertexArray[faceArray[i][0]];
+        let v1 = vertexArray[faceArray[i][1]];
+        let v2 = vertexArray[faceArray[i][2]];
+        let vFace = [vertexArray[faceArray[i][0]], vertexArray[faceArray[i][1]], vertexArray[faceArray[i][2]]];
+        let nv = averageVertices.apply(this, vFace);  // shouldn't matter
 
         for (let i = 0; i < 3; i++) {
           Array.prototype.push.apply(returnVertex, vFace[i]);
@@ -204,7 +198,7 @@ onmessage = function(e) {
 
           // wedges generated here. allow this to be skipped.
           // these are particles that can be drawn for cheap in an additional draw call.
-          nWedge = [crossProduct(v0, subtract(v1, v0)), crossProduct(v1, subtract(v1, v2)), crossProduct(v2, subtract(v2, v0))];
+          let nWedge = [crossProduct(v0, subtract(v1, v0)), crossProduct(v1, subtract(v1, v2)), crossProduct(v2, subtract(v2, v0))];
 
           // make consistent
           for (let i = 0; i < 3; i++) {
@@ -226,7 +220,7 @@ onmessage = function(e) {
         }
       }
 
-      temp = {
+      let temp = {
         faces: returnFace,
         vertices: returnVertex,
         normals: returnNormal,
@@ -238,4 +232,4 @@ onmessage = function(e) {
     }
     postMessage(message);
   }
-}
+};
