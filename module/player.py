@@ -17,10 +17,7 @@ opts = {
     "restrict_filenames": True
 }  # add later
 
-# add voting for skips and stops (admin trumps)
-# polish out the code (bug test the stream_history deal)
-# might be a good idea to rewrite this over the WKND (outside of grading :)
-# with some better planning
+# search for songs which are not content ID'd and then play those
 
 
 class DurationError(Exception):
