@@ -227,8 +227,11 @@
 
     uniform sampler2D uBuffer;
 
+    uniform float iTime;
+
     void main() {
-      gl_FragColor = texture2D(uBuffer, vTexCoord);
+      vec4 colorOutput = texture2D(uBuffer, vTexCoord);
+      gl_FragColor = vec4(colorOutput.rgb, (iTime >= 1.0 ? colorOutput.a : iTime * 2.0 * colorOutput.a));
     }
     </script>
   </head>

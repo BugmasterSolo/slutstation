@@ -1,7 +1,5 @@
 /* global mat4 */
 
-/* i created this (please do not steal it i ask you nicely) */
-
 "use strict";
 
 // currently: bug on mobile in WGL.
@@ -26,16 +24,23 @@
     1.0,  -1.0, 1.0
   ]);
 
-  let arrayWorker;  // our Ico Sphere generation worker.
-  let index;        // keeps track of global variables. var indices, matrices, etc.
-  let time = 0;
-  let p1;
-  let deltaTime;
-  let particleList = [];
-  let framePast = new Array(60);
-  for (let i = 0; i < 60; i++) {
+  const FRAME_PAST_LENGTH = 60;
+
+  let arrayWorker;                                // our Ico Sphere generation worker.
+  let index;                                      // keeps track of global variables. var indices, matrices, etc.
+  let time = 0;                                   // global time -- useful for some onscreen motion
+  let p1;                                         // for tracking performance
+  let deltaTime;                                  // used to increment time based on delay since last render
+  let particleList = [];                          // list of all onscreen particles
+  let framePast = new Array(FRAME_PAST_LENGTH);   // displays frame time to user by averaging time on last 60 frames
+  for (let i = 0; i < FRAME_PAST_LENGTH; i++) {
     framePast[i] = 1000;
   }
+
+  // todo: create some modifier variables here, which will multiply the resolution of the framebuffer dynamically based on performance
+
+  // also: figure out what's going on with the hard lines. I think it has something to do with the stencil buffer
+  //        (and frankly it looks alright)
 
   window.addEventListener("load", init);
 
@@ -43,10 +48,9 @@
   * Creates the icosphere web worker and passes relevant info to it, before sending the result to the glSetup function.
   */
   function init() {
-    // create a new worker and get it to generate our page data. wait on the thread while it does so.
     if (!(typeof(Worker) == "function")) {
       throw "Error: Your browser doesn't support web workers.";
-    } // check for es6 support, webgl support
+    }
     for (let i = 0; i < 60; i++) {
       particleList.push(new Particle(Math.random() * 16 - 8, Math.random() * 4 - 2, Math.random() * 10 - 12));
     }
@@ -71,6 +75,8 @@
     gl.canvas.width = window.innerWidth;
     if (window.innerHeight < 900) {
       gl.canvas.height = window.innerHeight * 0.8;
+    } else {
+      gl.canvas.height = 720;
     }
     gl.deleteTexture(index.textures.fbtexture);
     gl.deleteTexture(index.textures.fbdepth);
@@ -300,7 +306,8 @@
         aPosition: gl.getAttribLocation(frameprog, "aPosition"),
         aTexCoord: gl.getAttribLocation(frameprog, "aTexCoord"),
 
-        uBuffer: gl.getUniformLocation(frameprog, "uBuffer")
+        uBuffer: gl.getUniformLocation(frameprog, "uBuffer"),
+        uTime: gl.getUniformLocation(frameprog, "iTime")
       }
     };
 
@@ -458,6 +465,8 @@
     gl.bindTexture(gl.TEXTURE_2D, index.textures.fbtexture);
 
     gl.uniform1i(index.frame.uBuffer, 0);
+
+    gl.uniform1f(index.frame.uTime, time);
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
   }
