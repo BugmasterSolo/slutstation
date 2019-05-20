@@ -45,8 +45,11 @@
       // note: animation, color, ... can all be calculated in the vertex shader
       //       using the vWedgeNormal value (saves time + energy :)
 
-      const vec3 GREEN = vec3(.625, 1, .6875);
-      const vec3 GRAY = vec3(0.25, 0.25, 0.25);
+      // unite all the green constants
+      // bring them towards the green of the page
+
+      const vec3 GREEN = vec3(.627, 1, .69);
+      const vec3 GRAY = vec3(0.2, 0.2, 0.2);
       const float HEIGHTMOD = (1.0 - (DEPTH / 2.0));
 
       // modification of the "ubiquitous celebrity"
@@ -71,7 +74,7 @@
         // vec3 colorGoal = vec3(ceil(iTime)) - aWedgeNormal.xyz;
         float ratio = HEIGHTMOD + mix((DEPTH * rand(initVec)), (DEPTH * rand(goalVec)), fadeCurve);
         //vColor = (rand(colorInit) > 0.5 ? GREEN : GRAY);
-        vColor = mix(GRAY, GREEN, min(pow(mix(rand(initVec), rand(goalVec), fract(iTime)) + 0.5, 32.0), 1.0));
+        vColor = mix(GRAY, GREEN, min(pow(mix(rand(initVec), rand(goalVec), fract(iTime)) + 0.4, 32.0), 1.0));
         vec4 modelTransform = modelMatrix * vec4(aPosition.xyz * ratio, aPosition.w);
         vPosition = modelTransform;
         cullLength = length(aPosition);
@@ -98,16 +101,13 @@
       varying float cullLength;
 
       uniform float uAmbientStrength;
-      const float specFalloff = 32.0;
-      const float specIntensity = 0.2;
+      const float specFalloff = 8.0;
+      const float specIntensity = 0.3;
 
       uniform vec3 uCameraPosition;  // first step: turn it green
       uniform vec3 uGeometryColor;
 
       uniform PointLight uLight;
-
-      const vec3 GREEN = vec3(.625, 1, .6875);
-      const vec3 GRAY = vec3(0.25, 0.25, 0.25);
 
       const float WEDGE_MAG = 1.41;
 
@@ -178,7 +178,7 @@
       vec3 diffuseGeometry(vec4 pos, vec4 norm, PointLight light) {
         vec3 posToLight = light.worldPosition - pos.xyz;
         float distance = length(posToLight) / 1.5;
-        return max(dot(normalize(norm.xyz), normalize(posToLight)) / pow(distance, 0.8), 0.0) * light.color;  // not necessary to normalize again, should be done
+        return max(dot(normalize(norm.xyz), normalize(posToLight)) / pow(distance, 0.5), 0.0) * light.color;  // not necessary to normalize again, should be done
       }
 
       vec3 specularGeometry(vec4 pos, vec4 norm, PointLight light) {
@@ -221,26 +221,60 @@
     </script>
     <!-- now that i can: would like to add some filters for fun -->
     <script id="fragment-frame" type="fragment-shader">
+    #define GAMMA 2.2
+
+    #define EDGE_THRESHOLD_MIN 0.0312
+    #define EDGE_THRESHOLD_MAX 0.125
+    #define ITERATIONS 16
+
     precision highp float;
 
     varying vec2 vTexCoord;
 
     uniform sampler2D uBuffer;
 
-    uniform float iTime;
+    uniform float iTime;  // hehe
+
+    uniform vec2 resolution; // might not have to worry here
+
+    const vec3 gammaVector = vec3(1.0 / GAMMA);
+
+    // fxaa: http://blog.simonrodriguez.fr/articles/30-07-2016_implementing_fxaa.html
+
+    float fade(float t) {
+      return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+    }
+
+    // no alpha so multiply by alpha to get relative brightness
+    float lumaRgba(vec4 col) {
+      return dot(col.rgb, vec3(0.299, 0.587, 0.114)); // skipping gamma for now
+    }
+
+    // rewrite fxaa later
 
     void main() {
       vec4 colorOutput = texture2D(uBuffer, vTexCoord);
-      gl_FragColor = vec4(colorOutput.rgb, (iTime >= 1.0 ? colorOutput.a : iTime * 2.0 * colorOutput.a));
+      float yPosition = gl_FragCoord.y / resolution.y;
+      if (yPosition < 0.10) {
+        colorOutput.a = fade(yPosition * 10.0) * colorOutput.a;
+      } else if (yPosition > 0.75) {
+        colorOutput.a = fade((1.0 - yPosition) * 4.0) * colorOutput.a;
+      }
+      gl_FragColor = vec4(colorOutput.rgb, (iTime >= 0.5 ? colorOutput.a : iTime * 2.0 * colorOutput.a));
     }
     </script>
   </head>
   <body>
     <header>
       <h2><span>g</span>overnment</h2>
+      <div id="highlight-container">
+        <h2 class="highlight"><span>g</span>overnment</h2>
+      </div>
+      <div id="highlight-container-two">
+        <h2 class="highlight"><span>g</span>overnment</h2>
+      </div>
     </header>
     <canvas width=1920 height=720 class="canvas-header" id="primary-canvas">  <!--Size based on window, leave some room as well.-->
     </canvas>
-    <p><span>0</span> FPS</p>
   </body>
 </html>

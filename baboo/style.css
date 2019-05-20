@@ -2,24 +2,52 @@
 
 body {
   font-family: "Roboto Mono", monospace;
-  background-color: #202020;
+  background-color: #1b1b1b;
   overflow-x: hidden;
+  overflow-y: hidden;
+  margin: 0;
 }
 
 header {
-  position: absolute;
 }
 
 h2 {
+  left: 10px;
+  top: 10px;
+  position: fixed;
   color: #a0ffb0;
-  font-size: 1.8em;
+  font-size: 2.2em;
   margin-left: 7px;
   margin-top: 7px;
   letter-spacing: 1px;
-  cursor: pointer;
+}
+
+#highlight-container {
+}
+
+h2.highlight {
+  color: #1b1b1b;
+  background-color: #a0ffb0;
+  overflow: hidden;
+}
+
+h2.highlight span {
+  background-color: #1b1b1b;
+  color: #a0ffb0;
+}
+
+#highlight-container-two h2.highlight {
+  color: #a0ffb0;
+  background-color: #1b1b1b;
+  overflow: hidden;
+}
+
+#highlight-container-two h2.highlight span {
+  background-color: #1b1b1b;
+  color: #a0ffb0;
 }
 
 span, p {
-  color: #202020;
+  color: #1b1b1b;
   background-color: #a0ffb0;
 }

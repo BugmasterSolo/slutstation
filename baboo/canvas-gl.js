@@ -8,7 +8,8 @@
 
 (function() {
 
-  const lightPos = new Float32Array([4, 4, 5]);
+  const lightPos = new Float32Array([2, 2, 5]);
+  const GREEN = new Float32Array([0.625, 1, 0.675]);
   const SPHERE_PRIMARY = [-2.5, -0.8, -2];
   const TEXCOORDS = new Float32Array([
     0.0, 0.0,
@@ -48,6 +49,7 @@
   * Creates the icosphere web worker and passes relevant info to it, before sending the result to the glSetup function.
   */
   function init() {
+    animateTitle();
     if (!(typeof(Worker) == "function")) {
       throw "Error: Your browser doesn't support web workers.";
     }
@@ -73,11 +75,8 @@
   function resizeCanvas(gl) {
     console.log("ok");
     gl.canvas.width = window.innerWidth;
-    if (window.innerHeight < 900) {
-      gl.canvas.height = window.innerHeight * 0.8;
-    } else {
-      gl.canvas.height = 720;
-    }
+    gl.canvas.height = window.innerHeight;
+
     gl.deleteTexture(index.textures.fbtexture);
     gl.deleteTexture(index.textures.fbdepth);
 
@@ -112,12 +111,38 @@
     SPHERE_PRIMARY[0] = (gl.canvas.width / gl.canvas.height) * -0.95;
   }
 
+  function animateTitle() {
+    let width = document.querySelector("header h2").getBoundingClientRect().width || 240;  // our sacred fellow
+
+    let divMiddle = document.querySelector("#highlight-container h2.highlight");
+    let divFront = document.querySelector("#highlight-container-two h2.highlight");
+
+    let frontWidth = 0;
+    let middleWidth = 0;
+
+    frontWidth = Math.max(width - (width * Math.pow(time * 2, 7)), 0);
+    middleWidth = Math.max(width - (time > 0.5 ? Math.pow((time - 0.5) * 2, 0.1428) * width : 0), 0);
+
+    console.log(middleWidth);
+
+    divFront.style.width = frontWidth + "px";
+    divMiddle.style.width = middleWidth + "px";
+    if (time < 1.2) {
+      requestAnimationFrame(animateTitle);
+    } else {
+      divMiddle.remove();
+      divFront.remove();  // hehe
+    }
+
+  }
+
 
   function glSetup(response) {
     let gl = document.getElementById("primary-canvas").getContext("webgl");
 
     let ext = gl.getExtension("WEBGL_debug_renderer_info");
     gl.getExtension("WEBGL_depth_texture");
+
     /*
     * Necessary in order to get accurate depth out of framebuffer.
     * Doesn't play nicely and seems very wrong.
@@ -260,7 +285,7 @@
       lights: {
         worldPosition: new Float32Array(lightPos),
         color: new Float32Array([1, 1, 1]),
-        intensity: 0.4
+        intensity: 0.6
       },
       wedge: {
         aPosition: gl.getAttribLocation(wedgeprog, "aPosition"),
@@ -307,7 +332,8 @@
         aTexCoord: gl.getAttribLocation(frameprog, "aTexCoord"),
 
         uBuffer: gl.getUniformLocation(frameprog, "uBuffer"),
-        uTime: gl.getUniformLocation(frameprog, "iTime")
+        uTime: gl.getUniformLocation(frameprog, "iTime"),
+        uRes: gl.getUniformLocation(frameprog, "resolution")
       }
     };
 
@@ -339,13 +365,13 @@
     gl.uniformMatrix4fv(index.wedge.uNormal, false, normMat);
     gl.uniform1f(index.wedge.uTime, time);
 
-    gl.uniform1f(index.wedge.uAmbient, 0.2); // total magic number
+    gl.uniform1f(index.wedge.uAmbient, index.constants.ambient); // total magic number
     gl.uniform3fv(index.wedge.uCameraPosition, cameraVector);
-    gl.uniform3f(index.wedge.uGeometryColor, 0.625, 1, 0.6875);
+    gl.uniform3fv(index.wedge.uGeometryColor, GREEN);
 
-    gl.uniform3fv(index.wedge.light.worldPosition, lightPos);
-    gl.uniform3f(index.wedge.light.color, 1, 1, 1);
-    gl.uniform1f(index.wedge.light.intensity, 0.4);
+    gl.uniform3fv(index.wedge.light.worldPosition, index.lights.worldPosition);
+    gl.uniform3fv(index.wedge.light.color, index.lights.color);
+    gl.uniform1f(index.wedge.light.intensity, index.lights.intensity);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, el);
 
@@ -367,7 +393,6 @@
     p1 = p2;
 
     let timer = framePast.reduce((acc, cur) => acc + cur, 0);
-    document.querySelector("p span").innerText = "" + Math.floor(60 / (timer / 1000));
 
     gl.useProgram(index.progs.wedge);
 
@@ -396,6 +421,14 @@
     gl.uniformMatrix4fv(index.wedge.uNormal, false, normMat);
     gl.uniformMatrix4fv(index.wedge.uProjection, false, index.matrices.proj);
     gl.uniform1f(index.wedge.uTime, (time += (deltaTime / 1000)) * 0.25);
+
+    gl.uniform1f(index.wedge.uAmbient, 0.2); // total magic number
+    gl.uniform3fv(index.wedge.uCameraPosition, index.constants.cameraPosition);
+    gl.uniform3f(index.wedge.uGeometryColor, 0.625, 1, 0.6875);
+
+    gl.uniform3fv(index.wedge.light.worldPosition, index.lights.worldPosition);
+    gl.uniform3fv(index.wedge.light.color, index.lights.color);
+    gl.uniform1f(index.wedge.light.intensity, index.lights.intensity);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, index.textures.framebuffer);
     // resize viewport texture when changing size
@@ -433,6 +466,7 @@
     gl.uniform3fv(index.particle.light.worldPosition, index.lights.worldPosition);
     gl.uniform3fv(index.particle.light.color, index.lights.color);
     gl.uniform1f(index.particle.light.intensity, index.lights.intensity);
+
     for (let i = 0; i < particleList.length; i++) {
       const particle = particleList[i];
       const partM = mat4.create();
@@ -467,6 +501,8 @@
     gl.uniform1i(index.frame.uBuffer, 0);
 
     gl.uniform1f(index.frame.uTime, time);
+
+    gl.uniform2f(index.frame.uRes, gl.canvas.width, gl.canvas.height);
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
   }
@@ -513,6 +549,27 @@
       velocity = [0, 0, 0];
     }
   }
+
+  /*
+  For reference: ES2015 class structure
+  class Particle {
+      constructor(x, y, z, velocity) {
+          this.x = x;
+          this.y = y;
+          this.z = z;
+          this.phase = Math.random() * 2 * Math.PI;
+          if (typeof (velocity) == "object" && velocity.length == 3) {
+              this.velocity = velocity;
+          }
+          else {
+              velocity = [0, 0, 0];
+          }
+      }
+      getPosition(tim) {
+          return [this.x, this.y + Math.cos(tim / 5 + this.phase) * 0.15, this.z];
+      }
+  }
+  */
 
   Particle.prototype.getPosition = function(tim) {
     return [this.x, this.y + Math.cos(tim / 5 + this.phase) * 0.15, this.z];
