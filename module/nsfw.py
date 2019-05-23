@@ -20,6 +20,14 @@ class NSFW(Module):
     @Command.cooldown(scope=Scope.CHANNEL, time=5)
     @Command.register(name="e621")
     async def esix(host, state):
+        '''
+Grabs images from e621.net. Tags are separated by white space, all valid tags are supported.
+
+Optional page count parameter if you're out of the good stuff. Defaults to page 1.
+
+Usage:
+g e621 [tag1 tag2 ... tag6] (page<int>)
+        '''
         # check if the command is it
         chan = state.message.channel
         args = Command.split(state.content)
@@ -86,6 +94,14 @@ class NSFW(Module):
     @Command.cooldown(scope=Scope.CHANNEL, time=5)
     @Command.register(name="rule34")
     async def rule34(host, state):
+        '''
+Grabs images from rule34.xxx. Tags separated by white space, all valid tags are supported.
+
+Optional pagenum parameter fetches more stuff if you're thirsting for the flesh.
+
+Usage:
+g rule34 [tag1 tag2 tag3 ... tag6] (page<int>)
+        '''
         chan = state.message.channel
         args = Command.split(state.content)
         tag_array, pagenum = await NSFW._parse_tags(args, chan)

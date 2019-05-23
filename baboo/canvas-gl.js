@@ -8,6 +8,7 @@
 
 (function() {
 
+
   const lightPos = new Float32Array([2, 2, 5]);
   const GREEN = new Float32Array([0.625, 1, 0.675]);
   const SPHERE_PRIMARY = [-2.5, -0.8, -2];
@@ -27,6 +28,9 @@
 
   const FRAME_PAST_LENGTH = 60;
 
+  let isHeaderAnimating = true;                   // whether or not header animation should continue.
+  let isMenuOpen = false;                         // whether or not menu animation should continue. might not be necessary.
+
   let arrayWorker;                                // our Ico Sphere generation worker.
   let index;                                      // keeps track of global variables. var indices, matrices, etc.
   let time = 0;                                   // global time -- useful for some onscreen motion
@@ -34,6 +38,8 @@
   let deltaTime;                                  // used to increment time based on delay since last render
   let particleList = [];                          // list of all onscreen particles
   let framePast = new Array(FRAME_PAST_LENGTH);   // displays frame time to user by averaging time on last 60 frames
+  let menuTime = 0;                               // tracks time for menu animation
+
   for (let i = 0; i < FRAME_PAST_LENGTH; i++) {
     framePast[i] = 1000;
   }
@@ -50,16 +56,23 @@
   */
   function init() {
     animateTitle();
+
+    document.getElementById("header-box").addEventListener("click", openMenu);
+
     if (!(typeof(Worker) == "function")) {
       throw "Error: Your browser doesn't support web workers.";
     }
+
     for (let i = 0; i < 60; i++) {
       particleList.push(new Particle(Math.random() * 16 - 8, Math.random() * 4 - 2, Math.random() * 10 - 12));
     }
+
     arrayWorker = new Worker("icosphere.js");
+
     arrayWorker.onmessage = function(e) {
       glSetup(e.data);
     };
+
     arrayWorker.postMessage([
       {
         subdivisions: 2,
@@ -70,10 +83,10 @@
         wedge: false
       }
     ]);
+
   }
 
   function resizeCanvas(gl) {
-    console.log("ok");
     gl.canvas.width = window.innerWidth;
     gl.canvas.height = window.innerHeight;
 
@@ -111,29 +124,107 @@
     SPHERE_PRIMARY[0] = (gl.canvas.width / gl.canvas.height) * -0.95;
   }
 
+  function openMenu() {
+    isHeaderAnimating = false;
+    // add to animation frame so that it runs explicitly after animateTitle
+    requestAnimationFrame(animateMenu);
+  }
+
+  const MENU_DROPS = 1.0;  // Time at which menu nodes drop down
+
+  const GROWTH_TIME = 0.5;  // time of animation growth duration (1st phase)
+
+  const SHRINK_TIME = 0.8;  // time of animation shrink duration (2nd phase)
+
   function animateTitle() {
-    let width = document.querySelector("header h2").getBoundingClientRect().width || 240;  // our sacred fellow
 
-    let divMiddle = document.querySelector("#highlight-container h2.highlight");
-    let divFront = document.querySelector("#highlight-container-two h2.highlight");
+    if (!isHeaderAnimating) {
+      // reassign classes to fit with menu scheme
+      let bulletList = document.querySelectorAll(".bullet-node");
+      let entries = document.querySelectorAll("nav span");
+      let menus = document.querySelectorAll("nav .menu-item");
 
-    let frontWidth = 0;
-    let middleWidth = 0;
+      for (let bullet of bulletList) {
+        bullet.classList.remove("hidden");
+        bullet.style.filter = "";
+      }
 
-    frontWidth = Math.max(width - (width * Math.pow(time * 2, 7)), 0);
-    middleWidth = Math.max(width - (time > 0.5 ? Math.pow((time - 0.5) * 2, 0.1428) * width : 0), 0);
+      for (let entry of entries) {
+        entry.classList.remove("hidden");
+      }
 
-    console.log(middleWidth);
+      for (let item of menus) {
+        item.classList.add("intangible", "clickable", "menu-unexpand");
+      }
 
-    divFront.style.width = frontWidth + "px";
-    divMiddle.style.width = middleWidth + "px";
-    if (time < 1.2) {
-      requestAnimationFrame(animateTitle);
+      document.querySelector("#highlight-container").remove();
+      document.querySelector("#highlight-container-two").remove();
     } else {
-      divMiddle.remove();
-      divFront.remove();  // hehe
+      isHeaderAnimating = (isHeaderAnimating && time < Math.max((GROWTH_TIME + SHRINK_TIME), (MENU_DROPS + 2.0)));
+
+      let width = document.querySelector("header h2").getBoundingClientRect().width || 240;  // our sacred fellow
+
+      let divMiddle = document.querySelector("#highlight-container h2.highlight");
+      let divFront = document.querySelector("#highlight-container-two h2.highlight");
+
+      let frontWidth = 0;
+      let middleWidth = 0;
+
+      frontWidth = Math.max(width - (width * Math.pow((time * (1 / GROWTH_TIME)), 7)), 0);
+      middleWidth = Math.max(width - (time > 0.5 ? (Math.pow((time - 0.5) * (1 / SHRINK_TIME), 0.04) * width) : 0), 0);
+
+      divFront.style.width = frontWidth + "px";
+      divMiddle.style.width = middleWidth + "px";
+
+      if (time > MENU_DROPS) {
+        let bulletList = document.querySelectorAll(".bullet-node");
+        for (let i = 0; i < bulletList.length; i++) {
+          let timeMod = 1.4 * (time - MENU_DROPS) * Math.PI - i / 1.6;
+          let bullet = bulletList[i];
+          bullet.style.filter = "opacity(" + 0.6 * (timeMod > 0 && timeMod < Math.PI / 2 ? Math.sin(timeMod) : 0) + ")";
+        }
+      }
+
+      requestAnimationFrame(animateTitle);
+    }
+  }
+
+  const MENU_MOTION = 25;
+  const MENU_DUR = 0.4;
+  const MENU_OFFSET = 0.1;  // add more detailed stuff like this for the others
+  const MENU_POWER = 0.1;
+
+  function animateMenu() {
+    let items = document.querySelectorAll("nav .menu-item");
+    for (let item of items) {
+      item.classList.toggle("intangible");
+      item.style.marginLeft = -MENU_MOTION + "px";
+      item.style.filter = "opacity(0)";
+    }
+    menuTime = time;
+    if (!isMenuOpen) {
+      requestAnimationFrame(iterateMenu);
+    }
+    isMenuOpen = !isMenuOpen;
+  }
+
+  function fade(t) {
+    return t * t * t * (t * (t * 6 - 15) + 10);
+  }
+
+
+  function iterateMenu() {
+    let items = document.querySelectorAll("nav .menu-item");
+    let elapsedTime = (time - menuTime);
+    for (let i = 0; i < items.length; i++) {
+      let phase = Math.min(Math.pow((elapsedTime / MENU_DUR) - (i * MENU_OFFSET), MENU_POWER), 1);
+      items[i].style.marginLeft = MENU_MOTION * (phase - 1) + "px";
+      items[i].style.filter = "opacity(" + phase + ")";
     }
 
+    if (elapsedTime < (MENU_DUR + (items.length - 1) * MENU_OFFSET)) {
+      requestAnimationFrame(iterateMenu);
+    }
   }
 
 
@@ -392,7 +483,7 @@
 
     p1 = p2;
 
-    let timer = framePast.reduce((acc, cur) => acc + cur, 0);
+    // let timer = framePast.reduce((acc, cur) => acc + cur, 0);
 
     gl.useProgram(index.progs.wedge);
 

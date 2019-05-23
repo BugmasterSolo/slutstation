@@ -1,53 +1,104 @@
-@import url('https://fonts.googleapis.com/css?family=Roboto+Mono');
+@import url('https://fonts.googleapis.com/css?family=Roboto+Mono:100,400');
 
 body {
-  font-family: "Roboto Mono", monospace;
   background-color: #1b1b1b;
+  font-family: "Roboto Mono", monospace;
+  font-weight: 400;
+  margin: 0;
   overflow-x: hidden;
   overflow-y: hidden;
-  margin: 0;
 }
 
 header {
+  position: fixed;
 }
 
 h2 {
-  left: 10px;
-  top: 10px;
-  position: fixed;
   color: #a0ffb0;
+  cursor: pointer;
   font-size: 2.2em;
+  left: 10px;
+  letter-spacing: 1px;
   margin-left: 7px;
   margin-top: 7px;
-  letter-spacing: 1px;
+  position: absolute;
+  top: 10px;
 }
 
-#highlight-container {
-}
+/* Header animation code. Needs cleanup :) */
 
-h2.highlight {
-  color: #1b1b1b;
+.highlight {
   background-color: #a0ffb0;
+  color: #1b1b1b;
   overflow: hidden;
 }
 
-h2.highlight span {
+h2.highlight span, #highlight-container-two .highlight span, #highlight-container-two .highlight {
   background-color: #1b1b1b;
   color: #a0ffb0;
 }
 
-#highlight-container-two h2.highlight {
-  color: #a0ffb0;
-  background-color: #1b1b1b;
+#highlight-container-two .highlight {
   overflow: hidden;
 }
 
-#highlight-container-two h2.highlight span {
-  background-color: #1b1b1b;
-  color: #a0ffb0;
+h2 span {
+  background-color: #a0ffb0;
+  color: #1b1b1b;
 }
 
-span, p {
-  color: #1b1b1b;
-  background-color: #a0ffb0;
+/* End of header code. */
+
+nav {
+  left: 17px;
+  margin-top: 5em;
+  position: relative;
+}
+
+nav .menu-item {
+  font-weight: 100;
+  height: 24px;
+  margin-bottom: 16px;
+  position: relative;
+  text-transform: uppercase;
+}
+
+nav .menu-item span {
+  color: #fff;
+  color: rgba(255, 255, 255, 0.8);
+  left: 10px;
+  position: relative;
+  top: -4px;
+  vertical-align: text-bottom;
+}
+
+nav .menu-item:hover .bullet-node {
+  background-color: #d0d0d0;
+  transition-duration: 0.2s;
+  transition-timing-function: cubic-bezier(0, 0.8, 0.2, 1);
+}
+
+.bullet-node {
+  background-color: #1b1b1b;
+  border: 1px solid #ffffff;
+  border-radius: 50%;
+  display: inline-block;
+  height: 20px;
+  transition-duration: 1.5s;
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0, 0.8, 0.2, 1);
+  width: 20px;
+}
+
+/* for visual flair. */
+.hidden {
+  filter: opacity(0);
+}
+
+.intangible {
+  display: none;
+}
+
+.clickable {
+  cursor: pointer;
 }

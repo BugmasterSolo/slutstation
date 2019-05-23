@@ -42,8 +42,14 @@ class Fun(Module):
     with open("./module/module_resources/fortune_cookie.json", "r") as fortune:
         FORTUNE_LIST = json.loads(fortune.read())
 
-    @Command.register(name="fortune", descrip="if you are going to die you should look here")
+    @Command.register(name="fortune")
     async def fortune(host, state):  # if any issues come up check here.
+        '''
+Tells your fortune. One fortune per day.
+
+Usage:
+g fortune
+        '''
         cur = int(time.time() / 86400)
         seed = Fun._xorshift(state.message.author.id - cur)
         # eh
@@ -56,8 +62,14 @@ class Fun(Module):
                         description=description)
         await state.message.channel.send(embed=fortune)
 
-    @Command.register(name="coinflip", descrip="flip a coin!")
+    @Command.register(name="coinflip")
     async def coinflip(host, state):
+        '''
+Flips a coin that you can watch tumble in the air.
+
+Usage:
+g coinflip
+        '''
         msg = state.message
         flip = random.random()
         if flip < 0.02:
@@ -84,6 +96,12 @@ class Fun(Module):
 
     @Command.register(name="pushup")
     async def pushup(host, state):
+        '''
+A contest of wits.
+
+Usage:
+g pushup <int>
+        '''
         args = Command.split(state.content)
         count = int(float(args[0]) + 1)
         await state.message.channel.send(f"that's cool but i can do {count} pushups")
@@ -91,7 +109,10 @@ class Fun(Module):
     @Command.register(name="roll")
     async def roll(host, state):
         '''Operators are added automatically, separated by spaces.
-           4d6 5d9 1d12 +4 -3 = 4 rolls of 6 side + 5 rolls of 9 side + 1 roll of 12 side, add 4, subtract 3.'''
+Usage:
+g roll [dice1, dice2, ...]
+
+Dice are specified as <number>d<sides>. Modifiers are provided as positive or negative integers: +4 = 4, -3 = -3.'''
         args = Command.split(state.content)
         sum = 0
         try:
@@ -139,6 +160,11 @@ class Fun(Module):
     @Command.cooldown(scope=Scope.CHANNEL, time=0, type=Scope.RUN)
     @Command.register(name="trivia")
     async def trivia(host, state):
+        '''
+Play a funky trivia game with your friends.
+
+Usage: g trivia
+        '''
         chan = state.message.channel
         url = "https://opentdb.com/api.php?amount=1"
         response = await Module._http_get_request(url)
@@ -189,19 +215,16 @@ class Fun(Module):
                         if not user == host.user:
                             if answer_index == correct_index:
                                 if user not in incorrect_users:
-                                    print(str(user.name) + " answered correctly!")
                                     correct_users.append(user)
                             else:
                                 if user in correct_users:
-                                    print(str(user.name) + " cheated!")
                                     correct_users.remove(user)
                                     incorrect_users.append(user)
                                 else:
-                                    print(str(user.name) + " was incorrect!")
                                     incorrect_users.append(user)
             await done.delete()
             if len(correct_users) == 0:
-                await chan.send(f"Sorry, no one answered correctly.\nThe correct answer was {triv['correct_answer']}.")
+                await chan.send(f"Sorry, no one answered correctly.\nThe correct answer was {html.unescape(triv['correct_answer'])}.")
             else:
                 user_ids = map(lambda u: "<@" + str(u.id) + ">", correct_users)
                 # answer array not dependable, we just have to reparse it for now
@@ -226,6 +249,12 @@ class Fun(Module):
     @Command.cooldown(scope=Scope.CHANNEL, time=10, type=Scope.TIME)
     @Command.register(name="poll")
     async def poll(host, state):
+        '''
+Run a poll in your current server.
+
+Usage:
+g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
+        '''
         chan = state.message.channel
         msg = state.content
         question = None
@@ -309,6 +338,9 @@ class Fun(Module):
 
     @Command.register(name="8ball")
     async def eightball(host, state):
+        '''
+Funny little 8ball game for you and friends.
+        '''
         if len(state.content) <= 0:
             await state.message.channel.send("Please ask a question before harnessing the 8ball!")
             return

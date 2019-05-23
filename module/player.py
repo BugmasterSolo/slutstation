@@ -99,12 +99,6 @@ class YTPlayer:
         except PermissionError:
             print("exc")
             await state.message.channel.send("Look, something went wrong. I'm sorry.")
-            # ahaha
-            # no joke: deal with this exception soon. something along the lines of:
-            #   - fetch the false download case
-            #   - prepare the file anyway
-            #   - add a prng string based on some ambient system variables
-            #   - cross fingers and hope
             pass
 
         if 'entries' in data:
@@ -125,7 +119,6 @@ class YTPlayer:
         return StreamContainer(source=discord.FFmpegPCMAudio(source), data=data, message=state.message, loc=source, embed=response_embed)  # gross
 
 
-# need some sort of key/val structure to remove files that haven't been called in 24 hours
 class MusicPlayer:
     def __init__(self, host, state, player):
         self.host = host                                            # Government
@@ -221,17 +214,16 @@ class MusicPlayer:
             pass
         self.voice_channel = self.voice_channel.channel
         listener_threshold = math.ceil((len(self.voice_channel.members) - 1) / 2)  # bot doesn't count
+        perms = self.source.channel.permissions_for(member)
         if member in self.voice_channel.members:
-            if member not in self.skip_list:
+            if perms.administrator:
+                await self.operate_skip()
+            elif member not in self.skip_list:
                 self.skip_list.append(member)
                 skip_count = len(self.skip_list)
                 if skip_count >= listener_threshold:
                     # on skip: add skipped time to start time
-                    self.active_vc.stop()
-                    time_skip = self.now_playing_duration - (time.time() - self.last_start_time)
-                    self.queue_duration -= time_skip  # retain context of start time in case it matters
-                    await self.source.channel.send("Song skipped!")
-                    self.skip_list.clear()
+                    await self.operate_skip()
                 else:
                     await self.source.channel.send(f"User {member.name}#{member.discriminator} voted to skip.\n{skip_count}/{listener_threshold} votes.")
             else:
@@ -239,6 +231,13 @@ class MusicPlayer:
                 await self.source.channel.send(f"User {member.name}#{member.discriminator} unskipped.\n{skip_count}/{listener_threshold} votes.")
         else:
             await self.source.channel.send("nice try bucko")
+
+    async def operate_skip(self):
+        self.active_vc.stop()
+        time_skip = self.now_playing_duration - (time.time() - self.last_start_time)
+        self.queue_duration -= time_skip
+        await self.source.channel.send("Song skipped!")
+        self.skip_list.clear()
 
     async def destroy(self):
         if self.active_vc:
@@ -269,6 +268,18 @@ class Player(Module):
 
     @Command.register(name="play")
     async def play(host, state):
+        '''
+Bot will sing a song for you.
+
+Sometimes fails to fetch music, since Youtube blocks content ID'd videos on the bot.
+
+Fetches a link if provided, otherwise searches the query on Youtube.
+
+If paused, resumes playback.
+
+Usage:
+g play (<valid URL>|<search query>)
+        '''
         # call the proper instance of ytdl
         chan = state.message.channel
         if not state.message.author.voice:
@@ -316,8 +327,15 @@ class Player(Module):
         print("added")
         await player.add_to_queue(source)
 
+    # deal with case where user keeps the bot paused.
     @Command.register(name="pause")
     async def pause(host, state):
+        '''
+Pauses currently playing video. Only works if the bot is already in a call.
+
+Usage:
+g pause
+        '''
         player = state.command_host.active_players.get(state.message.guild.id)
         if player:
             player.active_vc.pause()
@@ -327,6 +345,12 @@ class Player(Module):
     # throws an error, check it out later.
     @Command.register(name="stop")
     async def stop(host, state):
+        '''
+Administrator only. Stops current playback, if playing.
+
+Usage:
+g stop
+        '''
         # check if admin
         perms = state.message.author.permissions_in(state.message.channel)
         player = state.command_host.active_players.get(state.message.guild.id)
@@ -340,12 +364,29 @@ class Player(Module):
 
     @Command.register(name="skip")
     async def skip(host, state):
+        '''
+Submits a skip request to the bot.
+
+If user is an administrator, the skip is processed immediately.
+Otherwise it's added to a vote tally of users. Once the majority of users in the call votes to skip, the video is skipped.
+
+Usage:
+g skip
+        '''
         player = state.command_host.active_players.get(state.message.guild.id)
         if player:
             await player.process_skip(state.message.author)
 
     @Command.register(name="playing")
     async def now_playing(host, state):
+        '''
+Returns information on the video currently playing on the bot in a given server.
+
+Returns a default message if nothing is playing.
+
+Usage:
+g playing
+        '''
         player = state.command_host.active_players.get(state.message.guild.id)
         embed = None
         if player:

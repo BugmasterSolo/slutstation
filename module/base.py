@@ -33,6 +33,11 @@ class Scope(Enum):
 # prove useful. whatever, it's for fun :-)
 
 
+http_header = {
+    "user-agent": "Government(Discord.py) / 0.04 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
+}
+
+
 # todo:
 # means of modules broadcasting their functional needs
 class Module:
@@ -57,9 +62,12 @@ class Module:
         for func in dir(self):
             f = getattr(self, func)
             if isinstance(f, Command):
+                if self.command_list.get(f.name) is not None:
+                    raise AttributeError(f"\nDuplicate name {f.name} found. Please ensure that you're avoiding duplicates.")
+                self.command_list[f.name] = f  # list of potential commands and the coinciding function
                 for alias in f.alias:
                     # this check is fine-- convert to set for massive checks.
-                    if alias in self.command_list.keys():
+                    if self.command_list.get(alias) is not None:
                         raise AttributeError(f"\nDuplicate command {alias} found in module. Please double check your function names.")
                     self.command_list[alias] = f
 
@@ -68,9 +76,7 @@ class Module:
         '''
         Returns the relevant Command if available, otherwise returns none.
         '''
-        for i in self.command_list.keys():
-            if i == cmd:
-                return self.command_list[i]
+        return self.command_list.get(cmd)
         pass
 
     async def check(self, state):
@@ -106,11 +112,19 @@ class Module:
             await self.command_list[state.command_name](self.host, state)  # TODO: get rid of host in all cases, since it's included in "state"
 
     async def _http_get_request(domain):  # todo: deal with exceptions cleanly
-        async with aiohttp.ClientSession(headers={"user-agent":
-                                                  "Government(Discord.py) / 0.02 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
-                                                  }) as session:
+        async with aiohttp.ClientSession(headers=http_header) as session:
             print("get: " + domain)
             async with session.get(domain) as resp:
+                text = await resp.text()
+                return {
+                    "status": resp.status,
+                    "text": text
+                }
+
+    async def _http_post_request(domain, payload):
+        async with aiohttp.ClientSession(headers=http_header) as session:
+            print("post: " + domain)
+            async with session.post(domain, data=payload) as resp:
                 text = await resp.text()
                 return {
                     "status": resp.status,
@@ -162,7 +176,7 @@ class Command:
             raise TypeError("Command is not a coroutine. Add async to the function header, maybe rework a few things.")
         self.func = func
         self.descrip = kwargs.get("descrip", func.__doc__ or "No description available.")
-        self.alias = [kwargs.get("name", func.__name__)]
+        self.alias = []
         self.cooldown = None
         # safe to set
         self.cooltime = None

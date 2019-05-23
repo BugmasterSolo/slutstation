@@ -10,6 +10,8 @@ import time
 import json
 import aiomysql as sql
 
+# todo: send function documentation to government server on startup.
+
 
 class State:
     '''Wrapper for variables provided in message event, includes some added values as necessary.
@@ -34,11 +36,21 @@ class Government(Client):
         self.loop.run_until_complete(self.import_all())
         self.loop.run_until_complete(self.create_db())
         self.unique_commands = {}                           # dict of unique commands (k: command name or alias -- v: modules)
+        # rebuild module calls to parse json
+        command_info = {}
         for mod in self.module_list:
-            for command in mod.command_list:
+            for command in mod.command_list:  # oh duh, this gets keys and not values; carry on
                 if command in self.unique_commands:
                     raise ValueError(f"Duplicate commands: {command} in {mod.__name__} and {self.unique_commands[command].__name__}")
-                self.unique_commands[command] = mod
+                self.unique_commands[command] = mod  # mod value ties functions to modules
+                if command_info.get(command) is None:
+                    command_info[command] = {
+                        "name": command,
+                        "descrip": mod.command_list[command].descrip,
+                        "aliases": mod.command_list[command].alias
+                    }
+        a = self.loop.run_until_complete(module.Module._http_post_request("http://baboo.mobi/government/help_function.php", json.dumps(command_info)))
+        print(a)
         print("Up and running!")
 
     async def create_db(self):

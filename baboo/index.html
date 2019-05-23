@@ -266,13 +266,33 @@
   </head>
   <body>
     <header>
-      <h2><span>g</span>overnment</h2>
-      <div id="highlight-container">
-        <h2 class="highlight"><span>g</span>overnment</h2>
+      <div id="header-box">
+        <h2><span>g</span>overnment</h2>
+        <div id="highlight-container">
+          <h2 class="highlight"><span>g</span>overnment</h2>
+        </div>
+        <!-- this sucks, clean up IDs and classes -->
+        <div id="highlight-container-two">
+          <h2 class="highlight"><span>g</span>overnment</h2>
+        </div>
       </div>
-      <div id="highlight-container-two">
-        <h2 class="highlight"><span>g</span>overnment</h2>
-      </div>
+      <nav>
+        <div class="menu-item">
+          <div class="bullet-node hidden">
+          </div>
+          <span class="hidden">about</span>
+        </div>
+        <div class="menu-item">
+          <div class="bullet-node hidden">
+          </div>
+          <span class="hidden">help</span>
+        </div>
+        <div class="menu-item">
+          <div class="bullet-node hidden">
+          </div>
+          <span class="hidden">support</span>
+        </div>
+      </nav>
     </header>
     <canvas width=1920 height=720 class="canvas-header" id="primary-canvas">  <!--Size based on window, leave some room as well.-->
     </canvas>
