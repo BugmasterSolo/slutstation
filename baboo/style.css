@@ -1,7 +1,13 @@
 @import url('https://fonts.googleapis.com/css?family=Roboto+Mono:100,400');
 
+:root {
+  --accent: #a0ffb0;
+  --background: #1b1b1b;
+}
+
 body {
   background-color: #1b1b1b;
+  background-color: var(--background);
   font-family: "Roboto Mono", monospace;
   font-weight: 400;
   margin: 0;
@@ -15,6 +21,7 @@ header {
 
 h2 {
   color: #a0ffb0;
+  color: var(--accent);
   cursor: pointer;
   font-size: 2.2em;
   left: 10px;
@@ -29,13 +36,16 @@ h2 {
 
 .highlight {
   background-color: #a0ffb0;
+  background-color: var(--accent);
   color: #1b1b1b;
   overflow: hidden;
 }
 
 h2.highlight span, #highlight-container-two .highlight span, #highlight-container-two .highlight {
   background-color: #1b1b1b;
+  background-color: var(--background);
   color: #a0ffb0;
+  color: var(--accent);
 }
 
 #highlight-container-two .highlight {
@@ -44,7 +54,9 @@ h2.highlight span, #highlight-container-two .highlight span, #highlight-containe
 
 h2 span {
   background-color: #a0ffb0;
+  background-color: var(--accent);
   color: #1b1b1b;
+  color: var(--background);
 }
 
 /* End of header code. */
@@ -80,6 +92,7 @@ nav .menu-item:hover .bullet-node {
 
 .bullet-node {
   background-color: #1b1b1b;
+  background-color: var(--background);
   border: 1px solid #ffffff;
   border-radius: 50%;
   display: inline-block;

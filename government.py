@@ -36,6 +36,7 @@ class Government(Client):
         self.loop.run_until_complete(self.import_all())
         self.loop.run_until_complete(self.create_db())
         self.unique_commands = {}                           # dict of unique commands (k: command name or alias -- v: modules)
+
         # rebuild module calls to parse json
         command_info = {}
         for mod in self.module_list:
@@ -49,6 +50,7 @@ class Government(Client):
                         "descrip": mod.command_list[command].descrip,
                         "aliases": mod.command_list[command].alias
                     }
+        # oophs
         a = self.loop.run_until_complete(module.Module._http_post_request("http://baboo.mobi/government/help_function.php", json.dumps(command_info)))
         print(a)
         print("Up and running!")
@@ -98,6 +100,7 @@ class Government(Client):
         await self.import_extension(module.Steam)
         await self.import_extension(module.Stattrack)
         await self.import_extension(module.Player)
+        await self.import_extension(module.ImageModule)
 
     async def import_extension(self, cls):
         try:

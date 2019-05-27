@@ -40,6 +40,9 @@
       uniform mat4 projectionMatrix;  // add in view matrix to projection matrix
       uniform mat4 normalMatrix;
 
+      uniform vec3 uAccent;
+      uniform vec3 uBackground;
+
       uniform float iTime;
 
       // note: animation, color, ... can all be calculated in the vertex shader
@@ -48,8 +51,6 @@
       // unite all the green constants
       // bring them towards the green of the page
 
-      const vec3 GREEN = vec3(.627, 1, .69);
-      const vec3 GRAY = vec3(0.2, 0.2, 0.2);
       const float HEIGHTMOD = (1.0 - (DEPTH / 2.0));
 
       // modification of the "ubiquitous celebrity"
@@ -74,7 +75,7 @@
         // vec3 colorGoal = vec3(ceil(iTime)) - aWedgeNormal.xyz;
         float ratio = HEIGHTMOD + mix((DEPTH * rand(initVec)), (DEPTH * rand(goalVec)), fadeCurve);
         //vColor = (rand(colorInit) > 0.5 ? GREEN : GRAY);
-        vColor = mix(GRAY, GREEN, min(pow(mix(rand(initVec), rand(goalVec), fract(iTime)) + 0.4, 32.0), 1.0));
+        vColor = mix(uBackground * 2.0, uAccent, min(pow(mix(rand(initVec), rand(goalVec), fract(iTime)) + 0.4, 32.0), 1.0));
         vec4 modelTransform = modelMatrix * vec4(aPosition.xyz * ratio, aPosition.w);
         vPosition = modelTransform;
         cullLength = length(aPosition);

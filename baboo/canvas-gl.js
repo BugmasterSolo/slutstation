@@ -8,6 +8,8 @@
 
 (function() {
 
+  // todo: add in color variable and tie it in to all of the intricate function-y bits.
+
 
   const lightPos = new Float32Array([2, 2, 5]);
   const GREEN = new Float32Array([0.625, 1, 0.675]);
@@ -31,6 +33,8 @@
   let isHeaderAnimating = true;                   // whether or not header animation should continue.
   let isMenuOpen = false;                         // whether or not menu animation should continue. might not be necessary.
 
+  let accentColor = [0.625, 1, 0.675];
+  let backgroundColor = [0.109, 0.109, 0.109];
   let arrayWorker;                                // our Ico Sphere generation worker.
   let index;                                      // keeps track of global variables. var indices, matrices, etc.
   let time = 0;                                   // global time -- useful for some onscreen motion
@@ -59,6 +63,8 @@
 
     document.getElementById("header-box").addEventListener("click", openMenu);
 
+    document.documentElement.style.setProperty("--accent", floatToHex(accentColor));
+    document.documentElement.style.setProperty("--background", floatToHex(backgroundColor));
     if (!(typeof(Worker) == "function")) {
       throw "Error: Your browser doesn't support web workers.";
     }
@@ -83,7 +89,18 @@
         wedge: false
       }
     ]);
+  }
 
+  const HEX_ARRAY = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "A", "B", "C", "D", "E", "F"];
+
+  function floatToHex(col) {
+    let str = "#";
+    for (let i = 0; i < 3; i++) {
+      let int = Math.ceil(col[i] * 255);
+      str += (HEX_ARRAY[Math.floor(int / 16)] + HEX_ARRAY[int % 16]);
+    }
+
+    return str;
   }
 
   function resizeCanvas(gl) {
@@ -391,6 +408,8 @@
         uAmbient: gl.getUniformLocation(wedgeprog, "uAmbientStrength"),
         uCameraPosition: gl.getUniformLocation(wedgeprog, "uCameraPosition"),
         uGeometryColor: gl.getUniformLocation(wedgeprog, "uGeometryColor"),
+        uAccent: gl.getUniformLocation(wedgeprog, "uAccent"),
+        uBackground: gl.getUniformLocation(wedgeprog, "uBackground"),
 
         light: {
           worldPosition: gl.getUniformLocation(wedgeprog, "uLight.worldPosition"),
@@ -464,6 +483,9 @@
     gl.uniform3fv(index.wedge.light.color, index.lights.color);
     gl.uniform1f(index.wedge.light.intensity, index.lights.intensity);
 
+    gl.uniform3fv(index.wedge.uAccent, accentColor);
+    gl.uniform3fv(index.wedge.uBackground, backgroundColor);
+
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, el);
 
     resizeCanvas(gl);
@@ -521,6 +543,9 @@
     gl.uniform3fv(index.wedge.light.color, index.lights.color);
     gl.uniform1f(index.wedge.light.intensity, index.lights.intensity);
 
+    gl.uniform3fv(index.wedge.uAccent, accentColor);
+    gl.uniform3fv(index.wedge.uBackground, backgroundColor);
+
     gl.bindFramebuffer(gl.FRAMEBUFFER, index.textures.framebuffer);
     // resize viewport texture when changing size
     gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
@@ -549,7 +574,7 @@
     gl.uniformMatrix4fv(index.particle.uProjection, false, index.matrices.proj);
     gl.uniformMatrix4fv(index.particle.uView, false, index.matrices.view);
 
-    gl.uniform3f(index.particle.uGeometryColor, 0.625, 1, 0.6875);
+    gl.uniform3fv(index.particle.uGeometryColor, accentColor);
 
 
     gl.uniform1f(index.particle.uAmbient, index.constants.ambient);

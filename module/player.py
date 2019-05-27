@@ -195,7 +195,7 @@ class MusicPlayer:
             await self.destroy()
 
     # adds to queue. ignores if process fails.
-    async def add_to_queue(self, stream):
+    async def add_to_queue(self, stream, chan):
         await self.queue_event.wait()
         if self.active_vc:
             await self.queue.put(stream)
@@ -203,10 +203,10 @@ class MusicPlayer:
             duration_string = format_time(time_until_playing)
             self.queue_duration += stream.duration
             stream.embed.set_footer(text=("\n\nTime until playing: " + duration_string))
-            await self.source.channel.send(embed=stream.embed)
+            await chan.send(embed=stream.embed)
 
     # integrate permissions into here (and all over frankly)
-    async def process_skip(self, member):
+    async def process_skip(self, member, chan):
         # member count is important here, so let's get the channel again
         self.voice_channel = self.host.get_guild(self.source.guild.id).voice_client  # i mean this should exist i think
         if self.voice_channel is None:
@@ -214,29 +214,29 @@ class MusicPlayer:
             pass
         self.voice_channel = self.voice_channel.channel
         listener_threshold = math.ceil((len(self.voice_channel.members) - 1) / 2)  # bot doesn't count
-        perms = self.source.channel.permissions_for(member)
+        perms = chan.permissions_for(member)
         if member in self.voice_channel.members:
             if perms.administrator:
-                await self.operate_skip()
+                await self.operate_skip(chan)
             elif member not in self.skip_list:
                 self.skip_list.append(member)
                 skip_count = len(self.skip_list)
                 if skip_count >= listener_threshold:
                     # on skip: add skipped time to start time
-                    await self.operate_skip()
+                    await self.operate_skip(chan)
                 else:
-                    await self.source.channel.send(f"User {member.name}#{member.discriminator} voted to skip.\n{skip_count}/{listener_threshold} votes.")
+                    await chan.send(f"User {member.name}#{member.discriminator} voted to skip.\n{skip_count}/{listener_threshold} votes.")
             else:
                 self.skip_list.remove(member)
-                await self.source.channel.send(f"User {member.name}#{member.discriminator} unskipped.\n{skip_count}/{listener_threshold} votes.")
+                await chan.send(f"User {member.name}#{member.discriminator} unskipped.\n{skip_count}/{listener_threshold} votes.")
         else:
-            await self.source.channel.send("nice try bucko")
+            await chan.send("nice try bucko")
 
-    async def operate_skip(self):
+    async def operate_skip(self, chan):
         self.active_vc.stop()
         time_skip = self.now_playing_duration - (time.time() - self.last_start_time)
         self.queue_duration -= time_skip
-        await self.source.channel.send("Song skipped!")
+        await chan.send("Song skipped!")
         self.skip_list.clear()
 
     async def destroy(self):
@@ -325,7 +325,7 @@ g play (<valid URL>|<search query>)
         stream_history[source.dir] = time.time()  # queue once when downloaded.
         await msg.delete()
         print("added")
-        await player.add_to_queue(source)
+        await player.add_to_queue(source, state.message.channel)
 
     # deal with case where user keeps the bot paused.
     @Command.register(name="pause")
@@ -375,7 +375,7 @@ g skip
         '''
         player = state.command_host.active_players.get(state.message.guild.id)
         if player:
-            await player.process_skip(state.message.author)
+            await player.process_skip(state.message.author, state.message.channel)
 
     @Command.register(name="playing")
     async def now_playing(host, state):
