@@ -223,6 +223,8 @@ Usage: g trivia
                                 else:
                                     incorrect_users.append(user)
             await done.delete()
+            if (state.message.author not in correct_users and state.message.author not in incorrect_users):
+                incorrect_users.append(state.message.author)
             if len(correct_users) == 0:
                 await chan.send(f"Sorry, no one answered correctly.\nThe correct answer was {html.unescape(triv['correct_answer'])}.")
             else:
