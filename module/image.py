@@ -7,21 +7,20 @@ from io import BytesIO
 from .base import Module, Command, Scope
 import copyreg
 import types
-import dill
+# import dill
 
 
 # https://stackoverflow.com/questions/8804830/python-multiprocessing-picklingerror-cant-pickle-type-function
 # this one guy keeps shilling his multiprocessing substitute plugin but i dont want it
-# upon hearing this i've committed myself to becoming a software dev so that I can make fun of lil shites
-def decode_and_run(payload):
-    func, args = dill.loads(payload)
-    return func(*args)
-
-
-def dill_encode(func, *args):
-    payload = dill.dumps(func, *args)
-    return payload
-
+# def decode_and_run(payload):
+#     func, args = dill.loads(payload)
+#     return func(*args)
+#
+#
+# def dill_encode(func, *args):
+#     payload = dill.dumps(func, *args)
+#     return payload
+#
 
 # if this works then we can avoid the dill call
 # https://stackoverflow.com/questions/27318290/why-can-i-pass-an-instance-method-to-multiprocessing-process-but-not-a-multipro
@@ -53,6 +52,7 @@ class ImageQueue:
         self.load_event = asyncio.Event()
         self.loop = asyncio.get_event_loop()
         self.loop.create_task(self.process_images(self.loop))
+        # this can be asyncio.run_coroutine_threadsafe? look into tradeoffs of all of this mess
 
     async def add_to_queue(self, item):
         await self.queue.put(item)
@@ -160,8 +160,8 @@ class ImageQueueable:
         self.size = img.size
         self.mode = img.mode
 
-    def dill_bundle_call(self):
-        return dill_encode(self.apply_filter)
+    # def dill_bundle_call(self):
+    #     return dill_encode(self.apply_filter)
 
 
 class Pixelsort(ImageQueueable):
@@ -246,7 +246,7 @@ class compare_funcs:
         if mode == "RGB":
             return (0.2126 * col[0] + 0.7152 * col[1] + 0.0722 * col[2]) / 256
         elif mode == "RGBA":
-            return (0.2126 * col[0] + 0.7152 * col[1] + 0.0722 * col[2]) * col[3] / 256
+            return (0.2126 * col[0] + 0.7152 * col[1] + 0.0722 * col[2]) * (col[3] / 65536)
         elif mode == "L":
             return col / 256
         elif mode == "YCbCr":
@@ -288,6 +288,9 @@ Usage:
 g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma)>]
         '''
         url, args = ImageModule.parse_string(state.content, state.message)
-        sort = Pixelsort(channel=state.message.channel, url=url, isHorizontal=True)
+        if args[0]:
+            sort = Pixelsort(channel=state.message.channel, url=url, threshold=float(args[0]), isHorizontal=True)
+        else:
+            sort = Pixelsort(channel=state.message.channel, url=url, isHorizontal=True)
         await state.command_host.queue.add_to_queue(sort)
         pass
