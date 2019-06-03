@@ -69,7 +69,12 @@ Manages the core processing loop that powers the image queue.
         '''
         while True:
             process = await self.queue.get()
-            await self.load_image(process)
+            try:
+                await self.load_image(process)
+            except aiohttp.InvalidURL:
+                await process.channel.send("Invalid URL provided.")
+                continue
+
             # should be fine to call from callback since it runs on main thread
             self.load_event.clear()
             # filter operation runs in separate thread, whatever it is
