@@ -70,11 +70,13 @@ Manages the core processing loop that powers the image queue.
         while True:
             process = await self.queue.get()
             try:
-                await self.load_image(process)
+                image_successful = await self.load_image(process)
+                if not image_successful:
+                    await process.channel.send("Something went wrong while parsing that link. Make sure it contains an image.")
+                    continue
             except aiohttp.InvalidURL:
                 await process.channel.send("Invalid URL provided.")
                 continue
-
             # should be fine to call from callback since it runs on main thread
             self.load_event.clear()
             # filter operation runs in separate thread, whatever it is
@@ -100,15 +102,14 @@ Manages the core processing loop that powers the image queue.
         async with aiohttp.ClientSession() as session:
             async with session.get(q.url) as resp:
                 data = await resp.read()
-        # major blocking here
-        # could use a queue event to put this on lock?
         self.load_event.clear()
-        # self.pool.apply_async(ImageQueue.bytes_and_load, (data,), callback=lambda ret: self.pass_image(q, ret))
-        # non ideal
         ret = ImageQueue.bytes_and_load(data)  # this function potentially incurs some significant blocking, but throwing it into a process atm causes major slowdown. will have to investigate further
         # self.pool.apply_async(ImageQueue.bytes_and_load, args=(data,), callback=lambda ret: self.pass_image(q, ret))
+        if ret is None:
+            return False
         self.pass_image(q, ret)
         await self.load_event.wait()
+        return True
 
     def bytes_and_load(data):
         byte = BytesIO(data)
