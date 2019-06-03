@@ -34,7 +34,7 @@ class Scope(Enum):
 
 
 http_header = {
-    "user-agent": "Government(Discord.py) / 0.04 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
+    "user-agent": "Government(Discord.py) / 0.062 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
 }
 
 

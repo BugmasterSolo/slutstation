@@ -65,7 +65,7 @@
 
     document.documentElement.style.setProperty("--accent", floatToHex(accentColor));
     document.documentElement.style.setProperty("--background", floatToHex(backgroundColor));
-    if (!(typeof(Worker) == "function")) {
+    if (!(typeof(Worker) === "function")) {
       throw "Error: Your browser doesn't support web workers.";
     }
 
@@ -76,6 +76,7 @@
     arrayWorker = new Worker("icosphere.js");
 
     arrayWorker.onmessage = function(e) {
+      console.log("ok");
       glSetup(e.data);
     };
 

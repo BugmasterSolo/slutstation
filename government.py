@@ -32,7 +32,7 @@ class Government(Client):
         self.logged_users = {}                              # dict of users known to exist in DB.
         self.module_list = []                               # list of all instantiated modules
         self.loop = asyncio.get_event_loop()                # current running event looped (started by discord py)
-        self.db = None                                      # current database connection (aiomysql pool)
+        self.db = None                           # current database connection (aiomysql pool)
         self.loop.run_until_complete(self.import_all())
         self.loop.run_until_complete(self.create_db())
         self.unique_commands = {}                           # dict of unique commands (k: command name or alias -- v: modules)
@@ -51,8 +51,7 @@ class Government(Client):
                         "aliases": mod.command_list[command].alias
                     }
         # oophs
-        a = self.loop.run_until_complete(module.Module._http_post_request("http://baboo.mobi/government/help_function.php", json.dumps(command_info)))
-        print(a)
+        self.loop.run_until_complete(module.Module._http_post_request("http://baboo.mobi/government/help_function.php", json.dumps(command_info)))
         print("Up and running!")
 
     async def create_db(self):
@@ -80,7 +79,6 @@ class Government(Client):
                     command_name = trimmed_message
                 else:
                     command_name = trimmed_message[:word_cut]
-
                 if word_cut == -1:
                     trimmed_message = ""
                 else:
@@ -128,5 +126,6 @@ def load_token():
         return f.read().strip()
 
 
-client = Government("g ")
-client.run(load_token())
+if __name__ == '__main__':
+    client = Government("g ")
+    client.run(load_token())

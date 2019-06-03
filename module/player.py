@@ -40,7 +40,7 @@ async def check_stream_history():
         for key in stream_history:
             past = curtime - stream_history[key]
             if past > 10799:
-                loop.run_in_executor(None, lambda: os.remove(key))
+                await loop.run_in_executor(None, lambda: os.remove(key))  # fileread done externally?
                 print(f"Deleted item in directory {key} .")
                 del_list.append(key)
         for dir in del_list:
@@ -97,7 +97,6 @@ class YTPlayer:
         try:
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=False))  # asyncs synchronous function
         except PermissionError:
-            print("exc")
             await state.message.channel.send("Look, something went wrong. I'm sorry.")
             pass
 
@@ -124,6 +123,7 @@ class MusicPlayer:
         self.host = host                                            # Government
         self.source = state.message                                 # one player to a guild, you can't have the bot all to yourself
         self.queue = asyncio.Queue()                                # music queue for a given channel
+        # queue is necessary for async.
         self.state = asyncio.Event()                                # used to ensure only one stream runs at a time
         self.active_vc = None                                       # the currently active voice client
         self.parent = player                                        # the "command_host", in this case our Player module
@@ -136,6 +136,7 @@ class MusicPlayer:
         self.last_start_time = None                                 # start time of last track
         self.now_playing_duration = None                            # duration of current track
         self.queue_event.clear()
+        # make a pre-parsed embed queue for playing. we do need the queue features a lot
         loop.create_task(self.player())
 
     async def player(self):
@@ -156,7 +157,7 @@ class MusicPlayer:
                 self.state.clear()
                 # runs per loop
                 try:
-                    async with async_timeout.timeout(120):
+                    async with async_timeout.timeout(180):
                         # if something goes wrong, wait for the queue to fill up. this works when delays appear in the DL process.
                         source = await self.queue.get()
                         if not os.path.exists(source.dir):
@@ -271,7 +272,7 @@ class Player(Module):
         '''
 Bot will sing a song for you.
 
-Sometimes fails to fetch music, since Youtube blocks content ID'd videos on the bot.
+Sometimes fails to fetch music, since Youtube blocks content ID'd videos on the bot. We're working on it.
 
 Fetches a link if provided, otherwise searches the query on Youtube.
 
@@ -308,6 +309,7 @@ g play (<valid URL>|<search query>)
                 return
             return_query = return_query['items'][0]
             url = "https://www.youtube.com/watch?v=" + return_query['id']['videoId']
+        player = state.command_host.get_player(host, state)
         msg = await chan.send("```Searching...\nThis can take a while for longer videos...```")
         await chan.trigger_typing()
         try:
@@ -320,11 +322,8 @@ g play (<valid URL>|<search query>)
                 print(e)
             await msg.delete()
             return
-
-        player = state.command_host.get_player(host, state)
         stream_history[source.dir] = time.time()  # queue once when downloaded.
         await msg.delete()
-        print("added")
         await player.add_to_queue(source, state.message.channel)
 
     # deal with case where user keeps the bot paused.
