@@ -68,7 +68,6 @@ class ImageQueue:
 Manages the core processing loop that powers the image queue.
         '''
         while True:
-            print("were goin")
             process = await self.queue.get()
             await self.load_image(process)
             # should be fine to call from callback since it runs on main thread
@@ -76,21 +75,17 @@ Manages the core processing loop that powers the image queue.
             # filter operation runs in separate thread, whatever it is
             func, args = process.bundle_filter_call()
             self.pool.apply_async(func, args=args, callback=lambda ret: self.postsync(ret, process))
-            print("pool's closed")
 
     def postsync(self, img, proc):
-        print("postsync")
         asyncio.run_coroutine_threadsafe(self.post(img, proc), self.loop)
 
     async def empty(self):
         pass
 
     async def post(self, data, q):
-        print("post run!")
         img = BytesIO()
         data.save(img, "PNG")
         img.seek(0)
-        print("Sending file {file_name}...")
         await q.channel.send(file=File(img, filename=q.filename))
 
     # this should be doable pretty quickly when adding the item to the queue?
@@ -111,7 +106,6 @@ Manages the core processing loop that powers the image queue.
         await self.load_event.wait()
 
     def bytes_and_load(data):
-        print("running")
         byte = BytesIO(data)
         try:
             img = Image.open(byte)
@@ -235,7 +229,6 @@ Pixelsort(channel, url, [filename='upload.png', isHorizontal=True, threshold=0.5
             print("An error occurred!")
             print(e)
             traceback.print_exc()
-        print("operation finished")
         return img  # i hope this work
         pass
 
@@ -288,7 +281,7 @@ Usage:
 g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma)>]
         '''
         url, args = ImageModule.parse_string(state.content, state.message)
-        if args[0]:
+        if len(args) >= 1:
             sort = Pixelsort(channel=state.message.channel, url=url, threshold=float(args[0]), isHorizontal=True)
         else:
             sort = Pixelsort(channel=state.message.channel, url=url, isHorizontal=True)
