@@ -289,7 +289,7 @@ g play (<valid URL>|<search query>)
         vchan = state.message.author.voice.channel
         # no idea why this does not work
         player = state.command_host.active_players.get(state.message.guild.id)
-        url = state.content  # todo: deal with additional arguments
+        url = state.content.strip()  # todo: deal with additional arguments
         if len(url) == 0:
             if not player:  # inactive -- url required
                 await chan.send("Please provide a valid URL!")
@@ -300,6 +300,7 @@ g play (<valid URL>|<search query>)
                     return
                 elif player.active_vc.is_paused():  # no url, paused (active)
                     player.active_vc.resume()
+                    return
         if not url.startswith("http"):
             # engage search api
             # if search then include all queries
