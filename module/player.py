@@ -154,7 +154,7 @@ class MusicPlayer:
             self.active_vc = await channel.connect()
             self.queue_event.set()  # active_vc exists, so we're in the clear
             while True:
-                self.state.clear()
+                ytdl.cache.remove()
                 # runs per loop
                 try:
                     async with async_timeout.timeout(180):
@@ -295,7 +295,7 @@ g play (<valid URL>|<search query>)
                 await chan.send("Please provide a valid URL!")
                 return  # if paused: skips if cases
             else:  # something playing
-                if player.is_playing():  # no url, playing already
+                if player.active_vc.is_playing():  # no url, playing already
                     await chan.send("I'm already playing something!")
                     return
                 elif player.active_vc.is_paused():  # no url, paused (active)
