@@ -309,7 +309,6 @@ g play (<valid URL>|<search query>)
                 return
             return_query = return_query['items'][0]
             url = "https://www.youtube.com/watch?v=" + return_query['id']['videoId']
-        player = state.command_host.get_player(host, state)
         msg = await chan.send("```Searching...\nThis can take a while for longer videos...```")
         await chan.trigger_typing()
         try:
@@ -322,6 +321,7 @@ g play (<valid URL>|<search query>)
                 print(e)
             await msg.delete()
             return
+        player = state.command_host.get_player(host, state)
         stream_history[source.dir] = time.time()  # queue once when downloaded.
         await msg.delete()
         await player.add_to_queue(source, state.message.channel)
