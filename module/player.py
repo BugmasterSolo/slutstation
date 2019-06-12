@@ -119,7 +119,7 @@ class YTPlayer:
 
 
 class MusicPlayer:
-    def __init__(self, host, state, player):
+    def __init__(self, host, state, player, channel):
         self.host = host                                            # Government
         self.source = state.message                                 # one player to a guild, you can't have the bot all to yourself
         self.queue = asyncio.Queue()                                # music queue for a given channel
@@ -127,7 +127,7 @@ class MusicPlayer:
         self.state = asyncio.Event()                                # used to ensure only one stream runs at a time
         self.active_vc = None                                       # the currently active voice client
         self.parent = player                                        # the "command_host", in this case our Player module
-        self.voice_channel = state.message.author.voice.channel     # the currently active voice channel
+        self.voice_channel = channel                                # the currently active voice channel
         self.queue_event = asyncio.Event()                          # tbh im pretty sure i can get rid of this
         self.skip_list = []                                         # tracks the number of users willing to skip
         self.now_playing = None                                     # embed representing currently playing song
@@ -257,10 +257,10 @@ class Player(Module):
         with open("youtube_api.txt", "r") as ytapi:
             self.api_key = ytapi.read().strip()
 
-    def get_player(self, host, state):
+    def get_player(self, host, state, vchan):
         player = self.active_players.get(state.message.guild.id)
         if not player:
-            player = MusicPlayer(host, state, self)
+            player = MusicPlayer(host, state, self, vchan)
             self.active_players[state.message.guild.id] = player
         return player
 
@@ -286,6 +286,7 @@ g play (<valid URL>|<search query>)
         if not state.message.author.voice:
             await state.message.channel.send("Please join a voice channel first!")
             return
+        vchan = state.message.author.voice.channel
         # no idea why this does not work
         player = state.command_host.active_players.get(state.message.guild.id)
         url = state.content  # todo: deal with additional arguments
@@ -321,7 +322,7 @@ g play (<valid URL>|<search query>)
                 print(e)
             await msg.delete()
             return
-        player = state.command_host.get_player(host, state)
+        player = state.command_host.get_player(host, state, vchan)
         stream_history[source.dir] = time.time()  # queue once when downloaded.
         await msg.delete()
         await player.add_to_queue(source, state.message.channel)
