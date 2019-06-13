@@ -154,7 +154,7 @@ class MusicPlayer:
             self.active_vc = await channel.connect()
             self.queue_event.set()  # active_vc exists, so we're in the clear
             while True:
-                ytdl.cache.remove()
+                self.state.clear()
                 # runs per loop
                 try:
                     async with async_timeout.timeout(180):
