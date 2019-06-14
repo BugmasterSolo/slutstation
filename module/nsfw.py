@@ -71,11 +71,9 @@ g e621 [tag1 tag2 ... tag6] (page<int>)
                 response_embed.set_image(url=url)
                 response_embed.set_author(name="E621.NET")
                 await chan.send(embed=response_embed)
-                # await state.message.channel.send(random.choice(parsed_json)['file_url'])
         else:
             await chan.send("Sorry, no dice: " + parsed_json['reason'])
         # thanks stack: https://stackoverflow.com/questions/25231989/how-to-check-if-a-variable-is-a-dictionary-in-python
-        # worry about edge cases in a sec
 
     async def _parse_tags(tag_array, chan):
         pagenum = None

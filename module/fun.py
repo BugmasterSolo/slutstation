@@ -3,7 +3,6 @@ from discord import Status, Embed
 # import mysql.connector as mysql
 
 import time
-import math
 import random
 import json
 import asyncio
@@ -18,7 +17,6 @@ class Fun(Module):
     # also: this is a significant limitation of the current structure.
     # + i dont like it.
     MAX_INT = 4294967295
-    A_EMOJI = 0x0001F1E6
     FORTUNE_LIST = []
     TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001f1e6", "\U0001f1e7", "\U0001f1e8", "\U0001f1e9")
     EIGHT_BALL = ("It is certain",
@@ -184,7 +182,7 @@ Usage: g trivia
                                      color=0x8050ff)
                 trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
                 char_list = [Fun.TRIVIA_REACTION_LIST[0], Fun.TRIVIA_REACTION_LIST[1]]  # what
-                msg = await Fun.add_reactions(chan, trivia_embed, 20, loop=range(2), char_list=char_list)
+                msg = await Module.add_reactions(chan, trivia_embed, host, 20, loop=range(2), char_list=char_list)
             elif type == "multiple":
                 answer_array = triv['incorrect_answers']
                 correct_index = random.randint(0, len(answer_array))
@@ -201,7 +199,7 @@ Usage: g trivia
                                      description=descrip,
                                      color=0x8050ff)
                 trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
-                msg = await Fun.add_reactions(chan, trivia_embed, 20, loop=range(4))
+                msg = await Module.add_reactions(chan, trivia_embed, host, 20, loop=range(4))
             # refresh the reaction list
             done = await chan.send("***Time's up!***")
             msg_reactions = await chan.fetch_message(msg)
@@ -298,7 +296,7 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
             description += letters[i] + f") {answer_list[i]}\n"
         description += "\n*Created on " + time.strftime("%B %d %Y, %H:%M:%S ", time.gmtime()) + "UTC*"
         question_embed = Embed(title=question, description=description, color=0x8050ff)
-        poll_id = await Fun.add_reactions(chan, question_embed, timer, loop_list, descrip=question)
+        poll_id = await Module.add_reactions(chan, question_embed, host, timer, loop_list, descrip=question)
         poll = await chan.fetch_message(poll_id)
         poll_reactions = poll.reactions
         poll_responses = [None] * answer_count
@@ -349,73 +347,7 @@ Funny little 8ball game for you and friends.
         await state.message.channel.send("\U0001f3b1 | *" + random.choice(Fun.EIGHT_BALL) + "...*")
 
     # desc's are not necessary for short queries, such as trivia.
-    async def add_reactions(chan, embed, timer, loop=None, char_list=None, descrip="Get your answer in!"):
-        poll = await chan.send(embed=embed)
-        # specifics!
-        if char_list:
-            for emote in char_list:
-                await poll.add_reaction(emote)
-        else:
-            for i in loop:
-                await poll.add_reaction(chr(Fun.A_EMOJI + i))
-        # more dynamic response
-        if timer >= 3600:
-            await asyncio.sleep(timer - 1800)
-            warning = await chan.send(f"***30 minutes remaining: '{descrip}'***")
-            await asyncio.sleep(60)
-            await warning.delete()
-            timer = 1740
-        if timer >= 900:
-            await asyncio.sleep(timer - 600)
-            warning = await chan.send(f"***10 minutes remaining: '{descrip}'***")
-            await asyncio.sleep(30)
-            await warning.delete()
-            timer = 570
-        if timer >= 300:
-            await asyncio.sleep(timer - 180)
-            warning = await chan.send("***3 minutes remaining!***")
-            await asyncio.sleep(5)
-            await warning.delete()
-            timer = 175
-        if timer >= 120:
-            await asyncio.sleep(timer - 60)
-            warning = await chan.send("***1 minute remaining!***")
-            await asyncio.sleep(5)
-            await warning.delete()
-            timer = 55
-        if timer > 10:
-            await asyncio.sleep(timer - 10)
-            # use a description on longer waits
-            warning = await chan.send("***10 seconds remaining!***")
-            await asyncio.sleep(5)
-            await warning.delete()
-            await asyncio.sleep(5)
-        return poll.id
-        # jump back into loop
-
-    def format_duration(timer):
-        duration_string = ""
-        if (timer > 86400):
-            day_count = math.floor(timer / 84600)
-            timer = (timer - (day_count * 86400))
-            duration_string += str(day_count) + " day" + ("s" if day_count > 1 else "")  # i dont like this
-            if not (timer == 0):
-                duration_string += ", "
-        if (timer > 3600):
-            hour_count = math.floor(timer / 3600)
-            timer = (timer - (hour_count * 3600))
-            duration_string += str(hour_count) + " hour" + ("s" if hour_count > 1 else "")
-            if not (timer == 0):
-                duration_string += ", "
-        if (timer > 60):
-            minute_count = math.floor(timer / 60)
-            timer = (timer - (minute_count * 60))
-            duration_string += str(minute_count) + " minute" + ("s" if minute_count > 1 else "")
-            if not (timer == 0):
-                duration_string += ", "
-        if (timer > 0):
-            duration_string += str(timer) + " second" + ("s" if timer > 1 else "")
-        return duration_string
+    # todo: move into Module.
 
     # 32 bit xorshift. used for state dependent PRNG.
     def _xorshift(num):

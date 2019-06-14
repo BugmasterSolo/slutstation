@@ -1,6 +1,6 @@
 import discord
 
-from .base import Module, Command
+from .base import Module, Command, GuildUpdateListener
 import asyncio
 import async_timeout
 import time
@@ -118,6 +118,10 @@ class YTPlayer:
         return StreamContainer(source=discord.FFmpegPCMAudio(source), data=data, message=state.message, loc=source, embed=response_embed)  # gross
 
 
+def check(guild_old, guild_new):
+    return guild_old.region == guild_new.region
+
+
 class MusicPlayer:
     def __init__(self, host, state, player, channel):
         self.host = host                                            # Government
@@ -138,6 +142,15 @@ class MusicPlayer:
         self.queue_event.clear()
         # make a pre-parsed embed queue for playing. we do need the queue features a lot
         loop.create_task(self.player())
+
+        def update_vc(guild_new):
+            self.host.loop.create_task(self.active_vc.move_to(guild_new.voice_client.channel))
+
+        print("hello")
+
+        self.listener = GuildUpdateListener(state.message.guild, check, update_vc)
+
+        self.host.loop.create_task(self.host.add_guild_update_listener(self.listener))
 
     async def player(self):
         source = None
@@ -245,6 +258,7 @@ class MusicPlayer:
             self.active_vc.stop()
             await self.active_vc.disconnect()
         self.parent.pop_player(self.source.guild.id)
+        await self.host.remove_guild_update_listener(self.listener)
         del self
 
 

@@ -1,5 +1,16 @@
 # todo: give the bot some consistency across the board (formatting guidelines, style, syntax, etc)
 #       create the help docs and get them online
+#
+#
+#
+#
+#
+# WRITE UP SOME EDITING GUIDELINES AND MODIFY THE CODE TO RESPECT THEM.
+#
+#
+#
+#
+#
 
 import asyncio
 
@@ -10,7 +21,7 @@ import time
 import json
 import aiomysql as sql
 
-# todo: send function documentation to government server on startup.
+from module.base import GuildUpdateListener
 
 
 class State:
@@ -36,6 +47,8 @@ class Government(Client):
         self.loop.run_until_complete(self.import_all())
         self.loop.run_until_complete(self.create_db())
         self.unique_commands = {}                           # dict of unique commands (k: command name or alias -- v: modules)
+
+        self.guild_update_listeners = {}                    # used by music player and associated utilities to divvy out events
 
         # rebuild module calls to parse json
         command_info = {}
@@ -91,6 +104,28 @@ class Government(Client):
                         await mod.handle_message(state)
                     except discord.errors.Forbidden:
                         print("request in locked channel. ignoring...")
+
+    async def on_guild_update(self, before, after):
+        print("herro")
+        if self.guild_update_listeners[after.id]:
+            for listener in self.guild_update_listeners[after.id]:
+                listener(before, after)
+
+    async def add_guild_update_listener(self, listener):
+        if not isinstance(listener, GuildUpdateListener):
+            # raise error
+            return
+        if not self.guild_update_listeners.get(listener.guild.id):
+            self.guild_update_listeners[listener.guild.id] = []
+        self.guild_update_listeners[listener.guild.id].append(listener)
+        return listener
+
+    async def remove_guild_update_listener(self, listener):
+        arr = self.guild_update_listeners[listener.guild.id]
+        arr.remove(listener)
+        print("deleted")
+        if not arr:
+            del arr
 
     async def import_all(self):
         await self.import_extension(module.Fun)

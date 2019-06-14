@@ -4,6 +4,7 @@
 import asyncio
 import aiohttp
 import time
+import math
 import re
 from enum import Enum
 import traceback
@@ -53,6 +54,7 @@ class Module:
     or at least that is the goal.
     '''
 
+    A_EMOJI = 0x0001F1E6
     QUOTE_TYPES = "\"“”'"
 
     # getting the event loop inside of the module and passing it to all of the functions.
@@ -223,6 +225,102 @@ class Command:
                 self.cooldown_array[uid] = time.time()
             traceback.print_exc()
 
+    async def add_reactions(chan, embed, host, timer=0, loop=None, char_list=None, descrip="Get your answer in!", author=None):  # not necessary always
+        '''Side note: loop is for the piss.
+++ TODO: rework into a module instance function (wait that doesn't work lmao fuck this shit)
+Command call should implicitly pass in the host.
+Adds reactions to a desired embed, and waits for responses to come in.
+
+Required arguments:
+discord.Channel chan            - The channel to which the message should be posted.
+discord.Embed embed             - The intended message that will be posted.
+Government host                 - The host -- used to manage the wait_for condition (of course modules have access to the host lol)
+Integer timer                   - Time limit on the poll - if set to 0, waits for the user's response.
+Iterable loop                   - very bad -- determines which emojis should be posted relative to the letter A.
+Iterable char_list              - If provided, iterates over the list when listing emojis.
+String descrip                  - Text tied to the description.
+discord.User author             - The user that posted the relevant request.
+        '''
+        poll = await chan.send(embed=embed)
+        # specifics!
+        if char_list:
+            for emote in char_list:
+                await poll.add_reaction(emote)
+        else:
+            for i in loop:
+                await poll.add_reaction(chr(Module.A_EMOJI + i))
+        # more dynamic response
+        if timer >= 3600:
+            await asyncio.sleep(timer - 1800)
+            warning = await chan.send(f"***30 minutes remaining: '{descrip}'***")
+            await asyncio.sleep(60)
+            await warning.delete()
+            timer = 1740
+        if timer >= 900:
+            await asyncio.sleep(timer - 600)
+            warning = await chan.send(f"***10 minutes remaining: '{descrip}'***")
+            await asyncio.sleep(30)
+            await warning.delete()
+            timer = 570
+        if timer >= 300:
+            await asyncio.sleep(timer - 180)
+            warning = await chan.send("***3 minutes remaining!***")
+            await asyncio.sleep(5)
+            await warning.delete()
+            timer = 175
+        if timer >= 120:
+            await asyncio.sleep(timer - 60)
+            warning = await chan.send("***1 minute remaining!***")
+            await asyncio.sleep(5)
+            await warning.delete()
+            timer = 55
+        if timer > 10:
+            await asyncio.sleep(timer - 10)
+            # use a description on longer waits
+            warning = await chan.send("***10 seconds remaining!***")
+            await asyncio.sleep(5)
+            await warning.delete()
+            await asyncio.sleep(5)
+        elif timer != 0:
+            await asyncio.sleep(timer)
+        else:  # timer = 0 means that we're waiting for a response.
+            if author is None:
+                print("nice one fucker")
+
+            def check(reaction, user):
+                return user == author and reaction.message == poll
+            try:
+                await host.wait_for("reaction_add", check=check, timeout=30)  # perform something on timeout
+            except asyncio.TimeoutError:
+                pass
+                # user took too long
+        return poll.id
+        # jump back into loop
+
+    def format_duration(timer):
+        duration_string = ""
+        if (timer > 86400):
+            day_count = math.floor(timer / 84600)
+            timer = (timer - (day_count * 86400))
+            duration_string += str(day_count) + " day" + ("s" if day_count > 1 else "")  # i dont like this
+            if not (timer == 0):
+                duration_string += ", "
+        if (timer > 3600):
+            hour_count = math.floor(timer / 3600)
+            timer = (timer - (hour_count * 3600))
+            duration_string += str(hour_count) + " hour" + ("s" if hour_count > 1 else "")
+            if not (timer == 0):
+                duration_string += ", "
+        if (timer > 60):
+            minute_count = math.floor(timer / 60)
+            timer = (timer - (minute_count * 60))
+            duration_string += str(minute_count) + " minute" + ("s" if minute_count > 1 else "")
+            if not (timer == 0):
+                duration_string += ", "
+        if (timer > 0):
+            duration_string += str(timer) + " second" + ("s" if timer > 1 else "")
+        return duration_string
+
     def _get_cooldown_id(self, message):
         if self.cooldown is not None:
             cool = self.cooldown & 3
@@ -268,5 +366,18 @@ class Command:
 
     def split(message):
         args = re.split(" +", message)
+        if len(args) == 1 and args[0] == '':  # boo piss
+            args.pop()
         return args
         # more checks might be necessary who knows
+
+
+class GuildUpdateListener:
+    def __init__(self, guild, check, func):
+        self.guild = guild
+        self.check = check
+        self.on_guild_update = func
+
+    def __call__(self, before, after):
+        if self.check(before, after):
+            self.on_guild_update(after)
