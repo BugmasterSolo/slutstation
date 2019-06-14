@@ -373,11 +373,11 @@ discord.User author             - The user that posted the relevant request.
 
 
 class GuildUpdateListener:
-    def __init__(self, guild, check, func):
+    def __init__(self, guild, check, coro):
         self.guild = guild
         self.check = check
-        self.on_guild_update = func
+        self.on_guild_update = coro
 
     def __call__(self, before, after):
         if self.check(before, after):
-            self.on_guild_update(after)
+            asyncio.create_task(self.on_guild_update(after))

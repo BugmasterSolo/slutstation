@@ -32,24 +32,24 @@ stream_history = {}
 # purges unused streams once per hour. unused means it has not been played in 24 hours
 # requeueing a stream within this period resets the counter.
 # might want to move this into player module
-async def check_stream_history():
-    while True:
-        print("Purging stream cache...")
-        curtime = time.time()
-        del_list = []
-        for key in stream_history:
-            past = curtime - stream_history[key]
-            if past > 10799:
-                await loop.run_in_executor(None, lambda: os.remove(key))  # fileread done externally?
-                print(f"Deleted item in directory {key} .")
-                del_list.append(key)
-        for dir in del_list:
-            del stream_history[dir]
-        await asyncio.sleep(3600)
-
+# async def check_stream_history():
+#     while True:
+#         print("Purging stream cache...")
+#         curtime = time.time()
+#         del_list = []
+#         for key in stream_history:
+#             past = curtime - stream_history[key]
+#             if past > 10799:
+#                 await loop.run_in_executor(None, lambda: os.remove(key))  # fileread done externally?
+#                 print(f"Deleted item in directory {key} .")
+#                 del_list.append(key)
+#         for dir in del_list:
+#             del stream_history[dir]
+#         await asyncio.sleep(3600)
+#
 loop = asyncio.get_event_loop()
-
-loop.create_task(check_stream_history())  # task runs in bg, runtilcomplete is priority
+#
+# loop.create_task(check_stream_history())  # task runs in bg, runtilcomplete is priority
 
 
 def format_time(time):
@@ -105,21 +105,16 @@ class YTPlayer:
         if data['duration'] > 7200:  # downloads can run concurrently, but slow things down
             # side note: look into streaming options in FFMpeg. I bookmarked some documentation but it's definitely doable
             raise DurationError(f"Song length: {data['duration']}")
-        source = ytdl.prepare_filename(data)
-        if not os.path.exists(source):
-            # synchronous blocking calls run in the executor
-            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=True))
-            if 'entries' in data:  # duped
-                data = data['entries'][0]
         descrip = f"*{data['title']}\nby {data['uploader']}*\n\n**Duration: {format_time(data['duration'])}**"
         response_embed = discord.Embed(title="Added to queue!", color=0xff0000,
                                        description=descrip, url=data['webpage_url'])
         response_embed.set_thumbnail(url=data['thumbnail'])
-        return StreamContainer(source=discord.FFmpegPCMAudio(source), data=data, message=state.message, loc=source, embed=response_embed)  # gross
+        return StreamContainer(source=discord.FFmpegPCMAudio(data['url'], before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"), data=data, message=state.message, loc=None, embed=response_embed)  # gross
 
 
 def check(guild_old, guild_new):
-    return guild_old.region == guild_new.region
+
+    return guild_old.region != guild_new.region
 
 
 class MusicPlayer:
@@ -143,8 +138,11 @@ class MusicPlayer:
         # make a pre-parsed embed queue for playing. we do need the queue features a lot
         loop.create_task(self.player())
 
-        def update_vc(guild_new):
-            self.host.loop.create_task(self.active_vc.move_to(guild_new.voice_client.channel))
+        # come up with a shit fix for this
+        async def update_vc(guild_new):
+            self.queue = asyncio.Queue()
+            self.active_vc.stop()
+            await self.source.channel.send("Disconnecting due to region switch. It conks out otherwise, let me know if you can fix it :)")
 
         print("hello")
 
@@ -173,8 +171,6 @@ class MusicPlayer:
                     async with async_timeout.timeout(180):
                         # if something goes wrong, wait for the queue to fill up. this works when delays appear in the DL process.
                         source = await self.queue.get()
-                        if not os.path.exists(source.dir):
-                            await loop.run_in_executor(None, lambda: ytdl.extract_info(url=source.page_url, download=True))  # download is predictable
                         stream_history[source.dir] = time.time()
                 except asyncio.TimeoutError:
                     await self.source.channel.send("Failed to fetch source. Disconnecting from current voice channel.")
@@ -225,6 +221,7 @@ class MusicPlayer:
         self.voice_channel = self.host.get_guild(self.source.guild.id).voice_client  # i mean this should exist i think
         if self.voice_channel is None:
             print("Error in voice. Disconnecting completely.")
+            self.destroy()
             pass
         self.voice_channel = self.voice_channel.channel
         listener_threshold = math.ceil((len(self.voice_channel.members) - 1) / 2)  # bot doesn't count

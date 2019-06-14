@@ -20,8 +20,12 @@ import module
 import time
 import json
 import aiomysql as sql
+import logging
+
 
 from module.base import GuildUpdateListener
+
+logger = logging.basicConfig(level=logging.INFO)
 
 
 class State:
@@ -106,7 +110,6 @@ class Government(Client):
                         print("request in locked channel. ignoring...")
 
     async def on_guild_update(self, before, after):
-        print("herro")
         if self.guild_update_listeners[after.id]:
             for listener in self.guild_update_listeners[after.id]:
                 listener(before, after)
