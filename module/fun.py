@@ -182,7 +182,7 @@ Usage: g trivia
                                      color=0x8050ff)
                 trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
                 char_list = [Fun.TRIVIA_REACTION_LIST[0], Fun.TRIVIA_REACTION_LIST[1]]  # what
-                msg = await Module.add_reactions(chan, trivia_embed, host, 20, loop=range(2), char_list=char_list)
+                msg = await Command.add_reactions(chan, trivia_embed, host, 20, loop=range(2), char_list=char_list)
             elif type == "multiple":
                 answer_array = triv['incorrect_answers']
                 correct_index = random.randint(0, len(answer_array))
@@ -199,7 +199,7 @@ Usage: g trivia
                                      description=descrip,
                                      color=0x8050ff)
                 trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
-                msg = await Module.add_reactions(chan, trivia_embed, host, 20, loop=range(4))
+                msg = await Command.add_reactions(chan, trivia_embed, host, 20, loop=range(4))
             # refresh the reaction list
             done = await chan.send("***Time's up!***")
             msg_reactions = await chan.fetch_message(msg)
@@ -296,7 +296,7 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
             description += letters[i] + f") {answer_list[i]}\n"
         description += "\n*Created on " + time.strftime("%B %d %Y, %H:%M:%S ", time.gmtime()) + "UTC*"
         question_embed = Embed(title=question, description=description, color=0x8050ff)
-        poll_id = await Module.add_reactions(chan, question_embed, host, timer, loop_list, descrip=question)
+        poll_id = await Command.add_reactions(chan, question_embed, host, timer, loop_list, descrip=question)
         poll = await chan.fetch_message(poll_id)
         poll_reactions = poll.reactions
         poll_responses = [None] * answer_count
