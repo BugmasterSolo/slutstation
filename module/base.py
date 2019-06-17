@@ -10,9 +10,7 @@ from enum import Enum
 import traceback
 # we're doing it all from scratch baby
 
-# todo: get on the more complex asyncio stuff (events, queues, etc -- those were extremely helpful in the YT player
-#                                              and I guarantee they will be helpful elsewhere as well :)
-
+# todo: move functions into command object instead. makes more sense generally
 
 # lower two bits: cooldown scope.
 # upper bit: cooldown type.
