@@ -12,6 +12,7 @@ import traceback
 
 # todo: move functions into command object instead. makes more sense generally
 
+
 # lower two bits: cooldown scope.
 # upper bit: cooldown type.
 class Scope(Enum):
@@ -223,7 +224,7 @@ class Command:
                 self.cooldown_array[uid] = time.time()
             traceback.print_exc()
 
-    async def add_reactions(chan, embed, host, timer=0, loop=None, char_list=None, descrip="Get your answer in!", author=None):  # not necessary always
+    async def add_reactions(chan, embed, host, timer=0, answer_count=None, char_list=None, descrip="Get your answer in!", author=None):  # not necessary always
         '''Side note: loop is for the piss.
 ++ TODO: rework into a module instance function (wait that doesn't work lmao fuck this shit)
 Command call should implicitly pass in the host.
@@ -234,7 +235,7 @@ discord.Channel chan            - The channel to which the message should be pos
 discord.Embed embed             - The intended message that will be posted.
 Government host                 - The host -- used to manage the wait_for condition (of course modules have access to the host lol)
 Integer timer                   - Time limit on the poll - if set to 0, waits for the user's response.
-Iterable loop                   - very bad -- determines which emojis should be posted relative to the letter A.
+Integer answer_count            - The number of answers to be provided
 Iterable char_list              - If provided, iterates over the list when listing emojis.
 String descrip                  - Text tied to the description.
 discord.User author             - The user that posted the relevant request.
@@ -245,7 +246,7 @@ discord.User author             - The user that posted the relevant request.
             for emote in char_list:
                 await poll.add_reaction(emote)
         else:
-            for i in loop:
+            for i in range(answer_count):
                 await poll.add_reaction(chr(Module.A_EMOJI + i))
         # more dynamic response
         if timer >= 3600:
@@ -284,13 +285,15 @@ discord.User author             - The user that posted the relevant request.
         else:  # timer = 0 means that we're waiting for a response.
             if author is None:
                 print("nice one fucker")
+                return None
 
             def check(reaction, user):
                 return user == author and reaction.message == poll
             try:
-                await host.wait_for("reaction_add", check=check, timeout=30)  # perform something on timeout
+                react = await host.wait_for("reaction_add", check=check, timeout=30)  # perform something on timeout
+                return int(react.)
             except asyncio.TimeoutError:
-                pass
+                return None
                 # user took too long
         return poll.id
         # jump back into loop

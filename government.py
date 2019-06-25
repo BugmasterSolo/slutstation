@@ -13,6 +13,7 @@
 #
 
 import asyncio
+import sys
 
 import discord
 from discord import Client, Game
@@ -110,7 +111,7 @@ class Government(Client):
                         print("request in locked channel. ignoring...")
 
     async def on_guild_update(self, before, after):
-        if self.guild_update_listeners[after.id]:
+        if self.guild_update_listeners.get(after.id):
             for listener in self.guild_update_listeners[after.id]:
                 listener(before, after)
 
@@ -160,7 +161,13 @@ class Government(Client):
 
 
 def load_token():
-    with open("secret_token.txt", "r") as f:
+    if (len(sys.argv) > 1):
+        filename = "secret_token_prim.txt"
+        print("running on primary")
+    else:
+        filename = "secret_token.txt"
+        print("running on test")
+    with open(filename, "r") as f:
         return f.read().strip()
 
 

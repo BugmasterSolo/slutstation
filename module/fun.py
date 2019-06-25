@@ -60,7 +60,7 @@ g fortune
                         description=description)
         await state.message.channel.send(embed=fortune)
 
-    @Command.register(name="coinflip")
+    @Command.register(name="coinflip", alias=("flip"))
     async def coinflip(host, state):
         '''
 Flips a coin that you can watch tumble in the air.
@@ -182,7 +182,7 @@ Usage: g trivia
                                      color=0x8050ff)
                 trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
                 char_list = [Fun.TRIVIA_REACTION_LIST[0], Fun.TRIVIA_REACTION_LIST[1]]  # what
-                msg = await Command.add_reactions(chan, trivia_embed, host, 20, loop=range(2), char_list=char_list)
+                msg = await Command.add_reactions(chan, trivia_embed, host, 20, answer_count=2, char_list=char_list)
             elif type == "multiple":
                 answer_array = triv['incorrect_answers']
                 correct_index = random.randint(0, len(answer_array))
@@ -199,7 +199,7 @@ Usage: g trivia
                                      description=descrip,
                                      color=0x8050ff)
                 trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
-                msg = await Command.add_reactions(chan, trivia_embed, host, 20, loop=range(4))
+                msg = await Command.add_reactions(chan, trivia_embed, host, 20, answer_count=4)
             # refresh the reaction list
             done = await chan.send("***Time's up!***")
             msg_reactions = await chan.fetch_message(msg)

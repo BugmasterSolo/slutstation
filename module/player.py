@@ -7,7 +7,6 @@ import time
 import math
 import json
 from youtube_dl import YoutubeDL
-import os
 
 opts = {
     "outtmpl": "~/Desktop/filecache/%(title)s.%(ext)s",  # temporary storage only. files are deleted after play; no limits yet :)
@@ -26,12 +25,15 @@ class DurationError(Exception):
 
 ytdl = YoutubeDL(opts)
 
-stream_history = {}
+# stream_history = {}
 
 
 # purges unused streams once per hour. unused means it has not been played in 24 hours
 # requeueing a stream within this period resets the counter.
 # might want to move this into player module
+#
+# most likely gone, only necessary for file purging which is no longer an issue
+#
 # async def check_stream_history():
 #     while True:
 #         print("Purging stream cache...")
@@ -109,7 +111,8 @@ class YTPlayer:
         response_embed = discord.Embed(title="Added to queue!", color=0xff0000,
                                        description=descrip, url=data['webpage_url'])
         response_embed.set_thumbnail(url=data['thumbnail'])
-        return StreamContainer(source=discord.FFmpegPCMAudio(data['url'], before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"), data=data, message=state.message, loc=None, embed=response_embed)  # gross
+        return StreamContainer(source=discord.FFmpegPCMAudio(data['url'], before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"), data=data, message=state.message, loc=None, embed=response_embed)
+        # this makes the streaming work by reconnecting to the stream
 
 
 def check(guild_old, guild_new):
@@ -171,7 +174,6 @@ class MusicPlayer:
                     async with async_timeout.timeout(180):
                         # if something goes wrong, wait for the queue to fill up. this works when delays appear in the DL process.
                         source = await self.queue.get()
-                        stream_history[source.dir] = time.time()
                 except asyncio.TimeoutError:
                     await self.source.channel.send("Failed to fetch source. Disconnecting from current voice channel.")
                     await self.destroy()
@@ -335,7 +337,6 @@ g play (<valid URL>|<search query>)
             await msg.delete()
             return
         player = state.command_host.get_player(host, state, vchan)
-        stream_history[source.dir] = time.time()  # queue once when downloaded.
         await msg.delete()
         await player.add_to_queue(source, state.message.channel)
 
