@@ -224,9 +224,8 @@ class Command:
                 self.cooldown_array[uid] = time.time()
             traceback.print_exc()
 
-    async def add_reactions(chan, embed, host, timer=0, answer_count=None, char_list=None, descrip="Get your answer in!", author=None):  # not necessary always
-        '''Side note: loop is for the piss.
-++ TODO: rework into a module instance function (wait that doesn't work lmao fuck this shit)
+    async def add_reactions(chan, embed, host, timer=0, answer_count=2, char_list=None, descrip="Get your answer in!", author=None):  # not necessary always
+        '''
 Command call should implicitly pass in the host.
 Adds reactions to a desired embed, and waits for responses to come in.
 
@@ -291,7 +290,10 @@ discord.User author             - The user that posted the relevant request.
                 return user == author and reaction.message == poll
             try:
                 react = await host.wait_for("reaction_add", check=check, timeout=30)  # perform something on timeout
-                return int(react.)
+                if char_list:
+                    return char_list.index(str(react))
+                else:
+                    return ord(str(react)[0]) - Module.A_EMOJI
             except asyncio.TimeoutError:
                 return None
                 # user took too long
