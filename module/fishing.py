@@ -80,7 +80,9 @@ class Fishing(Module):
         for i in range(len(self.LOCATIONS)):
             descrip += f"\n{i}. {self.LOCATIONS[i]}"
         reaction_embed = Embed(title="Choose a location", description=descrip, color=0xa0fff0)
-        await Command.add_reactions(state.message.channel, reaction_embed, state.host)
+        locindex = await Command.add_reactions(state.message.channel, reaction_embed, state.host, answer_count=len(self.LOCATIONS), author=state.message.author)
+        query = f"SELECT * FROM fishdb WHERE location = '{self.LOCATIONS[locindex]}'"
+        async with state.host.db
         # simulate catch depth, delay, and species by fetching fish data from DB
 
         # kickstart an asynch delay process that will display a catch notification when ready

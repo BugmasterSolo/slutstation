@@ -4,6 +4,7 @@ import json
 import datetime  # move to time!
 import random
 import xml.etree.ElementTree as ET
+import cfscrape
 # todo : move from datetime to time
 
 
@@ -38,9 +39,12 @@ g e621 [tag1 tag2 ... tag6] (page<int>)
         response_message = await chan.send("```Searching...```")
         await chan.trigger_typing()
         url = f"https://e621.net/post/index.json?limit=50&tags={tagstring}"
-        resp = await Module._http_get_request(url)
-        status = resp["status"]
-        parsed_json = json.loads(resp["text"])
+        # cloudflare dodging hehe
+        cf = cfscrape.CloudflareScraper()
+        cf_resp = await host.loop.run_in_executor(executor=None, func=lambda: cf.get(url))
+        resp = cf_resp.content
+        status = cf_resp.status_code
+        parsed_json = json.loads(resp)
         await response_message.delete()
         if (status >= 200 and status < 300):
             if len(parsed_json) == 0:
