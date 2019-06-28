@@ -23,8 +23,6 @@ async def scrape():
                 fishname = tree.xpath("//td[@id='book_guide']/table//span[@class='name']/text()")
                 fishdesc = tree.xpath("//td[@id='book_guide']/table/tr[3]/td/text()")
                 fishildata = tree.xpath("//td[@id='book_guide']/table/tr[2]//span[@class='ilevel']/text()")
-                fishlink = tree.xpath("//td[@id='book_guide']/table/tr[1]//img/@src")
-
                 fishlode = tree.xpath("//a[@class='lodestone eorzeadb_link']/@href")
                 fishcbh = tree.xpath("//table[@class='grid']//a/@href")
                 fishil = []

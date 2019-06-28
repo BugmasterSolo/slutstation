@@ -44,7 +44,7 @@ class Stattrack(Module):
                 board = await cur.fetchall()
                 count = len(board)
                 msg = f'```glsl'
-                for i in range(0, min(count, 10)):
+                for i in range(min(count, 10)):
                     msg += f'''
 {i + 1}.    # {board[i][0]}
                 Guild EXP: {board[i][1]}'''
