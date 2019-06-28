@@ -138,6 +138,7 @@ class Government(Client):
         await self.import_extension(module.Stattrack)
         await self.import_extension(module.Player)
         await self.import_extension(module.ImageModule)
+        await self.import_extension(module.Fishing)
 
     async def import_extension(self, cls):
         try:

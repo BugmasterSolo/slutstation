@@ -1,7 +1,7 @@
 from .base import Command, Module
 from discord import Embed
-import aiomysql
 import random
+import asyncio
 
 
 class FishingItem:
@@ -69,8 +69,9 @@ class Fishing(Module):
             subtype = subcommand.pop(0)
         except IndexError:
             await state.message.channel.send("Please input a subcommand: `g fish <cast, reel, ...>`")
+            return
         if subtype in Fishing.COMMAND_LIST:
-            state.command_host[subtype](state, subcommand)
+            await getattr(state.command_host, subtype)(state, subcommand)
         else:
             await state.message.channel.send("That's not part of the fishing!")
 
@@ -78,11 +79,34 @@ class Fishing(Module):
         # fetch user loadout from DB (skipping for now)
         descrip = ""
         for i in range(len(self.LOCATIONS)):
-            descrip += f"\n{i}. {self.LOCATIONS[i]}"
+            descrip += f"\n{chr(i + 0x41)}. {self.LOCATIONS[i]}"
         reaction_embed = Embed(title="Choose a location", description=descrip, color=0xa0fff0)
         locindex = await Command.add_reactions(state.message.channel, reaction_embed, state.host, answer_count=len(self.LOCATIONS), author=state.message.author)
         query = f"SELECT * FROM fishdb WHERE location = '{self.LOCATIONS[locindex]}'"
-        async with state.host.db
+        res = None
+        await state.message.channel.send("*Casting...*")
+        async with state.host.db.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query)
+                res = await cur.fetchall()
+        catch_value = random.random() * 100
+        catch_sum = 0
+        pos = 0
+        while True:
+            catch_sum += res[pos][7]
+            if catch_sum > catch_value:
+                break
+            pos += 1
+        if (pos > len(res)):
+            pos = len(res) - 1
+        embed_catch = Embed(title="It's big catch!",
+                            description="You just caught a(n) {0[1]}!\n\n*{0[2]}*".format(res[pos]),
+                            color=0xa0fff0)
+        await asyncio.sleep(random.uniform(5, 9))
+        await state.message.channel.send(embed=embed_catch)
+
+
+
         # simulate catch depth, delay, and species by fetching fish data from DB
 
         # kickstart an asynch delay process that will display a catch notification when ready
