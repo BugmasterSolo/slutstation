@@ -1,5 +1,4 @@
-# todo: ENUM for describing what information modules are looking for
-# for inst: a module might read all messages for a leveling system.
+# todo: consistent documentation formatting
 
 import asyncio
 import aiohttp
@@ -34,7 +33,7 @@ class Scope(Enum):
 
 
 http_header = {
-    "user-agent": "Government(Discord.py) / 0.062 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
+    "user-agent": "Government(Discord.py) / 0.091 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
 }
 
 
@@ -224,15 +223,18 @@ class Command:
                 self.cooldown_array[uid] = time.time()
             traceback.print_exc()
 
-    async def add_reactions(chan, embed, host, timer=0, answer_count=2, char_list=None, descrip="Get your answer in!", author=None):  # not necessary always
+    async def add_reactions(chan, embed, host, timer=0, answer_count=2, char_list=None, descrip="Get your answer in!", author=None):
         '''
-Command call should implicitly pass in the host.
 Adds reactions to a desired embed, and waits for responses to come in.
+In the event that the message is timed, returns the message ID to be handled appropriately.
+If untimed, awaits first relevant user response and returns the index of the relevant reaction associated with it.
 
 Required arguments:
 discord.Channel chan            - The channel to which the message should be posted.
 discord.Embed embed             - The intended message that will be posted.
 Government host                 - The host -- used to manage the wait_for condition (of course modules have access to the host lol)
+
+Optional arguments:
 Integer timer                   - Time limit on the poll - if set to 0, waits for the user's response.
 Integer answer_count            - The number of answers to be provided
 Iterable char_list              - If provided, iterates over the list when listing emojis.
@@ -282,20 +284,24 @@ discord.User author             - The user that posted the relevant request.
         elif timer != 0:
             await asyncio.sleep(timer)
         else:  # timer = 0 means that we're waiting for a response.
-            if author is None:
-                print("nice one fucker")
-                return None
-
-            def check(reaction, user):
-                return user == author and reaction.message == poll
+            if char_list:
+                def check(reaction, user):
+                    return (True if author is None else user == author) and reaction.message.id == poll.id and not reaction.custom_emoji and reaction.emoji in char_list
+                pass
+            else:
+                def check(reaction, user):
+                    print("hello")
+                    return (True if author is None else user == author) and reaction.message.id == poll.id and not reaction.custom_emoji and (ord(reaction.emoji) - Module.A_EMOJI) < answer_count
             try:
                 react = await host.wait_for("reaction_add", check=check, timeout=30)  # perform something on timeout
                 if char_list:
-                    return char_list.index(str(react))
+                    return char_list.index(react[0].emoji)
                 else:
-                    return ord(str(react)[0]) - Module.A_EMOJI
+                    return ord(react[0].emoji) - Module.A_EMOJI
             except asyncio.TimeoutError:
-                return None
+                to_msg = await chan.send("Response cancelled -- user took too long to respond.")
+                await to_msg.delete()
+                return -1  # indicating no response
                 # user took too long
         return poll.id
         # jump back into loop
