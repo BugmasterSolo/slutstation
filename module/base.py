@@ -290,7 +290,6 @@ discord.User author             - The user that posted the relevant request.
                 pass
             else:
                 def check(reaction, user):
-                    print("hello")
                     return (True if author is None else user == author) and reaction.message.id == poll.id and not reaction.custom_emoji and (ord(reaction.emoji) - Module.A_EMOJI) < answer_count
             try:
                 react = await host.wait_for("reaction_add", check=check, timeout=30)  # perform something on timeout

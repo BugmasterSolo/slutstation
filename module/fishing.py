@@ -84,7 +84,7 @@ class Fishing(Module):
         locindex = await Command.add_reactions(state.message.channel, reaction_embed, state.host, answer_count=len(self.LOCATIONS), author=state.message.author)
         query = f"SELECT * FROM fishdb WHERE location = '{self.LOCATIONS[locindex]}'"
         res = None
-        await state.message.channel.send("*Casting...*")
+        cast_msg = await state.message.channel.send("*Casting...*")
         async with state.host.db.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(query)
@@ -103,15 +103,8 @@ class Fishing(Module):
                             description="You just caught a(n) {0[1]}!\n\n*{0[2]}*".format(res[pos]),
                             color=0xa0fff0)
         await asyncio.sleep(random.uniform(5, 9))
+        await cast_msg.delete()
         await state.message.channel.send(embed=embed_catch)
-
-
-
-        # simulate catch depth, delay, and species by fetching fish data from DB
-
-        # kickstart an asynch delay process that will display a catch notification when ready
-
-        # once this occurs, create a message and add reactions to it (async with timeout: if catch fails, display fail msg)
         pass
 
     async def shop(self, state, args):
