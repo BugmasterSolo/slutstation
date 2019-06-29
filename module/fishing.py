@@ -2,6 +2,7 @@ from .base import Command, Module
 from discord import Embed
 import random
 import asyncio
+import math
 
 
 class FishingItem:
@@ -57,6 +58,8 @@ class Lure(FishingItem):
 class Fishing(Module):
     COMMAND_LIST = ("cast", "reel")
     LOCATIONS = ("LAKE", "RIVER", "OCEAN", "BEACH", "POND", "OASIS", "SPRING", "???")
+    LOC_PRINT = ("Century Lake", "River Delta", "Open Ocean", "The Shorelines", "Secluded Pond", "Desert Oasis", "Somewhere deep in the High Alpines", "???")
+    LOC_EMOJI = ("\U0001f4a7", "\U0001f3d3", "\U0001f30a", "\U0001f3d6", "\U0001f986", "\U0001f3dd", "\U0001f304", "\U0001f308")
 
     # me and the boys going fishing
     @Command.register(name="fish")
@@ -77,9 +80,10 @@ class Fishing(Module):
 
     async def cast(self, state, args):
         # fetch user loadout from DB (skipping for now)
-        descrip = ""
+        descrip = "```"
         for i in range(len(self.LOCATIONS)):
-            descrip += f"\n{chr(i + 0x41)}. {self.LOCATIONS[i]}"
+            descrip += f"\n{chr(i + 0x41)}. {self.LOC_PRINT[i]}"
+        descrip += "```"
         reaction_embed = Embed(title="Choose a location", description=descrip, color=0xa0fff0)
         locindex = await Command.add_reactions(state.message.channel, reaction_embed, state.host, answer_count=len(self.LOCATIONS), author=state.message.author)
         query = f"SELECT * FROM fishdb WHERE location = '{self.LOCATIONS[locindex]}'"
@@ -99,13 +103,24 @@ class Fishing(Module):
             pos += 1
         if (pos > len(res)):
             pos = len(res) - 1
-        embed_catch = Embed(title="It's big catch!",
-                            description="You just caught a(n) {0[1]}!\n\n*{0[2]}*".format(res[pos]),
+        target = res[pos]
+        distro = random.gauss(0, 1)
+        print(distro)
+        stdev = float(target[5] - target[4]) / 4
+        mean = float(target[5] + target[4]) / 2
+        size = mean + stdev * distro
+        print(stdev)
+        print(mean)
+        print(size)
+        percentile = cdf_normal(distro) * 100
+        label = "n" if target[1] in 'aeiou' else ""
+        embed_catch = Embed(title=f"{self.LOC_EMOJI[locindex]} It's big catch!",
+                            description="You just caught a{1} {0[1]}!\n\n*{0[2]}*\n\n**Length:** {2:.2f}cm\n*Larger than {3:.2g}% of all {0[1]}!*".format(target, label, size, percentile),
                             color=0xa0fff0)
         await asyncio.sleep(random.uniform(5, 9))
         await cast_msg.delete()
         await state.message.channel.send(embed=embed_catch)
-        pass
+
 
     async def shop(self, state, args):
         # display all list items
@@ -114,3 +129,8 @@ class Fishing(Module):
 
         # on purchase, modify the user's loadout/stats
         pass
+
+
+def cdf_normal(z):
+    # from python docs: https://docs.python.org/3/library/math.html
+    return (1.0 + math.erf(z / math.sqrt(2))) / 2
