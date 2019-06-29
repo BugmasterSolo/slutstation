@@ -103,15 +103,25 @@ async def process_db(json_list, db, locationsum):
         async with conn.cursor() as cur:
             await cur.execute("TRUNCATE TABLE fishdb")
             for item in json_list:
-                print(item)
+                rarity = 1
+                weight = item['unweight'] * 100 / locationsum[item['location']]
+                if weight < 2:
+                    rarity = 2
+                    if weight < 0.4:
+                        rarity = 3
+                        if weight < 0.05:
+                            rarity = 4
+                            if weight < 0.01:
+                                rarity = 5
+                print("rarity: " + str(rarity))
                 query = "INSERT INTO fishdb (name, description, location, size_min_two, size_max_two, rarity, catch_weight) VALUES (%s, %s, %s, %s, %s, %s, %s)"
-                await cur.execute(query, (item['name'], item['descrip'], LOCATIONS[item['location']], item['length'] * 0.7, item['length'] * 0.9, 3, item['unweight'] * 100 / locationsum[item['location']]))
+                await cur.execute(query, (item['name'], item['descrip'], LOCATIONS[item['location']], item['length'] * 0.7, item['length'] * 0.9, rarity, weight))
         await conn.commit()
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     fishy, locsum = loop.run_until_complete(scrape())
-    with open("db_token.json", "r") as f:
+    with open("../../db_token.json", "r") as f:
         sql_cred_array = json.loads(f.read().strip())
     db = loop.run_until_complete(aiomysql.create_pool(loop=loop, **sql_cred_array))  # minsize = 0?
     loop.run_until_complete(process_db(fishy, db, locsum))
