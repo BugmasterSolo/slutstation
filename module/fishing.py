@@ -54,6 +54,9 @@ class Bait(FishingItem):
 class Lure(FishingItem):
     pass
 
+class Trap(FishingItem):
+    pass
+
 
 class Fishing(Module):
     COMMAND_LIST = ("cast", "reel")
@@ -84,11 +87,11 @@ class Fishing(Module):
         for i in range(len(self.LOCATIONS)):
             descrip += f"\n{chr(i + 0x41)}. {self.LOC_PRINT[i]}"
         descrip += "```"
-        reaction_embed = Embed(title="Choose a location", description=descrip, color=0xa0fff0)
+        reaction_embed = Embed(title="Choose a location:", description=descrip, color=0xa0fff0)
         locindex = await Command.add_reactions(state.message.channel, reaction_embed, state.host, answer_count=len(self.LOCATIONS), author=state.message.author)
         query = f"SELECT * FROM fishdb WHERE location = '{self.LOCATIONS[locindex]}'"
         res = None
-        cast_msg = await state.message.channel.send("*Casting...*")
+        cast_msg = await state.message.channel.send(f"{self.LOC_EMOJI[locindex]} | *Casting...*")
         async with state.host.db.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(query)
@@ -105,16 +108,12 @@ class Fishing(Module):
             pos = len(res) - 1
         target = res[pos]
         distro = random.gauss(0, 1)
-        print(distro)
         stdev = float(target[5] - target[4]) / 4
         mean = float(target[5] + target[4]) / 2
         size = mean + stdev * distro
-        print(stdev)
-        print(mean)
-        print(size)
         percentile = cdf_normal(distro) * 100
         label = "n" if target[1] in 'aeiou' else ""
-        embed_catch = Embed(title=f"{self.LOC_EMOJI[locindex]} It's big catch!",
+        embed_catch = Embed(title=f"{self.LOC_EMOJI[locindex]} | *It's big catch!*",
                             description="You just caught a{1} {0[1]}!\n\n*{0[2]}*\n\n**Length:** {2:.2f}cm\n*Larger than {3:.2g}% of all {0[1]}!*".format(target, label, size, percentile),
                             color=0xa0fff0)
         await asyncio.sleep(random.uniform(5, 9))
