@@ -54,6 +54,7 @@ class Bait(FishingItem):
 class Lure(FishingItem):
     pass
 
+
 class Trap(FishingItem):
     pass
 
@@ -62,7 +63,8 @@ class Fishing(Module):
     COMMAND_LIST = ("cast", "reel")
     LOCATIONS = ("LAKE", "RIVER", "OCEAN", "BEACH", "POND", "OASIS", "SPRING", "???")
     LOC_PRINT = ("Century Lake", "River Delta", "Open Ocean", "The Shorelines", "Secluded Pond", "Desert Oasis", "Somewhere deep in the High Alpines", "???")
-    LOC_EMOJI = ("\U0001f4a7", "\U0001f3d3", "\U0001f30a", "\U0001f3d6", "\U0001f986", "\U0001f3dd", "\U0001f304", "\U0001f308")
+    LOC_EMOJI = ("\U0001f4a7", "\U0001f32b", "\U0001f30a", "\U0001f3d6", "\U0001f986", "\U0001f3dd", "\U0001f304", "\U0001f308")
+    RARITY_STRING = ("```\nCommon\n```", "```CSS\nUncommon\n```", "```ini\n[Rare]\n```", "```fix\nUltra Rare\n```", "```diff\n-Legendary\n```")
 
     # me and the boys going fishing
     @Command.register(name="fish")
@@ -89,32 +91,21 @@ class Fishing(Module):
         descrip += "```"
         reaction_embed = Embed(title="Choose a location:", description=descrip, color=0xa0fff0)
         locindex = await Command.add_reactions(state.message.channel, reaction_embed, state.host, answer_count=len(self.LOCATIONS), author=state.message.author)
-        query = f"SELECT * FROM fishdb WHERE location = '{self.LOCATIONS[locindex]}'"
-        res = None
-        cast_msg = await state.message.channel.send(f"{self.LOC_EMOJI[locindex]} | *Casting...*")
+        target = None
+        cast_msg = await state.message.channel.send(f"{self.LOC_EMOJI[locindex]} | ***Casting...***")
         async with state.host.db.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(query)
-                res = await cur.fetchall()
-        catch_value = random.random() * 100
-        catch_sum = 0
-        pos = 0
-        while True:
-            catch_sum += res[pos][7]
-            if catch_sum > catch_value:
-                break
-            pos += 1
-        if (pos > len(res)):
-            pos = len(res) - 1
-        target = res[pos]
+                await cur.callproc('GETFISH', (1, 1, self.LOCATIONS[locindex]))
+                target = await cur.fetchone()
         distro = random.gauss(0, 1)
         stdev = float(target[5] - target[4]) / 4
         mean = float(target[5] + target[4]) / 2
         size = mean + stdev * distro
         percentile = cdf_normal(distro) * 100
+        rarity = self.RARITY_STRING[target[6]]
         label = "n" if target[1] in 'aeiou' else ""
         embed_catch = Embed(title=f"{self.LOC_EMOJI[locindex]} | *It's big catch!*",
-                            description="You just caught a{1} {0[1]}!\n\n*{0[2]}*\n\n**Length:** {2:.2f}cm\n*Larger than {3:.2g}% of all {0[1]}!*".format(target, label, size, percentile),
+                            description="You just caught a{1} {0[1]}!\n\n*{0[2]}*\n\n**Length:** {2:.2f}cm\n*Larger than {3:.4g}% of all {0[1]}!*\n\n{4}".format(target, label, size, percentile, rarity),
                             color=0xa0fff0)
         await asyncio.sleep(random.uniform(5, 9))
         await cast_msg.delete()
