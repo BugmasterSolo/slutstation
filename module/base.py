@@ -209,7 +209,9 @@ class Command:
                             await asyncio.sleep(3)
                             await warn.delete()
                         else:
-                            await state.message.channel.send(f"`That function is on cooldown for {self.cooltime - abs(time_diff):.2f} more seconds.`")
+                            cooldown_msg = await state.message.channel.send(f"`That function is on cooldown for {self.cooltime - abs(time_diff):.2f} more seconds.`")
+                            await asyncio.sleep(5)
+                            await cooldown_msg.delete()
                         # eh
                         return
                 print("called")
@@ -293,13 +295,13 @@ discord.User author             - The user that posted the relevant request.
                     return (True if author is None else user == author) and reaction.message.id == poll.id and not reaction.custom_emoji and (ord(reaction.emoji) - Module.A_EMOJI) < answer_count
             try:
                 react = await host.wait_for("reaction_add", check=check, timeout=30)  # perform something on timeout
+                await poll.delete()
                 if char_list:
                     return char_list.index(react[0].emoji)
                 else:
                     return ord(react[0].emoji) - Module.A_EMOJI
             except asyncio.TimeoutError:
-                to_msg = await chan.send("Response cancelled -- user took too long to respond.")
-                await to_msg.delete()
+                await poll.delete()
                 return -1  # indicating no response
                 # user took too long
         return poll.id

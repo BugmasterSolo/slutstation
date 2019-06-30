@@ -91,6 +91,9 @@ class Fishing(Module):
         descrip += "```"
         reaction_embed = Embed(title="Choose a location:", description=descrip, color=0xa0fff0)
         locindex = await Command.add_reactions(state.message.channel, reaction_embed, state.host, answer_count=len(self.LOCATIONS), author=state.message.author)
+        if locindex == -1:
+            await state.message.channel.send("`Fishing cancelled -- response not sent in time.`")
+            pass
         target = None
         cast_msg = await state.message.channel.send(f"{self.LOC_EMOJI[locindex]} | ***Casting...***")
         async with state.host.db.acquire() as conn:
