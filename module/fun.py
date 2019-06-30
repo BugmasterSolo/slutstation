@@ -243,9 +243,6 @@ Usage: g trivia
         else:
             chan.send("Could not fetch trivia questions from server.")
 
-    # todo:
-    #   - probably keep trying to reduce cyclomatic complexity (if necessary)
-    #   - add time of creation + duration to the poll embed
     @Command.cooldown(scope=Scope.CHANNEL, time=10, type=Scope.TIME)
     @Command.register(name="poll")
     async def poll(host, state):
@@ -262,7 +259,7 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
         end_index = None
         quote = None
         if len(msg) <= 0:
-            await chan.send("Unformatted poll. Add a question first!")
+            await chan.send("`Unformatted poll. Add a question first!`")
             return
         if msg[0] in Fun.QUOTE_TYPES:  # user passed a question string
             quote = Module.get_closing_quote(msg[0])
@@ -290,22 +287,21 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
         if answer_count <= 0:
             await chan.send("Please provide your poll with some possible responses!")
             return
-        loop_list = range(0, answer_count)
-        description = "*Duration: " + Fun.format_duration(timer) + "*\n\n"
-        for i in loop_list:
+        description = "*Duration: " + Command.format_duration(timer) + "*\n\n"
+        for i in range(answer_count):
             description += letters[i] + f") {answer_list[i]}\n"
         description += "\n*Created on " + time.strftime("%B %d %Y, %H:%M:%S ", time.gmtime()) + "UTC*"
         question_embed = Embed(title=question, description=description, color=0x8050ff)
-        poll_id = await Command.add_reactions(chan, question_embed, host, timer, loop_list, descrip=question)
+        poll_id = await Command.add_reactions(chan, question_embed, host, timer, answer_count=answer_count, descrip=question)
         poll = await chan.fetch_message(poll_id)
         poll_reactions = poll.reactions
         poll_responses = [None] * answer_count
         counted_users = []
         for emoji in poll_reactions:
             emoji_string = str(emoji)
-            if not emoji_string.startswith("<"):  # is not custom
+            if not emoji.custom_emoji:
                 unicode = ord(emoji_string) - Fun.A_EMOJI
-                if unicode < answer_count:
+                if unicode < answer_count and unicode >= 0:
                     tally = 0
                     # switch to IDs.
                     async for user in emoji.users():
@@ -315,7 +311,7 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
                     poll_responses[unicode] = tally
         max = 0
         maxindex = [0]
-        for i in loop_list:
+        for i in range(answer_count):
             tally = poll_responses[i]
             if tally > max:
                 maxindex = [i]
@@ -326,11 +322,20 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
         result_string = None
         if max == 0:
             result_string = "*No one voted on this poll... :(*"
-        elif len(maxindex) == 1:
-            result_string = f"***Result: '{answer_list[maxindex[0]]}' won with {max} votes!***"
         else:
-            top_answers = ", ".join(map(lambda i: answer_list[i], maxindex))
-            result_string = f"***Result: '{top_answers}' tied with {max} votes!***"
+            if len(maxindex) == 1:
+                result_string = f"*Result: '{answer_list[maxindex[0]]}' won with {max} vote(s)!*"
+            else:
+                top_answers = ", ".join(map(lambda i: answer_list[i], maxindex))
+                result_string = f"***Result: '{top_answers}' tied with {max} vote(s)!***"
+            poll_summary = "\n\n"
+            for i in range(answer_count):
+                percent = "{:.2f}".format(100 * poll_responses[i] / len(counted_users))
+                answer_summary = f"{answer_list[i]} -- {poll_responses[i]} vote(s) ({percent}%)"
+                if i in maxindex:
+                    answer_summary = f"***{answer_summary}***"
+                poll_summary += f"{answer_summary}\n"
+            result_string += poll_summary
         notify = await chan.send(result_string)
         await asyncio.sleep(5)
         await notify.delete()
