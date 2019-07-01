@@ -1,4 +1,4 @@
-from .base import Command, Module
+from .base import Command, Module, Scope
 from discord import Embed
 import random
 import asyncio
@@ -67,6 +67,7 @@ class Fishing(Module):
     RARITY_STRING = ("```\nCommon\n```", "```CSS\nUncommon\n```", "```ini\n[Rare]\n```", "```fix\nUltra Rare\n```", "```diff\n-Legendary\n```")
 
     # me and the boys going fishing
+    @Command.cooldown(scope=Scope.USER, time=0, type=Scope.RUN)
     @Command.register(name="fish")
     async def fish(host, state):
         '''
@@ -113,7 +114,6 @@ class Fishing(Module):
         await asyncio.sleep(random.uniform(5, 9))
         await cast_msg.delete()
         await state.message.channel.send(embed=embed_catch)
-
 
     async def shop(self, state, args):
         # display all list items
