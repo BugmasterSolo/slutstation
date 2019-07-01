@@ -5,6 +5,7 @@ import re
 
 
 class Stattrack(Module):
+    CURRENCY_SYMBOL = "฿"
     async def check(self, state):
         # multiple shorter messages take priority
         # might want to move this into a separate thread later
@@ -24,6 +25,11 @@ class Stattrack(Module):
                 hard += 1
             else:
                 soft += 1
+        # todo: save some time by bundling commits:
+        #       - create a connection from the pool.
+        #       - save it, and let it collect over here.
+        #       - after X seconds, commit however many messages are stacked up.
+        #       - close the connection, make a new one.
         async with self.host.db.acquire() as conn:
             async with conn.cursor() as cur:
                 try:
@@ -78,10 +84,12 @@ class Stattrack(Module):
             trivia_percent = 0  # avoid div by 0
         else:
             trivia_percent = (res[2] / res[3]) * 100
-        descrip = f"""**Experience:** {res[1]} EXP\n
-**Global rank:** #{res[6]}\n
+        descrip = f"""**Global rank:** #{res[6]}
+**Experience:** {res[1]} EXP
+*Level {res[7]} | {res[9]}/{res[8]}*\n
 **Trivia record:** {res[2]} / {res[3]} ({trivia_percent:.2f}%)\n
-**Power:** {res[4]}H / {res[5]}S"""  # todo: level tracking (beyond just experience)
+**Power:** {res[4]}H / {res[5]}S\n
+**Credits:** {res[10]} {state.command_host.CURRENCY_SYMBOL}"""  # todo: level tracking (beyond just experience)
         response_embed = Embed(title=(target.name + "#" + target.discriminator), description=descrip, color=0x7289da)
         response_embed.set_thumbnail(url=target.avatar_url_as(static_format="png", size=512))
         await msg.channel.send(embed=response_embed)
