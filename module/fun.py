@@ -1,4 +1,4 @@
-from .base import Module, Command, Scope
+from .base import Module, Command, Scope, MessageDeletedException
 from discord import Status, Embed
 # import mysql.connector as mysql
 
@@ -144,17 +144,6 @@ Dice are specified as <number>d<sides>. Modifiers are provided as positive or ne
         uptime = (time.time() - host.uptime) / 86400
         await state.message.channel.send(f"I have been active for {uptime:.2f} days so far!")
 
-    # TODO: Integrate into economy. Potentially add a list of modules to the state? Allowing cogs to communicate.
-    #       - Related: Implement cooldowns. Provide a special case for cooldowns (for instance, in the trivia case:
-    #                  money questions would only be usable once every 15 mins or so, otherwise it would be for fun)
-    #       - Add an elimination mode for larger servers (far future) in which users would be eliminated from the player pool
-    #         for answering incorrectly. Some reward would then be given to the last m(a/e)n standing
-    #           - Would be extremely fun to run this for all connected servers, with a collective jackpot for all users (hq trivia)
-    #       - Add cooldown (min 20 seconds)
-    #       - Modify trivia around cooldown -- trivia should be able to run based on its cooldown.
-    #       - add cooldown in, but have a Trivia module that keeps track of the time since last "Money Q".
-    #       - unfortunately this requires an extra time check outside of the cooldown scope, but that's fine in this 1/1000 case.
-    # https://opentdb.com/api.php?amount=10&category=17
     @Command.cooldown(scope=Scope.CHANNEL, time=0, type=Scope.RUN)
     @Command.register(name="trivia")
     async def trivia(host, state):
@@ -182,7 +171,15 @@ Usage: g trivia
                                      color=0x8050ff)
                 trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
                 char_list = [Fun.TRIVIA_REACTION_LIST[0], Fun.TRIVIA_REACTION_LIST[1]]  # what
-                msg = await Command.add_reactions(chan, trivia_embed, host, 20, answer_count=2, char_list=char_list)
+                try:
+                    msg = await Command.add_reactions(chan, trivia_embed, host, 20, answer_count=2, char_list=char_list)
+                except MessageDeletedException:
+                    await chan.send("Trivia question deleted.")
+                    if state.message.author.permissions_in(chan).manage_messages:
+                        async with state.host.db.acquire() as conn:
+                            async with conn.cursor() as cur:
+                                cur.callproc("TRIVIACALL", (False, state.message.author.id))  # assume the author is proximal to someone with influence
+                    return
             elif type == "multiple":
                 answer_array = triv['incorrect_answers']
                 correct_index = random.randint(0, len(answer_array))
@@ -232,7 +229,7 @@ Usage: g trivia
                 # todo: fix that maybe if necessary
                 return_string = f"The correct answer was {html.unescape(triv['correct_answer'])}!\n\nCongratulations to " + ", ".join(user_ids) + " for answering correctly!"
                 await chan.send(return_string)
-            # this is at the end so it can all occur behind the scenes
+            # i dont like this very much but its ok
             async with host.db.acquire() as conn:
                 async with conn.cursor() as cur:
                     for user in correct_users:
@@ -292,7 +289,10 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
             description += letters[i] + f") {answer_list[i]}\n"
         description += "\n*Created on " + time.strftime("%B %d %Y, %H:%M:%S ", time.gmtime()) + "UTC*"
         question_embed = Embed(title=question, description=description, color=0x8050ff)
-        poll_id = await Command.add_reactions(chan, question_embed, host, timer, answer_count=answer_count, descrip=question)
+        try:
+            poll_id = await Command.add_reactions(chan, question_embed, host, timer, answer_count=answer_count, descrip=question)
+        except MessageDeletedException:
+            await chan.send("The poll for *{question}* was deleted.")
         poll = await chan.fetch_message(poll_id)
         poll_reactions = poll.reactions
         poll_responses = [None] * answer_count

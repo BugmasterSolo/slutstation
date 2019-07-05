@@ -6,10 +6,15 @@ import time
 import math
 import re
 from enum import Enum
+from discord.errors import NotFound
 import traceback
 # we're doing it all from scratch baby
 
 # todo: move functions into command object instead. makes more sense generally
+
+
+class MessageDeletedException(Exception):
+    pass
 
 
 # lower two bits: cooldown scope.
@@ -251,33 +256,48 @@ discord.User author             - The user that posted the relevant request.
         else:
             for i in range(answer_count):
                 await poll.add_reaction(chr(Module.A_EMOJI + i))
-        # more dynamic response
+        # use wait_for to record deletion and back out of here if it occurs
+        # create an async event which tracks deletion status
+        # on passing delete, flip the event
+        # perform a check on each stop to see if the event is flipped
+        # if it is, throw an exception to be handled silently by the relevant function.
+        descrip = descrip + f"\n\n{poll.jump_url}"
         if timer >= 3600:
             await asyncio.sleep(timer - 1800)
-            warning = await chan.send(f"***30 minutes remaining: '{descrip}'***")
-            await asyncio.sleep(60)
+            if not Command.message_exists(chan, poll.id):
+                raise MessageDeletedException()
+            warning = await chan.send(f"***30 minutes remaining:\n{descrip}***")
+            await asyncio.sleep(600)
             await warning.delete()
-            timer = 1740
+            timer = 1200
         if timer >= 900:
             await asyncio.sleep(timer - 600)
-            warning = await chan.send(f"***10 minutes remaining: '{descrip}'***")
-            await asyncio.sleep(30)
+            if not Command.message_exists(chan, poll.id):
+                raise MessageDeletedException()
+            warning = await chan.send(f"***10 minutes remaining:\n{descrip}***")
+            await asyncio.sleep(240)
             await warning.delete()
-            timer = 570
+            timer = 360
         if timer >= 300:
             await asyncio.sleep(timer - 180)
-            warning = await chan.send("***3 minutes remaining!***")
-            await asyncio.sleep(5)
+            if not Command.message_exists(chan, poll.id):
+                raise MessageDeletedException()
+            warning = await chan.send("***3 minutes remaining!\n{descrip}***")
+            await asyncio.sleep(45)
             await warning.delete()
-            timer = 175
+            timer = 135
         if timer >= 120:
             await asyncio.sleep(timer - 60)
-            warning = await chan.send("***1 minute remaining!***")
-            await asyncio.sleep(5)
+            if not Command.message_exists(chan, poll.id):
+                raise MessageDeletedException()
+            warning = await chan.send("***1 minute remaining!\n{descrip}***")
+            await asyncio.sleep(30)
             await warning.delete()
-            timer = 55
+            timer = 30
         if timer > 10:
             await asyncio.sleep(timer - 10)
+            if not Command.message_exists(chan, poll.id):
+                raise MessageDeletedException()
             # use a description on longer waits
             warning = await chan.send("***10 seconds remaining!***")
             await asyncio.sleep(5)
@@ -294,7 +314,7 @@ discord.User author             - The user that posted the relevant request.
                 def check(reaction, user):
                     return (True if author is None else user == author) and reaction.message.id == poll.id and not reaction.custom_emoji and (ord(reaction.emoji) - Module.A_EMOJI) < answer_count
             try:
-                react = await host.wait_for("reaction_add", check=check, timeout=30)  # perform something on timeout
+                react = await host.wait_for("reaction_add", check=check, timeout=30)  # perform something on timeout (should handle deletion)
                 await poll.delete()
                 if char_list:
                     return char_list.index(react[0].emoji)
@@ -304,6 +324,8 @@ discord.User author             - The user that posted the relevant request.
                 await poll.delete()
                 return -1  # indicating no response
                 # user took too long
+        if not Command.message_exists(chan, poll.id):
+            raise MessageDeletedException()
         return poll.id
         # jump back into loop
 
@@ -379,7 +401,13 @@ discord.User author             - The user that posted the relevant request.
         if len(args) == 1 and args[0] == '':  # boo piss
             args.pop()
         return args
-        # more checks might be necessary who knows
+
+    async def message_exists(chan, id):
+        try:
+            await chan.fetch_message(id)  # probably a better way to do this with listener
+        except NotFound:
+            return False
+        return True
 
 
 class GuildUpdateListener:
