@@ -106,7 +106,7 @@ async def process_db(json_list, db, locationsum):
                 rarity = 1
                 weight = item['unweight'] * 100 / locationsum[item['location']]
                 if weight < 2:
-                    rarity = 2
+                    rarity = 3
                     if weight < 0.4:
                         rarity = 3
                         if weight < 0.05:

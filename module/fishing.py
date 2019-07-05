@@ -106,7 +106,7 @@ class Fishing(Module):
         mean = float(target[5] + target[4]) / 2
         size = mean + stdev * distro
         percentile = cdf_normal(distro) * 100
-        rarity = self.RARITY_STRING[target[6]]
+        rarity = self.RARITY_STRING[target[6] - 1]
         label = "n" if target[1] in 'aeiou' else ""
         embed_catch = Embed(title=f"{self.LOC_EMOJI[locindex]} | *It's big catch!*",
                             description="You just caught a{1} {0[1]}!\n\n*{0[2]}*\n\n**Length:** {2:.2f}cm\n*Larger than {3:.4g}% of all {0[1]}!*\n\n{4}".format(target, label, size, percentile, rarity),
