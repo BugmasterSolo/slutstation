@@ -6,6 +6,7 @@ import re
 
 class Stattrack(Module):
     CURRENCY_SYMBOL = "฿"
+
     async def check(self, state):
         # multiple shorter messages take priority
         # might want to move this into a separate thread later

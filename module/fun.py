@@ -279,7 +279,7 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
         except Exception as e:
             timer = 30
             print(e)
-        answer_list = re.split("\s*\|\s*", msg)
+        answer_list = re.split(r"\s*\|\s*", msg)
         answer_count = len(answer_list)
         if answer_count <= 0:
             await chan.send("Please provide your poll with some possible responses!")
