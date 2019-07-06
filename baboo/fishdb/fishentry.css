@@ -1,0 +1,19 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto+Mono:100,400');
+
+body {
+  background-color: #1b1b1b;
+  color: #a0ffb0;
+  font-family: 'Roboto Mono', monospace;
+}
+
+#dabdaniel {
+  background-color: #a0ffb0;
+  border: 8px solid #608068;
+  border-left: 0;
+  border-radius: 15px;
+  border-top: 0;
+  color: #1b1b1b;
+  line-height: 2.0;
+  padding: 15px;
+  width: 50%;
+}

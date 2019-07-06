@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8' />
+  <link href="fishentry.css" rel="stylesheet" />
+  <script src="fishentry.js"></script>
+  <title>Fish Entry</title>
+</head>
+<body>
+  <header>
+    <h1>Upload your fish here :)</h1>
+    <div id="dabdaniel">
+      Fish Name
+      <input type="text" name="fishname" value="Fish"/>
+      <br />
+      <textarea rows=2 columns=80>Description</textarea>
+      <br />
+      Location
+      <select>
+        <option value="LAKE">Lake</option>
+        <option value="RIVER">River</option>
+        <option value="OCEAN">Ocean</option>
+        <option value="BEACH">Beach</option>
+        <option value="POND">Pond</option>
+        <option value="OASIS">Oasis</option>
+        <option value="SPRING">Spring</option>
+        <option value="???">???</option>
+      </select>
+      <br />
+      Size Lower Bound (cm, -2SD)
+      <input type="number" name="sizelow" value=50.0 />
+      <br />
+      Size Upper Bound (cm, +2SD)
+      <input type="number" name="sizehigh" value=75.0 />
+      <br />
+      Catch Frequency (0 - 100)
+      <input type="number" name="weight" min="0" max="100" step="0.1" value=100 />
+      <br />
+      <button>Submit</button>
+      <section>
+        <h3>Rarity Guidelines</h3>
+        <p>Common: 100 - 40<br />
+           Uncommon: 40 - 10<br />
+           Rare: 10 - 3<br />
+           Ultra Rare: 3 - 1<br />
+           Legendary: < 1 <br />
+    </div>
+  </body>
