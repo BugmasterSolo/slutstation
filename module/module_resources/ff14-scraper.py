@@ -18,7 +18,7 @@ async def scrape():
             async with session.get(f"{ANGLER_URL}/book/{i + 1}") as resp:
                 text = await resp.text()
                 text = re.sub("<br>", "\n", text)
-                text = re.sub("\\n\\n\[.*\]|\\n\\n※.*|<\/?i>", "", text)
+                text = re.sub(r"\\n\\n\[.*\]|\\n\\n※.*|<\/?i>", "", text)
                 tree = html.fromstring(text)
                 fishname = tree.xpath("//td[@id='book_guide']/table//span[@class='name']/text()")
                 fishdesc = tree.xpath("//td[@id='book_guide']/table/tr[3]/td/text()")
@@ -30,7 +30,7 @@ async def scrape():
                 for item in fishildata:
                     il = None
                     try:
-                        il = re.findall('\d+', item)[0]
+                        il = re.findall(r'\d+', item)[0]
                     except IndexError:
                         pass
                     if il:
@@ -69,7 +69,7 @@ async def scrape():
                         if len(fishprice) == 0 or "gil" not in fishprice[0]:
                             fishprice = "0"
                         else:
-                            fishprice = re.sub("\,", "", fishprice[0])
+                            fishprice = re.sub(r"\,", "", fishprice[0])
                     locid = random.randint(0, 7)
                     weight = 100 * math.exp(5 - float(fishtug))
                     locationsum[locid] += weight
@@ -80,7 +80,7 @@ async def scrape():
                         'length': float(fishlen),
                         'unweight': weight,
                         'location': locid,
-                        'price': int(re.match("(\d|\,)+", fishprice).group(0))
+                        'price': int(re.match(r"(\d|\,)+", fishprice).group(0))
                     })
                     # print(fishes[len(fishes) - 1])
     return fishes, locationsum

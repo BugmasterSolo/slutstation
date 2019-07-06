@@ -12,19 +12,15 @@ class Stattrack(Module):
         strleng = len(state.content)
         if not strleng <= 0:
             strleng = math.floor(math.log(strleng) * 3)
+        msg = state.message.content.lower()
         # for exp
         # run in executor if possible
         # n counter checks commands, exp does not
-        n_counter = re.findall("(nigger|nigg\w+|nig\s+)", state.message.content.lower())
+        # n_counter = re.findall("(nigger|nigg\w+|\bnig\b)", msg)
         # if you say niggardly you are getting penalized smartass
-        soft = 0
-        hard = 0
+        soft = len(re.findall(r"(nigg\w*|\bnig\b)", msg))
+        hard = len(re.findall("nigger", msg))
         auth = state.message.author
-        for bomb in n_counter:
-            if bomb.endswith("r"):
-                hard += 1
-            else:
-                soft += 1
         # todo: save some time by bundling commits:
         #       - create a connection from the pool.
         #       - save it, and let it collect over here.
