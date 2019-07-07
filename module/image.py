@@ -238,8 +238,8 @@ class ImageModule(Module):
         super().__init__(host, *args, **kwargs)
         self.queue = ImageQueue()
 
-    def parse_string(content, message):
-        array = Command.split(content)
+    def parse_string(host, content, message):
+        array = host.split(content)
         print(array)
         url = None
         if (len(message.attachments)):
@@ -259,7 +259,7 @@ Quick pixelsorting function. URL or image upload must be provided.
 Usage:
 g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma)>]
         '''
-        url, args = ImageModule.parse_string(state.content, state.message)
+        url, args = ImageModule.parse_string(host, state.content, state.message)
         print(args)
         if len(args) >= 1:
             sort = Pixelsort(channel=state.message.channel, url=url, threshold=float(args[0]), isHorizontal=True)

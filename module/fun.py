@@ -100,7 +100,7 @@ A contest of wits.
 Usage:
 g pushup <int>
         '''
-        args = Command.split(state.content)
+        args = host.split(state.content)
         count = int(float(args[0]) + 1)
         await state.message.channel.send(f"that's cool but i can do {count} pushups")
 
@@ -111,7 +111,7 @@ Usage:
 g roll [dice1, dice2, ...]
 
 Dice are specified as <number>d<sides>. Modifiers are provided as positive or negative integers: +4 = 4, -3 = -3.'''
-        args = Command.split(state.content)
+        args = host.split(state.content)
         sum = 0
         try:
             for index in range(len(args)):
@@ -154,7 +154,7 @@ Usage: g trivia
         '''
         chan = state.message.channel
         url = "https://opentdb.com/api.php?amount=1"
-        response = await Module._http_get_request(url)
+        response = await host.http_get_request(url)
         status = response['status']
         if status >= 200 and status < 300:
             triv = json.loads(response['text'])['results'][0]
@@ -172,7 +172,7 @@ Usage: g trivia
                 trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
                 char_list = [Fun.TRIVIA_REACTION_LIST[0], Fun.TRIVIA_REACTION_LIST[1]]  # what
                 try:
-                    msg = await Command.add_reactions(chan, trivia_embed, host, 20, answer_count=2, char_list=char_list)
+                    msg = await host.add_reactions(chan, trivia_embed, host, 20, answer_count=2, char_list=char_list)
                 except MessageDeletedException:
                     await chan.send("Trivia question deleted.")
                     if state.message.author.permissions_in(chan).manage_messages:
@@ -196,7 +196,7 @@ Usage: g trivia
                                      description=descrip,
                                      color=0x8050ff)
                 trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
-                msg = await Command.add_reactions(chan, trivia_embed, host, 20, answer_count=4)
+                msg = await host.add_reactions(chan, trivia_embed, host, 20, answer_count=4)
             # refresh the reaction list
             done = await chan.send("***Time's up!***")
             msg_reactions = await chan.fetch_message(msg)
@@ -258,8 +258,8 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
         if len(msg) <= 0:
             await chan.send("`Unformatted poll. Add a question first!`")
             return
-        if msg[0] in Fun.QUOTE_TYPES:  # user passed a question string
-            quote = Module.get_closing_quote(msg[0])
+        if msg[0] in host.QUOTE_TYPES:  # user passed a question string
+            quote = host.get_closing_quote(msg[0])
             end_index = msg.find(quote, 1)
             if end_index == -1:
                 await chan.send("Unclosed quote, sorry bud :(")
@@ -284,13 +284,13 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
         if answer_count <= 0:
             await chan.send("Please provide your poll with some possible responses!")
             return
-        description = "*Duration: " + Command.format_duration(timer) + "*\n\n"
+        description = "*Duration: " + host.format_duration(timer) + "*\n\n"
         for i in range(answer_count):
             description += letters[i] + f") {answer_list[i]}\n"
         description += "\n*Created on " + time.strftime("%B %d %Y, %H:%M:%S ", time.gmtime()) + "UTC*"
         question_embed = Embed(title=question, description=description, color=0x8050ff)
         try:
-            poll_id = await Command.add_reactions(chan, question_embed, host, timer, answer_count=answer_count, descrip=question)
+            poll_id = await host.add_reactions(chan, question_embed, host, timer, answer_count=answer_count, descrip=question)
         except MessageDeletedException:
             await chan.send("The poll for *{question}* was deleted.")
         poll = await chan.fetch_message(poll_id)
@@ -300,7 +300,7 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
         for emoji in poll_reactions:
             emoji_string = str(emoji)
             if not emoji.custom_emoji:
-                unicode = ord(emoji_string) - Fun.A_EMOJI
+                unicode = ord(emoji_string) - host.A_EMOJI
                 if unicode < answer_count and unicode >= 0:
                     tally = 0
                     # switch to IDs.
@@ -352,7 +352,7 @@ Funny little 8ball game for you and friends.
         await state.message.channel.send("\U0001f3b1 | *" + random.choice(Fun.EIGHT_BALL) + "...*")
 
     # desc's are not necessary for short queries, such as trivia.
-    # todo: move into Module.
+    # todo: move into host.
 
     # 32 bit xorshift. used for state dependent PRNG.
     def _xorshift(num):

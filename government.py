@@ -22,11 +22,19 @@ import time
 import json
 import aiomysql as sql
 import logging
+import math
+import re
+from discord.errors import NotFound
+import aiohttp
 
 
-from module.base import GuildUpdateListener
+from module.base import GuildUpdateListener, MessageDeletedException
 
 logger = logging.basicConfig(level=logging.INFO)
+
+http_header = {
+    "user-agent": "Government(Discord.py) / 0.091 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
+}
 
 
 class State:
@@ -40,6 +48,9 @@ class State:
 
 
 class Government(Client):
+    A_EMOJI = 0x0001F1E6
+    QUOTE_TYPES = "\"“”'"
+
     def __init__(self, prefix):
         super().__init__()
         self.uptime = time.time()                           # for tracking current uptime.
@@ -69,7 +80,7 @@ class Government(Client):
                         "aliases": mod.command_list[command].alias
                     }
         # oophs
-        self.loop.run_until_complete(module.Module._http_post_request("http://baboo.mobi/government/help_function.php", json.dumps(command_info)))
+        self.loop.run_until_complete(self.http_post_request("http://baboo.mobi/government/help_function.php", json.dumps(command_info)))
         print("Up and running!")
 
     async def create_db(self):
@@ -159,6 +170,174 @@ class Government(Client):
                     await cur.callproc("USEREXISTS", (message.author.id, f"{message.author.name}#{message.author.discriminator}", message.guild.id))
                 await conn.commit()
             self.logged_users[message.channel.id][message.author.id] = True  # ensures above logic passes
+
+    def get_closing_quote(self, quote):
+        # add relevant exceptions
+        if quote in self.QUOTE_TYPES:
+            if quote == "“":
+                return "”"
+            elif quote == "”":
+                return "“"
+            else:
+                return quote
+
+    # UTILITY FUNCTIONS BELOW!
+
+    async def add_reactions(self, chan, embed, host, timer=0, answer_count=2, char_list=None, descrip="Get your answer in!", author=None):
+        '''
+Adds reactions to a desired embed, and waits for responses to come in.
+In the event that the message is timed, returns the message ID to be handled appropriately.
+If untimed, awaits first relevant user response and returns the index of the relevant reaction associated with it.
+
+Required arguments:
+discord.Channel chan            - The channel to which the message should be posted.
+discord.Embed embed             - The intended message that will be posted.
+Government host                 - The host -- used to manage the wait_for condition (of course modules have access to the host lol)
+
+Optional arguments:
+Integer timer                   - Time limit on the poll - if set to 0, waits for the user's response.
+Integer answer_count            - The number of answers to be provided
+Iterable char_list              - If provided, iterates over the list when listing emojis.
+String descrip                  - Text tied to the description.
+discord.User author             - The user that posted the relevant request.
+        '''
+        poll = await chan.send(embed=embed)
+        # specifics!
+        if char_list:
+            for emote in char_list:
+                await poll.add_reaction(emote)
+        else:
+            for i in range(answer_count):
+                await poll.add_reaction(chr(self.A_EMOJI + i))
+        # use wait_for to record deletion and back out of here if it occurs
+        # create an async event which tracks deletion status
+        # on passing delete, flip the event
+        # perform a check on each stop to see if the event is flipped
+        # if it is, throw an exception to be handled silently by the relevant function.
+        descrip = descrip + f"\n\n{poll.jump_url}"
+        if timer >= 3600:
+            await asyncio.sleep(timer - 1800)
+            if not await self.message_exists(chan, poll.id):
+                raise MessageDeletedException()
+            warning = await chan.send(f"***30 minutes remaining:\n{descrip}***")
+            await asyncio.sleep(600)
+            await warning.delete()
+            timer = 1200
+        if timer >= 900:
+            await asyncio.sleep(timer - 600)
+            if not await self.message_exists(chan, poll.id):
+                raise MessageDeletedException()
+            warning = await chan.send(f"***10 minutes remaining:\n{descrip}***")
+            await asyncio.sleep(240)
+            await warning.delete()
+            timer = 360
+        if timer >= 300:
+            await asyncio.sleep(timer - 180)
+            if not await self.message_exists(chan, poll.id):
+                raise MessageDeletedException()
+            warning = await chan.send("***3 minutes remaining!\n{descrip}***")
+            await asyncio.sleep(45)
+            await warning.delete()
+            timer = 135
+        if timer >= 120:
+            await asyncio.sleep(timer - 60)
+            if not await self.message_exists(chan, poll.id):
+                raise MessageDeletedException()
+            warning = await chan.send("***1 minute remaining!\n{descrip}***")
+            await asyncio.sleep(30)
+            await warning.delete()
+            timer = 30
+        if timer > 10:
+            await asyncio.sleep(timer - 10)
+            if not await self.message_exists(chan, poll.id):
+                raise MessageDeletedException()
+            # use a description on longer waits
+            warning = await chan.send("***10 seconds remaining!***")
+            await asyncio.sleep(5)
+            await warning.delete()
+            await asyncio.sleep(5)
+        elif timer != 0:
+            await asyncio.sleep(timer)
+        else:  # timer = 0 means that we're waiting for a response.
+            if char_list:
+                def check(reaction, user):
+                    return (True if author is None else user == author) and reaction.message.id == poll.id and not reaction.custom_emoji and reaction.emoji in char_list
+                pass
+            else:
+                def check(reaction, user):
+                    return (True if author is None else user == author) and reaction.message.id == poll.id and not reaction.custom_emoji and (ord(reaction.emoji) - self.A_EMOJI) < answer_count
+            try:
+                react = await host.wait_for("reaction_add", check=check, timeout=30)  # perform something on timeout (should handle deletion)
+                await poll.delete()
+                if char_list:
+                    return char_list.index(react[0].emoji)
+                else:
+                    return ord(react[0].emoji) - self.A_EMOJI
+            except asyncio.TimeoutError:
+                await poll.delete()
+                return -1  # indicating no response
+                # user took too long
+        if not await self.message_exists(chan, poll.id):
+            raise MessageDeletedException()
+        return poll.id
+        # jump back into loop
+
+    def format_duration(self, timer):
+        duration_string = ""
+        if (timer > 86400):
+            day_count = math.floor(timer / 84600)
+            timer = (timer - (day_count * 86400))
+            duration_string += str(day_count) + " day" + ("s" if day_count > 1 else "")  # i dont like this
+            if not (timer == 0):
+                duration_string += ", "
+        if (timer > 3600):
+            hour_count = math.floor(timer / 3600)
+            timer = (timer - (hour_count * 3600))
+            duration_string += str(hour_count) + " hour" + ("s" if hour_count > 1 else "")
+            if not (timer == 0):
+                duration_string += ", "
+        if (timer > 60):
+            minute_count = math.floor(timer / 60)
+            timer = (timer - (minute_count * 60))
+            duration_string += str(minute_count) + " minute" + ("s" if minute_count > 1 else "")
+            if not (timer == 0):
+                duration_string += ", "
+        if (timer > 0):
+            duration_string += str(timer) + " second" + ("s" if timer > 1 else "")
+        return duration_string
+
+    def split(self, message):
+        args = re.split(" +", message)
+        if len(args) == 1 and args[0] == '':  # boo piss
+            args.pop()
+        return args
+
+    async def message_exists(self, chan, id):
+        try:
+            await chan.fetch_message(id)  # probably a better way to do this with listener
+        except NotFound:
+            return False
+        return True
+
+    async def http_get_request(self, domain):  # todo: deal with exceptions cleanly
+        async with aiohttp.ClientSession(headers=http_header) as session:
+            print("get: " + domain)
+            async with session.get(domain) as resp:
+                text = await resp.text()
+                return {
+                    "status": resp.status,
+                    "text": text
+                }
+
+    async def http_post_request(self, domain, payload):
+        async with aiohttp.ClientSession(headers=http_header) as session:
+            print("post: " + domain)
+            async with session.post(domain, data=payload) as resp:
+                text = await resp.text()
+                return {
+                    "status": resp.status,
+                    "text": text
+                }
 
 
 def load_token():

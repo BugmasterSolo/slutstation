@@ -31,7 +31,7 @@ g e621 [tag1 tag2 ... tag6] (page<int>)
         '''
         # check if the command is it
         chan = state.message.channel
-        args = Command.split(state.content)
+        args = host.split(state.content)
         tag_array, pagenum = await NSFW._parse_tags(args, chan)
         tagstring = ("+".join(tag_array))
         if pagenum is not None:
@@ -105,7 +105,7 @@ Usage:
 g rule34 [tag1 tag2 tag3 ... tag6] (page<int>)
         '''
         chan = state.message.channel
-        args = Command.split(state.content)
+        args = host.split(state.content)
         tag_array, pagenum = await NSFW._parse_tags(args, chan)
         tagstring = "+".join(tag_array)
         url = f"https://rule34.xxx/index.php?page=dapi&s=post&q=index&limit=50&tags={tagstring}"
@@ -113,7 +113,7 @@ g rule34 [tag1 tag2 tag3 ... tag6] (page<int>)
             url += f"&pid={pagenum}"
         response_message = await chan.send("```Searching...```")
         await chan.trigger_typing()
-        resp = await Module._http_get_request(url)
+        resp = await host.http_get_request(url)
         status = resp['status']
         await response_message.delete()
         if status >= 200 and status < 300:

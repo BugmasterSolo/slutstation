@@ -317,7 +317,7 @@ g play (<valid URL>|<search query>)
         if not url.startswith("http"):
             # engage search api
             # if search then include all queries
-            return_query = await Module._http_get_request(f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q={state.content}&type=video&key={state.command_host.api_key}")
+            return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q={state.content}&type=video&key={state.command_host.api_key}")
             return_query = json.loads(return_query['text'])
             if len(return_query['items']) == 0:
                 await chan.send("No results found for that query.")

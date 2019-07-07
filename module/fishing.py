@@ -60,7 +60,8 @@ class Trap(FishingItem):
 
 
 class Fishing(Module):
-    COMMAND_LIST = ("cast", "reel")
+    CAST_COST = 10
+    COMMAND_LIST = ("cast")
     LOCATIONS = ("LAKE", "RIVER", "OCEAN", "BEACH", "POND", "OASIS", "SPRING", "???")
     LOC_PRINT = ("Century Lake", "River Delta", "Open Ocean", "The Shorelines", "Secluded Pond", "Desert Oasis", "Somewhere deep in the High Alpines", "???")
     LOC_EMOJI = ("\U0001f4a7", "\U0001f32b", "\U0001f30a", "\U0001f3d6", "\U0001f986", "\U0001f3dd", "\U0001f304", "\U0001f308")
@@ -73,25 +74,25 @@ class Fishing(Module):
         '''
         Initializes a command relating to fishing.
         '''
-        subcommand = Command.split(state.content)
+        subcommand = host.split(state.content)
         try:
             subtype = subcommand.pop(0)
         except IndexError:
             await state.message.channel.send("Please input a subcommand: `g fish <cast, reel, ...>`")
             return
         if subtype in Fishing.COMMAND_LIST:
-            await getattr(state.command_host, subtype)(state, subcommand)
+            await getattr(state.command_host, subtype)(host, state, subcommand)
         else:
             await state.message.channel.send("That's not part of the fishing!")
 
-    async def cast(self, state, args):
+    async def cast(self, host, state, args):
         # fetch user loadout from DB (skipping for now)
         descrip = "```"
         for i in range(len(self.LOCATIONS)):
             descrip += f"\n{chr(i + 0x41)}. {self.LOC_PRINT[i]}"
         descrip += "```"
         reaction_embed = Embed(title="Choose a location:", description=descrip, color=0xa0fff0)
-        locindex = await Command.add_reactions(state.message.channel, reaction_embed, state.host, answer_count=len(self.LOCATIONS), author=state.message.author)
+        locindex = await host.add_reactions(state.message.channel, reaction_embed, state.host, answer_count=len(self.LOCATIONS), author=state.message.author)
         if locindex == -1:
             await state.message.channel.send("`Fishing cancelled -- response not sent in time.`")
             pass
@@ -99,19 +100,21 @@ class Fishing(Module):
         cast_msg = await state.message.channel.send(f"{self.LOC_EMOJI[locindex]} | ***Casting...***")
         async with state.host.db.acquire() as conn:
             async with conn.cursor() as cur:
+                await cur.callproc('SPEND_CREDITS', (state.message.author.id, Fishing.CAST_COST))
                 await cur.callproc('GETFISH', (1, 1, self.LOCATIONS[locindex]))
                 target = await cur.fetchone()
-        distro = random.gauss(0, 1)
-        stdev = float(target[5] - target[4]) / 4
-        mean = float(target[5] + target[4]) / 2
-        size = mean + stdev * distro
-        percentile = cdf_normal(distro) * 100
-        rarity = self.RARITY_STRING[target[6] - 1]
-        label = "n" if target[1] in 'aeiou' else ""
-        embed_catch = Embed(title=f"{self.LOC_EMOJI[locindex]} | *It's big catch!*",
-                            description="You just caught a{1} {0[1]}!\n\n*{0[2]}*\n\n**Length:** {2:.2f}cm\n*Larger than {3:.4g}% of all {0[1]}!*\n\n{4}".format(target, label, size, percentile, rarity),
-                            color=0xa0fff0)
-        await asyncio.sleep(random.uniform(5, 9))
+                distro = random.gauss(0, 1)
+                stdev = float(target[5] - target[4]) / 4
+                mean = float(target[5] + target[4]) / 2
+                size = mean + stdev * distro
+                percentile = cdf_normal(distro) * 100
+                rarity = self.RARITY_STRING[target[6] - 1]
+                label = "n" if target[1] in 'aeiou' else ""
+                await cur.callproc('')
+                embed_catch = Embed(title=f"{self.LOC_EMOJI[locindex]} | *It's big catch!*",
+                                    description="You just caught a{1} {0[1]}!\n\n*{0[2]}*\n\n**Length:** {2:.2f}cm\n*Larger than {3:.4g}% of all {0[1]}!*\n\n{4}".format(target, label, size, percentile, rarity),
+                                    color=0xa0fff0)
+                await asyncio.sleep(random.uniform(5, 9))
         await cast_msg.delete()
         await state.message.channel.send(embed=embed_catch)
 
