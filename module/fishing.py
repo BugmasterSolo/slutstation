@@ -89,7 +89,7 @@ class Fishing(Module):
         # fetch user loadout from DB (skipping for now)
         descrip = "```"
         for i in range(len(self.LOCATIONS)):
-            descrip += f"\n{chr(i + 0x41)}. {self.LOC_PRINT[i]}"
+            descrip += f"\n{chr(i + 0x41)}. {self.LOC_PRINT[i]} | {self.CAST_COST}{host.CURRENCY_SYMBOL}"
         descrip += "```"
         reaction_embed = Embed(title="Choose a location:", description=descrip, color=0xa0fff0)
         locindex = await host.add_reactions(state.message.channel, reaction_embed, state.host, answer_count=len(self.LOCATIONS), author=state.message.author)
@@ -110,11 +110,12 @@ class Fishing(Module):
                 percentile = cdf_normal(distro) * 100
                 rarity = self.RARITY_STRING[target[6] - 1]
                 label = "n" if target[1] in 'aeiou' else ""
-                await cur.callproc('')
                 embed_catch = Embed(title=f"{self.LOC_EMOJI[locindex]} | *It's big catch!*",
-                                    description="You just caught a{1} {0[1]}!\n\n*{0[2]}*\n\n**Length:** {2:.2f}cm\n*Larger than {3:.4g}% of all {0[1]}!*\n\n{4}".format(target, label, size, percentile, rarity),
+                                    description="You just caught a{1} {0[1]}!\n\n*{0[2]}*\n\n**Length:** {2:.2f}cm\n*Larger than {3:.4g}% of all {0[1]}!*\n\n**Price:** {0[8]}{5}\n\n{4}".format(target, label, size, percentile, rarity, host.CURRENCY_SYMBOL),
                                     color=0xa0fff0)
                 await asyncio.sleep(random.uniform(5, 9))
+                await cur.callproc('GIVE_CREDITS', (state.message.author.id, target[8]))
+            await conn.commit()
         await cast_msg.delete()
         await state.message.channel.send(embed=embed_catch)
 

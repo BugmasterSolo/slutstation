@@ -50,6 +50,7 @@ class State:
 class Government(Client):
     A_EMOJI = 0x0001F1E6
     QUOTE_TYPES = "\"“”'"
+    CURRENCY_SYMBOL = "฿"
 
     def __init__(self, prefix):
         super().__init__()

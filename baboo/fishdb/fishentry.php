@@ -4,7 +4,7 @@
 
   if (validate_query()) {
     $pdo = get_PDO();
-    $query = 'INSERT INTO fishtemp VALUES (:a, :b, :c, :d, :e, :f, :g);';
+    $query = 'INSERT INTO fishtemp (name, description, location, size_min_two, size_max_two, catch_weight, rarity) VALUES (:a, :b, :c, :d, :e, :f, :g);';
     $rarity = 1;
     $weight = $_GET['weight'];
     if ($weight < 40) {
