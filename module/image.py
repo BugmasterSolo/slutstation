@@ -1,12 +1,14 @@
 import asyncio
 import aiohttp
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from discord import File
 import multiprocessing as mp
 from io import BytesIO
 from .base import Module, Command, Scope
 import copyreg
 import types
+
+# todo: make these function names consistent. they're a pain :)
 
 
 # if this works then we can avoid the dill call
@@ -75,17 +77,19 @@ Manages the core processing loop that powers the image queue.
 
     async def load_image(self, q):
         print(q)
+        print(q.url)
         print("get image: " + q.url)
-        async with aiohttp.ClientSession() as session:
-            async with session.get(q.url) as resp:
-                data = await resp.read()
-        self.load_event.clear()
-        ret = ImageQueue.bytes_and_load(data)  # this function potentially incurs some significant blocking, but throwing it into a process atm causes major slowdown. will have to investigate further
-        # self.pool.apply_async(ImageQueue.bytes_and_load, args=(data,), callback=lambda ret: self.pass_image(q, ret))
-        if ret is None:
-            return False
-        self.pass_image(q, ret)
-        await self.load_event.wait()
+        if q.url:  # hate this just want her back x
+            async with aiohttp.ClientSession() as session:
+                async with session.get(q.url) as resp:
+                    data = await resp.read()
+            self.load_event.clear()
+            ret = ImageQueue.bytes_and_load(data)  # this function potentially incurs some significant blocking, but throwing it into a process atm causes major slowdown. will have to investigate further
+            # self.pool.apply_async(ImageQueue.bytes_and_load, args=(data,), callback=lambda ret: self.pass_image(q, ret))
+            if ret is None:
+                return False
+            self.pass_image(q, ret)
+            await self.load_event.wait()
         return True
 
     def bytes_and_load(data):
@@ -105,15 +109,16 @@ Manages the core processing loop that powers the image queue.
 
 
 class ImageQueueable:
-    def __init__(self, *, channel, url, filename="upload.png"):
+    def __init__(self, *, channel, filename="upload.png", url=None):
         self.channel = channel
-        self.url = url
         self.filename = filename
+        self.url = url
         self.size = None
         self.mode = None
         self.image = None
 
     def apply_filter(img):
+        '''Rescales images to 1024 by 1024.'''
         size = img.size
         resize = False
         size_zero_larger = True if size[0] > size[1] else False
@@ -139,6 +144,62 @@ as a tuple containing a static reference to the sorting functions and all necess
         self.mode = img.mode
 
 
+class StatView(ImageQueueable):
+    def __init__(self, *, channel, target, url):
+        super().__init__(channel=channel)  # christ
+        self.target = target
+        self.url = url
+
+    def bundle_filter_call(self):
+        return StatView.apply_filter, (self.image, self.target)
+
+    def apply_filter(img, target):
+        GRAY = 0x36393f
+        GREEN = 0xadd8a3
+        SIZE = 384
+        canvas = Image.new("RGB", (SIZE, SIZE), (54, 57, 63))
+        canvas.paste(img, (256, 256))
+
+        brush = ImageDraw.Draw(canvas)
+
+        brush.rectangle((0, 0, 256, 256), fill=GREEN)
+        brush.rectangle((0, 256, 128, 384), fill=GREEN)
+        brush.rectangle((256, 0, 384, 128), fill=GREEN)
+
+        brush.rectangle((10, 104, 12, 120), fill=GRAY)
+        brush.rectangle((244, 104, 246, 120), fill=GRAY)
+        brush.rectangle((12, 110, 200, 118), fill=GRAY)
+
+        try:
+            fontBig = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=64)
+            fontSmall = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=32)
+            fontTiny = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=16)
+        except Exception as e:
+            print(e)
+
+        level = str(target[7])
+        rank = "#" + str(target[6])
+        expnext = str(target[8])
+        expcur = str(target[9])
+
+        levelWidth = brush.textsize(level, font=fontBig)
+        brush.text((10, 30), level, font=fontBig, fill=GRAY)
+        brush.text((10, 140), "GR", font=fontBig, fill=GRAY)
+        brush.text((138, 140), "LR", font=fontBig, fill=GRAY)
+        brush.text((levelWidth[0] + 15, 60), expcur, font=fontTiny, fill=GRAY)
+        brush.text((levelWidth[0] + 15, 80), expnext, font=fontTiny, fill=GRAY)
+        grWidth = brush.textsize(rank, font=fontSmall)
+        lrWidth = brush.textsize("N/A", font=fontSmall)
+        brush.text((118 - grWidth[0], 208), rank, font=fontSmall, fill=GRAY)
+        brush.text((246 - lrWidth[0], 208), "N/A", font=fontSmall, fill=GRAY)
+
+        result = BytesIO()
+        canvas.save(result, "PNG")
+        result.seek(0)
+        return result
+    pass
+
+
 class Pixelsort(ImageQueueable):
     '''Pixelsort implementation extending ImageQueueable.
 
@@ -146,7 +207,7 @@ If not provided, compare is set to the luminance function.
 
 Pixelsort(channel, url, [filename='upload.png', isHorizontal=True, threshold=0.5, compare=luma])'''
     def __init__(self, *, channel, url, filename="upload.png", isHorizontal=True, threshold=0.5, compare=None):
-        super().__init__(channel=channel, url=url, filename=filename)
+        super().__init__(channel=channel, filename=filename, url=url)
         self.compare = compare
         if not compare:
             self.compare = compare_funcs.luma
@@ -162,7 +223,7 @@ Pixelsort(channel, url, [filename='upload.png', isHorizontal=True, threshold=0.5
         return Pixelsort.apply_filter, (self.image, self.isHorizontal, self.compare, self.mode, self.threshold)
 
     def apply_filter(img, isHorizontal, compare, mode, threshold):
-        img, size = ImageQueueable.apply_filter(img)
+        img, size = super().apply_filter(img)
         print("started")
 
         data = img.load()
@@ -214,8 +275,7 @@ Pixelsort(channel, url, [filename='upload.png', isHorizontal=True, threshold=0.5
         result = BytesIO()
         img.save(result, "PNG")
         result.seek(0)
-        return result  # i hope this work
-        pass
+        return result
 
 
 # ~~ THRESHOLD FUNCTIONS ~~ #
@@ -267,3 +327,14 @@ g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma
             sort = Pixelsort(channel=state.message.channel, url=url, isHorizontal=True)
         await state.command_host.queue.add_to_queue(sort)
         pass
+
+    @Command.cooldown(scope=Scope.CHANNEL, time=20)
+    @Command.register(name="stat")
+    async def stat(host, state):
+        target = state.message.author
+        async with host.db.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.callproc("GLOBALINFO", (target.id,))
+                targetinfo = await cur.fetchone()
+        statview = StatView(channel=state.message.channel, target=targetinfo, url=str(target.avatar_url_as(static_format="png", size=128)))
+        await state.command_host.queue.add_to_queue(statview)

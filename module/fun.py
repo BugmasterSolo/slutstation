@@ -292,7 +292,7 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
         try:
             poll_id = await host.add_reactions(chan, question_embed, host, timer, answer_count=answer_count, descrip=question)
         except MessageDeletedException:
-            await chan.send("The poll for *{question}* was deleted.")
+            await chan.send(f"The poll for *{question}* was deleted.")
         poll = await chan.fetch_message(poll_id)
         poll_reactions = poll.reactions
         poll_responses = [None] * answer_count
