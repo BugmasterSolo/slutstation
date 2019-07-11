@@ -351,6 +351,16 @@ Funny little 8ball game for you and friends.
             return
         await state.message.channel.send("\U0001f3b1 | *" + random.choice(Fun.EIGHT_BALL) + "...*")
 
+    @Command.register(name="night")
+    async def night(host, state):
+        msg = state.message
+        target = None
+        if len(msg.mentions) > 0:
+            target = msg.mentions[0]
+        if target == host.user or target is None:
+            target = msg.author
+        await msg.channel.send(f"Good night <@{msg.mentions[0].id}>!")
+
     # desc's are not necessary for short queries, such as trivia.
     # todo: move into host.
 
