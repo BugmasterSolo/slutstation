@@ -19,8 +19,8 @@ class Stattrack(Module):
         # n counter checks commands, exp does not
         # n_counter = re.findall("(nigger|nigg\w+|\bnig\b)", msg)
         # if you say niggardly you are getting penalized smartass
-        soft = len(re.findall(r"(nigg\w*|\bnig\b)", msg))
         hard = len(re.findall("nigger", msg))
+        soft = len(re.findall(r"(nigg\w*|\bnig\b)", msg)) - hard
         auth = state.message.author
         # todo: save some time by bundling commits:
         #       - create a connection from the pool.
