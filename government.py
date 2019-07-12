@@ -215,12 +215,12 @@ discord.User author             - The user that posted the relevant request.
         # on passing delete, flip the event
         # perform a check on each stop to see if the event is flipped
         # if it is, throw an exception to be handled silently by the relevant function.
-        descrip = descrip + f"\n\n{poll.jump_url}"
+        descrip = f"*{descrip}*\n\n{poll.jump_url}"
         if timer >= 3600:
             await asyncio.sleep(timer - 1800)
             if not await self.message_exists(chan, poll.id):
                 raise MessageDeletedException()
-            warning = await chan.send(f"***30 minutes remaining:\n{descrip}***")
+            warning = await chan.send(f"***30 minutes remaining:***\n{descrip}")
             await asyncio.sleep(600)
             await warning.delete()
             timer = 1200
@@ -228,7 +228,7 @@ discord.User author             - The user that posted the relevant request.
             await asyncio.sleep(timer - 600)
             if not await self.message_exists(chan, poll.id):
                 raise MessageDeletedException()
-            warning = await chan.send(f"***10 minutes remaining:\n{descrip}***")
+            warning = await chan.send(f"***10 minutes remaining:***\n{descrip}")
             await asyncio.sleep(240)
             await warning.delete()
             timer = 360
@@ -236,7 +236,7 @@ discord.User author             - The user that posted the relevant request.
             await asyncio.sleep(timer - 180)
             if not await self.message_exists(chan, poll.id):
                 raise MessageDeletedException()
-            warning = await chan.send("***3 minutes remaining!\n{descrip}***")
+            warning = await chan.send(f"***3 minutes remaining:***\n{descrip}")
             await asyncio.sleep(45)
             await warning.delete()
             timer = 135
@@ -244,10 +244,8 @@ discord.User author             - The user that posted the relevant request.
             await asyncio.sleep(timer - 60)
             if not await self.message_exists(chan, poll.id):
                 raise MessageDeletedException()
-            warning = await chan.send("***1 minute remaining!\n{descrip}***")
-            await asyncio.sleep(30)
-            await warning.delete()
-            timer = 30
+            warning = await chan.send(f"***1 minute remaining:***\n{descrip}")
+            timer = 60
         if timer > 10:
             await asyncio.sleep(timer - 10)
             if not await self.message_exists(chan, poll.id):
