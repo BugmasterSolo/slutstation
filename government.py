@@ -60,7 +60,7 @@ class Government(Client):
         self.logged_users = {}                              # dict of users known to exist in DB.
         self.module_list = []                               # list of all instantiated modules
         self.loop = asyncio.get_event_loop()                # current running event looped (started by discord py)
-        self.db = None                           # current database connection (aiomysql pool)
+        self.db = None                                      # current database connection (aiomysql pool)
         self.loop.run_until_complete(self.import_all())
         self.loop.run_until_complete(self.create_db())
         self.unique_commands = {}                           # dict of unique commands (k: command name or alias -- v: modules)

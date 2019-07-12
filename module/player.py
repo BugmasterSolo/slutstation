@@ -25,33 +25,7 @@ class DurationError(Exception):
 
 ytdl = YoutubeDL(opts)
 
-# stream_history = {}
-
-
-# purges unused streams once per hour. unused means it has not been played in 24 hours
-# requeueing a stream within this period resets the counter.
-# might want to move this into player module
-#
-# most likely gone, only necessary for file purging which is no longer an issue
-#
-# async def check_stream_history():
-#     while True:
-#         print("Purging stream cache...")
-#         curtime = time.time()
-#         del_list = []
-#         for key in stream_history:
-#             past = curtime - stream_history[key]
-#             if past > 10799:
-#                 await loop.run_in_executor(None, lambda: os.remove(key))  # fileread done externally?
-#                 print(f"Deleted item in directory {key} .")
-#                 del_list.append(key)
-#         for dir in del_list:
-#             del stream_history[dir]
-#         await asyncio.sleep(3600)
-#
 loop = asyncio.get_event_loop()
-#
-# loop.create_task(check_stream_history())  # task runs in bg, runtilcomplete is priority
 
 
 def format_time(time):
@@ -116,7 +90,6 @@ class YTPlayer:
 
 
 def check(guild_old, guild_new):
-
     return guild_old.region != guild_new.region
 
 
@@ -303,6 +276,7 @@ g play (<valid URL>|<search query>)
         # no idea why this does not work
         player = state.command_host.active_players.get(state.message.guild.id)
         url = state.content.strip()  # todo: deal with additional arguments
+        search_flag = False
         if len(url) == 0:
             if not player:  # inactive -- url required
                 await chan.send("Please provide a valid URL!")
@@ -315,6 +289,7 @@ g play (<valid URL>|<search query>)
                     player.active_vc.resume()
                     return
         if not url.startswith("http"):
+            search_flag = True
             # engage search api
             # if search then include all queries
             return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q={state.content}&type=video&key={state.command_host.api_key}")
