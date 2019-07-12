@@ -57,6 +57,12 @@ class StreamContainer:
         print(self.duration)
 
 
+class StreamGenerator:
+    def __init__(self, gen, embed):
+        self.gen = gen
+        self.embed = embed
+
+
 # massive cred: https://gist.github.com/EvieePy/ab667b74e9758433b3eb806c53a19f34
 # i don't think i would understand this shit otherwise
 # btw: every impatient pencil pusher in the discordpy issue comments can eat shit
@@ -64,12 +70,18 @@ class StreamContainer:
 # param types: https://stackoverflow.com/questions/2489669/function-parameter-types-in-python
 class YTPlayer:
 
+    async def format_source_local(host, state, url):
+        if not isinstance(url, str):
+            return YTPlayer.format_source_tuple(host, state, url)
+        else:
+            return await YTPlayer.format_source_single(host, state, url)
+
     # from the docs:
     #   If you want to find out whether a given URL is supported, simply call youtube-dl with it.
     #   If you get no videos back, chances are the URL is either not referring to a video or unsupported.
     #   You can find out which by examining the output (if you run youtube-dl on the console) or catching an
     #   UnsupportedError exception if you run it from a Python program.
-    async def format_source_local(host, state, url: str):  # partial bundles a function and args into a single callable (url of type str)
+    async def format_source_single(host, state, url):  # partial bundles a function and args into a single callable (url of type str)
         try:
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=False))  # asyncs synchronous function
         except PermissionError:
@@ -87,6 +99,18 @@ class YTPlayer:
         response_embed.set_thumbnail(url=data['thumbnail'])
         return StreamContainer(source=discord.FFmpegPCMAudio(data['url'], before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"), data=data, message=state.message, loc=None, embed=response_embed)
         # this makes the streaming work by reconnecting to the stream
+
+    def format_source_tuple(host, state, url):
+        async def generator():
+            for link in url:
+                player = await YTPlayer.format_source_single(host, state, link)
+                yield player
+        author = state.message.author
+        response_embed = discord.Embed(title=f"Added {len(url)} videos to queue!", color=0xff0000)
+        response_embed.set_footer(text=f"Added by {author.name}#{author.discriminator}",
+                                  icon_url=author.avatar_url_as(static_format="png", size=128))
+        return StreamGenerator(generator, response_embed)
+        pass
 
 
 def check(guild_old, guild_new):
@@ -111,6 +135,7 @@ class MusicPlayer:
         self.last_start_time = None                                 # start time of last track
         self.now_playing_duration = None                            # duration of current track
         self.queue_event.clear()
+        self.destroyed = False                                      # backup destroy flag (lazy)
         # make a pre-parsed embed queue for playing. we do need the queue features a lot
         loop.create_task(self.player())
 
@@ -151,43 +176,79 @@ class MusicPlayer:
                     await self.source.channel.send("Failed to fetch source. Disconnecting from current voice channel.")
                     await self.destroy()
                     return
-                channel = self.voice_channel  # guaranteed earlier
-                stream = source.source  # we're always downloadin ...
-                if not self.active_vc:
-                    m = channel.guild.get_member(self.host.user.id)  # frustrating
-                    perm = channel.permissions_for(m)
-                    if not perm.connect:
-                        await source.message_host.send("I can't join that voice channel!")
-                        break
-                    self.active_vc = await channel.connect()
-                duration_string = format_time(source.duration)
-                descrip = f"*{source.title}\nby {source.channel}*\n\n**Duration:** {duration_string}\n\n{source.description}"
-                response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip, url=source.page_url)
-                response_embed.set_thumbnail(url=source.thumb)
-                response_embed.set_footer(text=f"Added by {source.author.name}#{source.author.discriminator}",
-                                          icon_url=source.author.avatar_url_as(static_format="png", size=128))
-                self.now_playing_duration = source.duration  # optimize
-                self.active_vc.play(stream, after=lambda _: loop.call_soon_threadsafe(self.state.set))  # _ absorbs error handler
-                self.last_start_time = time.time()
-                await self.source.channel.send(embed=response_embed)  # this zone is definitely safe
-                self.now_playing = response_embed
-                await self.state.wait()
-                stream.cleanup()
+                if isinstance(source, StreamGenerator):
+                    async for stream in source.gen():
+                        await self.play_stream(stream.source, stream)
+                        if self.destroyed:
+                            break
+                else:
+                    await self.play_stream(source.source, source)
+                # channel = self.voice_channel  # guaranteed earlier
+                # stream = source.source  # we're always downloadin ...
+                # if not self.active_vc:
+                #     m = channel.guild.get_member(self.host.user.id)  # frustrating
+                #     perm = channel.permissions_for(m)
+                #     if not perm.connect:
+                #         await source.message_host.send("I can't join that voice channel!")
+                #         break
+                #     self.active_vc = await channel.connect()
+                # duration_string = format_time(source.duration)
+                # descrip = f"*{source.title}\nby {source.channel}*\n\n**Duration:** {duration_string}\n\n{source.description}"
+                # response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip, url=source.page_url)
+                # response_embed.set_thumbnail(url=source.thumb)
+                # response_embed.set_footer(text=f"Added by {source.author.name}#{source.author.discriminator}",
+                #                           icon_url=source.author.avatar_url_as(static_format="png", size=128))
+                # self.now_playing_duration = source.duration  # optimize
+                # self.active_vc.play(stream, after=lambda _: loop.call_soon_threadsafe(self.state.set))  # _ absorbs error handler
+                # self.last_start_time = time.time()
+                # await self.source.channel.send(embed=response_embed)  # this zone is definitely safe
+                # self.now_playing = response_embed
+                # await self.state.wait()
+                # stream.cleanup()
                 if self.queue.empty():
                     break
                     # destroy player here as well
             # loop over. destroy this instance.
             await self.destroy()
 
+    async def play_stream(self, stream, source):
+        self.state.clear()
+        channel = self.voice_channel
+        if not self.active_vc:
+            m = channel.guild.get_member(self.host.user.id)  # frustrating
+            perm = channel.permissions_for(m)
+            if not perm.connect:
+                await source.message_host.send("I can't join that voice channel!")
+                return
+            self.active_vc = await channel.connect()
+        duration_string = format_time(source.duration)
+        descrip = f"*{source.title}\nby {source.channel}*\n\n**Duration:** {duration_string}\n\n{source.description}"
+        response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip, url=source.page_url)
+        response_embed.set_thumbnail(url=source.thumb)
+        response_embed.set_footer(text=f"Added by {source.author.name}#{source.author.discriminator}",
+                                  icon_url=source.author.avatar_url_as(static_format="png", size=128))
+        self.now_playing_duration = source.duration  # optimize
+        self.active_vc.play(stream, after=lambda _: loop.call_soon_threadsafe(self.state.set))  # _ absorbs error handler
+        self.last_start_time = time.time()
+        await self.source.channel.send(embed=response_embed)  # this zone is definitely safe
+        self.now_playing = response_embed
+        await self.state.wait()
+        stream.cleanup()
+
     # adds to queue. ignores if process fails.
     async def add_to_queue(self, stream, chan):
         await self.queue_event.wait()
         if self.active_vc:
             await self.queue.put(stream)
-            time_until_playing = max((self.queue_duration + self.start_time) - time.time(), 0)
-            duration_string = format_time(time_until_playing)
-            self.queue_duration += stream.duration
-            stream.embed.set_footer(text=("\n\nTime until playing: " + duration_string))
+            if isinstance(stream, StreamGenerator):
+                self.queue_duration = None  # stream generator voids duration
+                await chan.send(embed=stream.embed)
+                return
+            if self.queue_duration is not None:
+                time_until_playing = max((self.queue_duration + self.start_time) - time.time(), 0)
+                duration_string = format_time(time_until_playing)
+                self.queue_duration += stream.duration
+                stream.embed.set_footer(text=("\n\nTime until playing: " + duration_string))
             await chan.send(embed=stream.embed)
 
     # integrate permissions into here (and all over frankly)
@@ -220,12 +281,14 @@ class MusicPlayer:
 
     async def operate_skip(self, chan):
         self.active_vc.stop()
-        time_skip = self.now_playing_duration - (time.time() - self.last_start_time)
-        self.queue_duration -= time_skip
+        if self.queue_duration is not None:
+            time_skip = self.now_playing_duration - (time.time() - self.last_start_time)
+            self.queue_duration -= time_skip
         await chan.send("Song skipped!")
         self.skip_list.clear()
 
     async def destroy(self):
+        self.destroyed = True
         if self.active_vc:
             self.active_vc.stop()
             await self.active_vc.disconnect()
@@ -276,7 +339,6 @@ g play (<valid URL>|<search query>)
         # no idea why this does not work
         player = state.command_host.active_players.get(state.message.guild.id)
         url = state.content.strip()  # todo: deal with additional arguments
-        search_flag = False
         if len(url) == 0:
             if not player:  # inactive -- url required
                 await chan.send("Please provide a valid URL!")
@@ -289,7 +351,6 @@ g play (<valid URL>|<search query>)
                     player.active_vc.resume()
                     return
         if not url.startswith("http"):
-            search_flag = True
             # engage search api
             # if search then include all queries
             return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q={state.content}&type=video&key={state.command_host.api_key}")
@@ -299,7 +360,7 @@ g play (<valid URL>|<search query>)
                 return
             return_query = return_query['items'][0]
             url = "https://www.youtube.com/watch?v=" + return_query['id']['videoId']
-        msg = await chan.send("```Searching...\nThis can take a while for longer videos...```")
+        msg = await chan.send("`Searching...`")
         await chan.trigger_typing()
         try:
             source = await YTPlayer.format_source_local(host, state, url=url)
@@ -347,6 +408,7 @@ g stop
                 del player.queue
                 player.queue = asyncio.Queue()  # sub the queue for an empty one (probably better way to accomp)
                 player.active_vc.stop()  # stop the current stream, calling on the empty queue
+                player.destroyed = True
         else:
             await state.message.channel.send("\U0001f6d1 | **You do not have permission to stop the stream. Use 'g skip' instead!** | \U0001f6d1")
 
