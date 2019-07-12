@@ -357,9 +357,12 @@ Funny little 8ball game for you and friends.
         target = None
         if len(msg.mentions) > 0:
             target = msg.mentions[0]
-        if target == host.user or target is None:
+        if target == host.user:
             target = msg.author
-        await msg.channel.send(f"Good night <@{msg.mentions[0].id}>!")
+        if target:
+            await msg.channel.send(f"Good night <@{target.id}>!")
+        else:
+            await msg.channel.send("Good night!")
 
     # desc's are not necessary for short queries, such as trivia.
     # todo: move into host.
