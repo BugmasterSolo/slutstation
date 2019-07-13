@@ -6,17 +6,16 @@ import async_timeout
 import time
 import math
 import json
+import re
 from youtube_dl import YoutubeDL
 
 opts = {
-    "outtmpl": "~/Desktop/filecache/%(title)s.%(ext)s",  # temporary storage only. files are deleted after play; no limits yet :)
+    "outtmpl": "~/Desktop/filecache/%(title)s.%(ext)s",
     "format": "bestaudio/best",
     "noplaylist": True,
     "default_search": "auto",
     "restrict_filenames": True
-}  # add later
-
-# search for songs which are not content ID'd and then play those
+}
 
 
 class DurationError(Exception):
@@ -35,10 +34,7 @@ def format_time(time):
         sec = f"0{sec}"
     return f"{min}:{sec}"
 
-# set up a once/hour loop that removes unused files from here
 
-
-# hodged solution -- resolve quick + soon
 class StreamContainer:
     def __init__(self, source, data, message, loc, embed):
         self.page_url = data['webpage_url']
@@ -54,7 +50,6 @@ class StreamContainer:
         self.embed = embed
         if len(self.description) >= 200:
             self.description += "..."
-        print(self.duration)
 
 
 class StreamGenerator:
@@ -66,7 +61,6 @@ class StreamGenerator:
 # massive cred: https://gist.github.com/EvieePy/ab667b74e9758433b3eb806c53a19f34
 # i don't think i would understand this shit otherwise
 # btw: every impatient pencil pusher in the discordpy issue comments can eat shit
-# non necessary, flush out (left over gunk and gook)
 # param types: https://stackoverflow.com/questions/2489669/function-parameter-types-in-python
 class YTPlayer:
 
@@ -81,18 +75,15 @@ class YTPlayer:
     #   If you get no videos back, chances are the URL is either not referring to a video or unsupported.
     #   You can find out which by examining the output (if you run youtube-dl on the console) or catching an
     #   UnsupportedError exception if you run it from a Python program.
-    async def format_source_single(host, state, url):  # partial bundles a function and args into a single callable (url of type str)
+    async def format_source_single(host, state, url):
         try:
-            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=False))  # asyncs synchronous function
+            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=False))
         except PermissionError:
             await state.message.channel.send("Look, something went wrong. I'm sorry.")
             pass
 
         if 'entries' in data:
             data = data['entries'][0]
-        if data['duration'] > 7200:  # downloads can run concurrently, but slow things down
-            # side note: look into streaming options in FFMpeg. I bookmarked some documentation but it's definitely doable
-            raise DurationError(f"Song length: {data['duration']}")
         descrip = f"*{data['title']}\nby {data['uploader']}*\n\n**Duration: {format_time(data['duration'])}**"
         response_embed = discord.Embed(title="Added to queue!", color=0xff0000,
                                        description=descrip, url=data['webpage_url'])
@@ -136,7 +127,6 @@ class MusicPlayer:
         self.now_playing_duration = None                            # duration of current track
         self.queue_event.clear()
         self.destroyed = False                                      # backup destroy flag (lazy)
-        # make a pre-parsed embed queue for playing. we do need the queue features a lot
         loop.create_task(self.player())
 
         # come up with a shit fix for this
@@ -144,8 +134,6 @@ class MusicPlayer:
             self.queue = asyncio.Queue()
             self.active_vc.stop()
             await self.source.channel.send("Disconnecting due to region switch. It conks out otherwise, let me know if you can fix it :)")
-
-        print("hello")
 
         self.listener = GuildUpdateListener(state.message.guild, check, update_vc)
 
@@ -253,8 +241,7 @@ class MusicPlayer:
 
     # integrate permissions into here (and all over frankly)
     async def process_skip(self, member, chan):
-        # member count is important here, so let's get the channel again
-        self.voice_channel = self.host.get_guild(self.source.guild.id).voice_client  # i mean this should exist i think
+        self.voice_channel = self.host.get_guild(self.source.guild.id).voice_client
         if self.voice_channel is None:
             print("Error in voice. Disconnecting completely.")
             self.destroy()
@@ -332,6 +319,7 @@ g play (<valid URL>|<search query>)
         '''
         # call the proper instance of ytdl
         chan = state.message.channel
+        msg = await chan.send("`Searching...`")
         if not state.message.author.voice:
             await state.message.channel.send("Please join a voice channel first!")
             return
@@ -339,6 +327,8 @@ g play (<valid URL>|<search query>)
         # no idea why this does not work
         player = state.command_host.active_players.get(state.message.guild.id)
         url = state.content.strip()  # todo: deal with additional arguments
+        print(url)
+        is_playlist = re.search(r"playlist\?list=(?P<playlist_id>\w+)", url)
         if len(url) == 0:
             if not player:  # inactive -- url required
                 await chan.send("Please provide a valid URL!")
@@ -360,7 +350,28 @@ g play (<valid URL>|<search query>)
                 return
             return_query = return_query['items'][0]
             url = "https://www.youtube.com/watch?v=" + return_query['id']['videoId']
-        msg = await chan.send("`Searching...`")
+        elif is_playlist:
+            print("ok")
+            playlist_id = is_playlist.group("playlist_id")
+            # no checking
+            return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/playlistItems?part=id%2CcontentDetails&maxResults=50&playlistId={playlist_id}&key={state.command_host.api_key}")
+            return_query = json.loads(return_query['text'])
+            if len(return_query['items']) == 0:
+                await chan.send("Invalid playlist ID.")
+                return
+            result_remain = return_query['pageInfo']['totalResults'] - 50
+            url_list = [item['contentDetails']['videoId'] for item in return_query['items']]
+            while result_remain > 0:
+                page_token = return_query['nextPageToken']
+                return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/playlistItems?part=id%2CcontentDetails&maxResults=50&playlistId={playlist_id}&pageToken={page_token}&key={state.command_host.api_key}")
+                return_query = json.loads(return_query['text'])
+                returnlen = len(return_query['items'])
+                if returnlen > 0:
+                    url_list += [item['contentDetails']['videoId'] for item in return_query['items']]
+                    result_remain = result_remain - returnlen
+                else:
+                    result_remain = 0  # something went wrong and we are done now
+            url = url_list
         await chan.trigger_typing()
         try:
             source = await YTPlayer.format_source_local(host, state, url=url)
@@ -391,7 +402,6 @@ g pause
         else:
             await state.message.channel.send("*i didn't even play anything...*")
 
-    # throws an error, check it out later.
     @Command.register(name="stop")
     async def stop(host, state):
         '''
@@ -405,8 +415,6 @@ g stop
         player = state.command_host.active_players.get(state.message.guild.id)
         if perms.administrator:
             if player:
-                del player.queue
-                player.queue = asyncio.Queue()  # sub the queue for an empty one (probably better way to accomp)
                 player.active_vc.stop()  # stop the current stream, calling on the empty queue
                 player.destroyed = True
         else:
