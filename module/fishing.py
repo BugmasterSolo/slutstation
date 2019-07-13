@@ -104,9 +104,11 @@ class Fishing(Module):
                 await cur.callproc('GETFISH', (1, 1, self.LOCATIONS[locindex]))
                 target = await cur.fetchone()
                 distro = random.gauss(0, 1)
-                stdev = float(target[5] - target[4]) / 4
-                mean = float(target[5] + target[4]) / 2
-                size = mean + stdev * distro
+                maxlog = math.log(target[5])
+                minlog = math.log(target[4])
+                stdev = float(maxlog - minlog) / 4
+                mean = float(maxlog + minlog) / 2
+                size = math.e ** (mean + stdev * distro)
                 percentile = cdf_normal(distro) * 100
                 rarity = self.RARITY_STRING[target[6] - 1]
                 label = "n" if target[1] in 'aeiou' else ""
