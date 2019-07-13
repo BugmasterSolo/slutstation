@@ -171,39 +171,15 @@ class MusicPlayer:
                             break
                 else:
                     await self.play_stream(source.source, source)
-                # channel = self.voice_channel  # guaranteed earlier
-                # stream = source.source  # we're always downloadin ...
-                # if not self.active_vc:
-                #     m = channel.guild.get_member(self.host.user.id)  # frustrating
-                #     perm = channel.permissions_for(m)
-                #     if not perm.connect:
-                #         await source.message_host.send("I can't join that voice channel!")
-                #         break
-                #     self.active_vc = await channel.connect()
-                # duration_string = format_time(source.duration)
-                # descrip = f"*{source.title}\nby {source.channel}*\n\n**Duration:** {duration_string}\n\n{source.description}"
-                # response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip, url=source.page_url)
-                # response_embed.set_thumbnail(url=source.thumb)
-                # response_embed.set_footer(text=f"Added by {source.author.name}#{source.author.discriminator}",
-                #                           icon_url=source.author.avatar_url_as(static_format="png", size=128))
-                # self.now_playing_duration = source.duration  # optimize
-                # self.active_vc.play(stream, after=lambda _: loop.call_soon_threadsafe(self.state.set))  # _ absorbs error handler
-                # self.last_start_time = time.time()
-                # await self.source.channel.send(embed=response_embed)  # this zone is definitely safe
-                # self.now_playing = response_embed
-                # await self.state.wait()
-                # stream.cleanup()
                 if self.queue.empty():
                     break
-                    # destroy player here as well
-            # loop over. destroy this instance.
             await self.destroy()
 
     async def play_stream(self, stream, source):
         self.state.clear()
         channel = self.voice_channel
         if not self.active_vc:
-            m = channel.guild.get_member(self.host.user.id)  # frustrating
+            m = channel.guild.get_member(self.host.user.id)
             perm = channel.permissions_for(m)
             if not perm.connect:
                 await source.message_host.send("I can't join that voice channel!")
@@ -216,9 +192,9 @@ class MusicPlayer:
         response_embed.set_footer(text=f"Added by {source.author.name}#{source.author.discriminator}",
                                   icon_url=source.author.avatar_url_as(static_format="png", size=128))
         self.now_playing_duration = source.duration  # optimize
-        self.active_vc.play(stream, after=lambda _: loop.call_soon_threadsafe(self.state.set))  # _ absorbs error handler
+        self.active_vc.play(stream, after=lambda _: loop.call_soon_threadsafe(self.state.set))
         self.last_start_time = time.time()
-        await self.source.channel.send(embed=response_embed)  # this zone is definitely safe
+        await self.source.channel.send(embed=response_embed)
         self.now_playing = response_embed
         await self.state.wait()
         stream.cleanup()
@@ -351,9 +327,7 @@ g play (<valid URL>|<search query>)
             return_query = return_query['items'][0]
             url = "https://www.youtube.com/watch?v=" + return_query['id']['videoId']
         elif is_playlist:
-            print("ok")
             playlist_id = is_playlist.group("playlist_id")
-            # no checking
             return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/playlistItems?part=id%2CcontentDetails&maxResults=50&playlistId={playlist_id}&key={state.command_host.api_key}")
             return_query = json.loads(return_query['text'])
             if len(return_query['items']) == 0:

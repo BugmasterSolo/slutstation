@@ -8,17 +8,10 @@ class Stattrack(Module):
     CURRENCY_SYMBOL = "฿"
 
     async def check(self, state):
-        # multiple shorter messages take priority
-        # might want to move this into a separate thread later
         strleng = len(state.content)
         if not strleng <= 0:
             strleng = math.floor(math.log(strleng) * 3)
         msg = state.message.content.lower()
-        # for exp
-        # run in executor if possible
-        # n counter checks commands, exp does not
-        # n_counter = re.findall("(nigger|nigg\w+|\bnig\b)", msg)
-        # if you say niggardly you are getting penalized smartass
         hard = len(re.findall("nigger", msg))
         soft = len(re.findall(r"(nigg\w*|\bnig\b)", msg)) - hard
         auth = state.message.author
@@ -33,7 +26,7 @@ class Stattrack(Module):
                     await cur.callproc("MESSAGE", (auth.id, strleng, hard, soft, state.message.guild.id))
                 except ConnectionResetError:
                     print("Error in DB communication")
-                    return self == state.command_host  # ignore the line which caused the error and move on
+                    return self == state.command_host
             await conn.commit()
         return self == state.command_host
 
@@ -65,7 +58,7 @@ class Stattrack(Module):
             elif target.bot:
                 await msg.channel.send("Sorry, I don't track other bots.")
                 return
-            userid = msg.mentions[0].id  # don't fetch all mentioned users
+            userid = msg.mentions[0].id
         else:
             userid = msg.author.id
             target = msg.author
@@ -78,7 +71,7 @@ class Stattrack(Module):
             await msg.channel.send("I have no record of that user! They should probably say something first.")
             return
         if res[3] == 0:
-            trivia_percent = 0  # avoid div by 0
+            trivia_percent = 0
         else:
             trivia_percent = (res[2] / res[3]) * 100
         descrip = f"""**Global rank:** #{res[6]}
@@ -86,7 +79,7 @@ class Stattrack(Module):
 *Level {res[7]} | {res[9]}/{res[8]}*\n
 **Trivia record:** {res[2]} / {res[3]} ({trivia_percent:.2f}%)\n
 **Power:** {res[4]}H / {res[5]}S\n
-**Credits:** {res[10]} {state.command_host.CURRENCY_SYMBOL}"""  # todo: level tracking (beyond just experience)
+**Credits:** {res[10]} {state.command_host.CURRENCY_SYMBOL}"""
         response_embed = Embed(title=(target.name + "#" + target.discriminator), description=descrip, color=0x7289da)
         response_embed.set_thumbnail(url=target.avatar_url_as(static_format="png", size=512))
         await msg.channel.send(embed=response_embed)
