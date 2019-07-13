@@ -156,15 +156,14 @@ class StatView(ImageQueueable):
     def apply_filter(img, target):
         GRAY = 0x36393f
         GREEN = 0xadd8a3
-        SIZE = 384
-        canvas = Image.new("RGB", (SIZE, SIZE), (54, 57, 63))
-        canvas.paste(img, (256, 256))
+        SIZE = (384, 256)
+        canvas = Image.new("RGB", SIZE, (54, 57, 63))
+        canvas.paste(img, (257, 129))
 
         brush = ImageDraw.Draw(canvas)
 
         brush.rectangle((0, 0, 256, 256), fill=GREEN)
         brush.rectangle((0, 256, 128, 384), fill=GREEN)
-        brush.rectangle((256, 0, 384, 128), fill=GREEN)
 
         brush.rectangle((10, 104, 12, 120), fill=GRAY)
         brush.rectangle((244, 104, 246, 120), fill=GRAY)

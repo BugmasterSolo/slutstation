@@ -1,10 +1,9 @@
 ![bot pic](https://raw.githubusercontent.com/jamieboy1337/slutstation/master/botimage.png)
 
-# TODO LIST
-- Fix player to fetch videos on queue-up rather than right away. Should save some time when generating massive queues.
-  - Store only the URL in the queue. Call format_source_local on run. We can create a function to handle multiple videos, and one to handle a single video.
-  - Run function once to gauge number of videos.
 (credit to artist of)
+
+# TODO LIST
+- Do some status checking and add a canned exception.
 
 # government
 ###### a bot for discord
