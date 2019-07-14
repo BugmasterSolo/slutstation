@@ -1,6 +1,6 @@
 import discord
 
-from .base import Module, Command, GuildUpdateListener
+from .base import Module, Command, GuildUpdateListener, HTTPNotFoundException
 import asyncio
 import async_timeout
 import time
@@ -319,7 +319,11 @@ g play (<valid URL>|<search query>)
         if not url.startswith("http"):
             # engage search api
             # if search then include all queries
-            return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q={state.content}&type=video&key={state.command_host.api_key}")
+            try:
+                return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q={state.content}&type=video&key={state.command_host.api_key}")
+            except HTTPNotFoundException:
+                await chan.send("Video search failed.")
+                return
             return_query = json.loads(return_query['text'])
             if len(return_query['items']) == 0:
                 await chan.send("No results found for that query.")
@@ -328,7 +332,11 @@ g play (<valid URL>|<search query>)
             url = "https://www.youtube.com/watch?v=" + return_query['id']['videoId']
         elif is_playlist:
             playlist_id = is_playlist.group("playlist_id")
-            return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/playlistItems?part=id%2CcontentDetails&maxResults=50&playlistId={playlist_id}&key={state.command_host.api_key}")
+            try:
+                return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/playlistItems?part=id%2CcontentDetails&maxResults=50&playlistId={playlist_id}&key={state.command_host.api_key}")
+            except HTTPNotFoundException:
+                await chan.send("Playlist lookup failed.")
+                return
             return_query = json.loads(return_query['text'])
             if len(return_query['items']) == 0:
                 await chan.send("Invalid playlist ID.")
@@ -337,7 +345,11 @@ g play (<valid URL>|<search query>)
             url_list = [item['contentDetails']['videoId'] for item in return_query['items']]
             while result_remain > 0:
                 page_token = return_query['nextPageToken']
-                return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/playlistItems?part=id%2CcontentDetails&maxResults=50&playlistId={playlist_id}&pageToken={page_token}&key={state.command_host.api_key}")
+                try:
+                    return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/playlistItems?part=id%2CcontentDetails&maxResults=50&playlistId={playlist_id}&pageToken={page_token}&key={state.command_host.api_key}")
+                except HTTPNotFoundException:
+                    await chan.send("Playlist lookup failed.")
+                    return
                 return_query = json.loads(return_query['text'])
                 returnlen = len(return_query['items'])
                 if returnlen > 0:

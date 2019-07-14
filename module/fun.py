@@ -1,4 +1,4 @@
-from .base import Module, Command, Scope, MessageDeletedException
+from .base import Module, Command, Scope, MessageDeletedException, HTTPNotFoundException
 from discord import Status, Embed
 # import mysql.connector as mysql
 
@@ -154,7 +154,11 @@ Usage: g trivia
         '''
         chan = state.message.channel
         url = "https://opentdb.com/api.php?amount=1"
-        response = await host.http_get_request(url)
+        try:
+            response = await host.http_get_request(url)
+        except HTTPNotFoundException:
+            await chan.send("Failed to fetch trivia data.")
+            return
         status = response['status']
         if status >= 200 and status < 300:
             triv = json.loads(response['text'])['results'][0]

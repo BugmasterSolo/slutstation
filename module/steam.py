@@ -1,4 +1,4 @@
-from .base import Module, Command
+from .base import Module, Command, HTTPNotFoundException
 from discord import Embed
 import json
 import time
@@ -14,21 +14,34 @@ class Steam(Module):
         await state.message.channel.trigger_typing()
         args = host.split(state.content)
         userID = args[0]
-        response = await state.command_host.steam_profile_request(userID)
+        try:
+            response = await state.command_host.steam_profile_request(host, userID)
+        except HTTPNotFoundException:
+            await state.message.channel.send("Failed to fetch from Steam API.")
         # make status check
         #   There's not really a way for the function to halt up. We could throw an exception on 404 but that's a bit lame
         if response is None:
-            # we're going to assume the user put a vanity URL and send the request again.
-            resp = await host.http_get_request(f"https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key={state.command_host.api_key}&vanityurl={userID}")
+            try:
+                resp = await host.http_get_request(f"https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key={state.command_host.api_key}&vanityurl={userID}")
+            except HTTPNotFoundException:
+                await state.message.channel.send("Failed to fetch from Steam API.")
             url = json.loads(resp['text'])['response']
             if url['success'] != 1:
                 await state.message.channel.send("User not found.")
                 return
             userID = url['steamid']
-            response = await state.command_host.steam_profile_request(host, userID)
+            try:
+                response = await state.command_host.steam_profile_request(host, userID)
+            except HTTPNotFoundException:
+                await state.message.channel.send("Failed to fetch from Steam API.")
         url = f"https://api.steampowered.com/IPlayerService/GetBadges/v1/?key={state.command_host.api_key}&steamid={userID}"
         timecreated = time.strftime("%B %d, %Y", time.gmtime(response['timecreated']))
-        resp = await host.http_get_request(url)
+        try:
+            resp = await host.http_get_request(url)
+        except HTTPNotFoundException:
+            await state.message.channel.send("Failed to fetch badge list.")
+            # do we want this to halt it up?
+            return
         response_badge = json.loads(resp['text'])['response']
         desc = f"**On steam since:** {timecreated}\n**Badge Count:** {len(response_badge['badges'])}\n**User XP:** {response_badge['player_xp']}\n**Level:** {response_badge['player_level']}\n"
         response_embed = Embed(title=response['personaname'],

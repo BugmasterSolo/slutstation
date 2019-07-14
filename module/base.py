@@ -13,6 +13,10 @@ class MessageDeletedException(Exception):
     pass
 
 
+class HTTPNotFoundException(Exception):
+    pass
+
+
 # lower two bits: cooldown scope.
 # upper bit: cooldown type.
 class Scope(Enum):

@@ -1,4 +1,4 @@
-from .base import Module, Command, Scope
+from .base import Module, Command, Scope, HTTPNotFoundException
 from discord import Embed
 import json
 import datetime  # move to time!
@@ -113,7 +113,11 @@ g rule34 [tag1 tag2 tag3 ... tag6] (page<int>)
             url += f"&pid={pagenum}"
         response_message = await chan.send("```Searching...```")
         await chan.trigger_typing()
-        resp = await host.http_get_request(url)
+        try:
+            resp = await host.http_get_request(url)
+        except HTTPNotFoundException:
+            await chan.send("Request failed to return properly.")
+            return
         status = resp['status']
         await response_message.delete()
         if status >= 200 and status < 300:

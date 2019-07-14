@@ -28,7 +28,7 @@ from discord.errors import NotFound
 import aiohttp
 
 
-from module.base import GuildUpdateListener, MessageDeletedException
+from module.base import GuildUpdateListener, MessageDeletedException, HTTPNotFoundException
 
 logger = logging.basicConfig(level=logging.INFO)
 
@@ -80,7 +80,7 @@ class Government(Client):
                         "descrip": mod.command_list[command].descrip,
                         "aliases": mod.command_list[command].alias
                     }
-        # oophs
+        # whatever
         self.loop.run_until_complete(self.http_post_request("http://baboo.mobi/government/help_function.php", json.dumps(command_info)))
         print("Up and running!")
 
@@ -322,6 +322,8 @@ discord.User author             - The user that posted the relevant request.
         async with aiohttp.ClientSession(headers=http_header) as session:
             print("get: " + domain)
             async with session.get(domain) as resp:
+                if not (resp['status'] >= 200 and resp['status'] < 400):
+                    raise HTTPNotFoundException(f"HTTP ERROR {resp['status']}")
                 text = await resp.text()
                 return {
                     "status": resp.status,
@@ -332,6 +334,8 @@ discord.User author             - The user that posted the relevant request.
         async with aiohttp.ClientSession(headers=http_header) as session:
             print("post: " + domain)
             async with session.post(domain, data=payload) as resp:
+                if not (resp['status'] >= 200 and resp['status'] < 400):
+                    raise HTTPNotFoundException(f"HTTP ERROR {resp['status']}")
                 text = await resp.text()
                 return {
                     "status": resp.status,
