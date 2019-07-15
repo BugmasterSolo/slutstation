@@ -147,6 +147,7 @@ as a tuple containing a static reference to the sorting functions and all necess
         self.mode = img.mode
 
 
+# tons of fun but may be best to port it over to wand
 class Magik(ImageQueueable):
     SOBEL_X = (
         -1, 0, 1,
@@ -192,9 +193,7 @@ class Magik(ImageQueueable):
             coltemp = data[x, row]
         return x
 
-    # sanction off and put it elsewhere
-    # slightly gimped, might have to do with the fact that it only goes in one direction
-    def apply_magik(img, scale, debug=False):
+    def apply_crunch(img, scale, debug=False):
         img, size = ImageQueueable.apply_filter(img)  # oop
         size_target = [int(size[0] * scale), int(size[1] * scale)]
         kernelX = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_X, scale=1))
@@ -206,7 +205,7 @@ class Magik(ImageQueueable):
         # g: seam id
         # b: color value (duplicate)
         # a: 0 if removed, 128 if recorded, 256 if not
-        print("gradient calculated")
+        print("gradients calculated!")
         if debug:
             return gradientMag
         size = gradientMag.size
@@ -253,7 +252,7 @@ class Magik(ImageQueueable):
             seed_table[seed_array[i][0]] = i
             pass
         size_final = (size[0] - size_target[0], size[1])
-        print(size_final)
+        print("seam carving done!")
         finale = Image.new("RGB", size_final)
         f_data = finale.load()
         init_data = img.load()
@@ -264,6 +263,70 @@ class Magik(ImageQueueable):
                 if seed_table[(coltemp[1] * 256) + coltemp[2]] >= size_target[0] and cur_x < size_final[0]:
                     f_data[cur_x, j] = init_data[i, j]
                     cur_x += 1
+        print("done!")
+        return finale
+        # attempt to program in the seam carving method
+
+        pass
+
+    def apply_crunch_lazy(img, scale, debug=False):
+        '''Faster seam carve function that runs a ton faster but crunches it up all nasty'''
+        img, size = ImageQueueable.apply_filter(img)  # oop
+        size_target = [int(size[0] * scale), int(size[1] * scale)]
+        kernelX = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_X, scale=1))
+        kernelY = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_Y, scale=1))
+        kernelXInv = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_X_INV, scale=1))
+        kernelYInv = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_Y_INV, scale=1))
+        gradientMag = ImageChops.add(ImageChops.add(kernelX, kernelY, scale=1), ImageChops.add(kernelXInv, kernelYInv, scale=1), scale=2).convert("L").convert("RGBA").crop((1, 1, size[0] - 1, size[1] - 1))  # shitfuck
+        print("gradients calculated!")
+        if debug:
+            return gradientMag
+        size = gradientMag.size
+        data = gradientMag.load()
+
+        for x in range(size_target[0]):
+            x_min = random.randint(0, size[0])
+            for row in range(1, size[1]):
+                c_pos = Magik.explore(x_min, 1, row, data, size)
+                if c_pos == -1:
+                    c_pos = Magik.explore(x_min - 1, -1, row, data, size)
+                    r_val = 4096
+                else:
+                    r_pos = Magik.explore(c_pos + 1, 1, row, data, size)
+                    if r_pos == -1:
+                        r_val = 4096
+                    else:
+                        r_val = data[r_pos, row][0]
+                c_val = data[c_pos, row][0]
+                l_pos = Magik.explore(x_min - 1, -1, row, data, size)
+                if l_pos == -1:
+                    l_val = 4096
+                else:
+                    l_val = data[l_pos, row][0]
+                # values determined -- decide where to go
+                if l_val < c_val and l_val < r_val:
+                    x_min = l_pos
+                    col_temp = data[l_pos, row]
+                elif c_val < r_val:
+                    x_min = c_pos
+                    col_temp = data[c_pos, row]
+                else:
+                    x_min = r_pos
+                    col_temp = data[r_pos, row]
+                data[x_min, row] = [col_temp[0], col_temp[1], col_temp[2], 128]
+        size_final = (size[0] - size_target[0], size[1])
+        print("seam carving done!")
+        finale = Image.new("RGB", size_final)
+        f_data = finale.load()
+        init_data = img.load()
+        for j in range(size[1]):
+            cur_x = 0
+            for i in range(size[0]):
+                col_temp = data[i, j]
+                if col_temp[3] != 128:
+                    f_data[cur_x, j] = init_data[i, j]
+                    cur_x += 1
+        print("done!")
         return finale
         # attempt to program in the seam carving method
 
@@ -273,8 +336,8 @@ class Magik(ImageQueueable):
         if debug:
             img_final = Magik.apply_magik(img, scale, debug)
         else:
-            img_temp = Magik.apply_magik(img, scale).rotate(90, expand=True)
-            img_final = Magik.apply_magik(img_temp, scale).rotate(-90, expand=True)
+            img_temp = Magik.apply_crunch_lazy(img, scale).rotate(90, expand=True)
+            img_final = Magik.apply_crunch_lazy(img_temp, scale).rotate(-90, expand=True)
 
         result = BytesIO()
         img_final.save(result, "PNG")
@@ -452,6 +515,7 @@ g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma
             sort = Pixelsort(channel=state.message.channel, url=url, threshold=float(args[0]), isHorizontal=True)
         else:
             sort = Pixelsort(channel=state.message.channel, url=url, isHorizontal=True)
+        await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(sort)
         pass
 
@@ -469,9 +533,14 @@ g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma
     @Command.cooldown(scope=Scope.CHANNEL, time=10)
     @Command.register(name="magik")
     async def magik(host, state):
+        '''
+Implementation of seam carving in Pillow. Relatively slow for now.
+        '''
+        # todo: implement FXAA step or something similar to smooth out the result
         url, args = ImageModule.parse_string(host, state.content, state.message)
         if len(args) >= 1:
             magik = Magik(channel=state.message.channel, url=url, scale=(float(args[0]) or 0.2))
         else:
             magik = Magik(channel=state.message.channel, url=url)
+        await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(magik)
