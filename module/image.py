@@ -160,6 +160,18 @@ class Magik(ImageQueueable):
         -1, -2, -1
     )
 
+    SOBEL_X_INV = (
+        1, 0, -1,
+        2, 0, -2,
+        1, 0, -1
+    )
+
+    SOBEL_Y_INV = (
+        -1, -2, -1,
+        0, 0, 0,
+        1, 2, 1
+    )
+
     def __init__(self, *, channel, url, scale=0.2):
         super().__init__(channel=channel)
         self.url = url
@@ -181,12 +193,17 @@ class Magik(ImageQueueable):
         return x
 
     # sanction off and put it elsewhere
-    def apply_magik(img, scale):
+    # slightly gimped, might have to do with the fact that it only goes in one direction
+    def apply_magik(img, scale, debug=False):
         img, size = ImageQueueable.apply_filter(img)  # oop
         size_target = [int(size[0] * scale), int(size[1] * scale)]
         kernelX = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_X, scale=1))
         kernelY = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_Y, scale=1))
-        gradientMag = ImageChops.add(kernelX, kernelY, scale=1.414).convert("L").convert("RGB").crop((1, 1, size[0] - 1, size[1] - 1))  # shitfuck
+        kernelXInv = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_X_INV, scale=1))
+        kernelYInv = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_Y_INV, scale=1))
+        gradientMag = ImageChops.add(ImageChops.add(kernelX, kernelY, scale=1), ImageChops.add(kernelXInv, kernelYInv, scale=1), scale=2).convert("L").convert("RGB").crop((1, 1, size[0] - 1, size[1] - 1))  # shitfuck
+        if debug:
+            return gradientMag
         size = gradientMag.size
         data = gradientMag.load()
         for cut_vert in range(size_target[0]):
@@ -240,9 +257,12 @@ class Magik(ImageQueueable):
 
         pass
 
-    def apply_filter(img, scale):
-        img_temp = Magik.apply_magik(img, scale).rotate(90, expand=True)
-        img_final = Magik.apply_magik(img_temp, scale).rotate(-90, expand=True)
+    def apply_filter(img, scale, debug=False):
+        if debug:
+            img_final = Magik.apply_magik(img, scale, debug)
+        else:
+            img_temp = Magik.apply_magik(img, scale).rotate(90, expand=True)
+            img_final = Magik.apply_magik(img_temp, scale).rotate(-90, expand=True)
         result = BytesIO()
         img_final.save(result, "PNG")
         result.seek(0)
