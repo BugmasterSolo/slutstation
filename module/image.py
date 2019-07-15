@@ -1,10 +1,12 @@
 import asyncio
 import aiohttp
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageFilter
 from discord import File
 import multiprocessing as mp
 from io import BytesIO
 from .base import Module, Command, Scope
+import random
+
 import copyreg
 import types
 
@@ -120,6 +122,7 @@ class ImageQueueable:
     def apply_filter(img):
         '''Rescales images to 1024 by 1024.'''
         size = img.size
+        print(size)
         resize = False
         size_zero_larger = True if size[0] > size[1] else False
         larger_dimension = size[0] if size_zero_larger else size[1]
@@ -142,6 +145,127 @@ as a tuple containing a static reference to the sorting functions and all necess
         self.image = img
         self.size = img.size
         self.mode = img.mode
+
+
+class Magik(ImageQueueable):
+    SOBEL_X = (
+        -1, 0, 1,
+        -2, 0, 2,
+        -1, 0, 1
+    )
+
+    SOBEL_Y = (
+        1, 2, 1,
+        0, 0, 0,
+        -1, -2, -1
+    )
+
+    def __init__(self, *, channel, url):
+        super().__init__(channel=channel)
+        self.url = url
+
+    def bundle_filter_call(self):
+        return Magik.apply_filter, (self.image,)
+
+    def explore(start, step, row, data, size):
+        x = start
+        if start >= size[0]:
+            return -1
+        coltemp = data[x, row]
+        while coltemp[0] != coltemp[1]:
+            x += step
+            if x < 0 or x >= size[0]:
+                return -1
+            coltemp = data[x, row]
+        return x
+
+    def apply_filter(img):
+        img, size = ImageQueueable.apply_filter(img)  # oop
+        size_target = [int(size[0] * 0.293), int(size[1] * 0.293)]
+        kernelX = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_X, scale=1))
+        kernelY = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_Y, scale=1))
+        print("kernels performed")
+        gradientMag = ImageChops.add(kernelX, kernelY, scale=1.414).convert("L").convert("RGB").crop((1, 1, size[0] - 1, size[1] - 1))  # shitfuck
+        size = gradientMag.size
+        data = gradientMag.load()
+        try:
+            for cut_vert in range(size_target[0]):
+                # print("row " + str(cut_vert) + "processed")
+                # # horizontal scan (first)
+                # x = 1
+                # coltemp = data[0, 0]
+                # while coltemp[0] != coltemp[1]:
+                #     coltemp = data[x, 0]
+                #     x += 1
+                #     # find non occupied pixel
+                # x_min = x
+                # e_min = coltemp[0]
+                # print(size[0])
+                # while x < size[0]:
+                #     coltemp = data[x, 0]
+                #     if coltemp[0] < e_min:
+                #         x_min = x
+                #         e_min = coltemp[0]
+                #         # get minimum row 1 energy
+                #     x += 1
+                x_min = random.randint(0, size[0] - 1)
+                print(x_min)
+                coltemp = data[x_min, 0]
+                data[x_min, 0] = (coltemp[0] + 1, coltemp[1], coltemp[2])  # fuck em
+                for row in range(1, size[1]):
+                    c_pos = Magik.explore(x_min, 1, row, data, size)
+                    if c_pos == -1:
+                        c_pos = Magik.explore(x_min - 1, -1, row, data, size)
+                        r_val = 4096
+                    else:
+                        r_pos = Magik.explore(c_pos + 1, 1, row, data, size)
+                        if r_pos == -1:
+                            r_val = 4096
+                        else:
+                            r_val = data[r_pos, row][0]
+                    c_val = data[c_pos, row][0]
+                    l_pos = Magik.explore(x_min - 1, -1, row, data, size)
+                    if l_pos == -1:
+                        l_val = 4096
+                    else:
+                        l_val = data[l_pos, row][0]
+                    # values determined -- decide where to go
+                    if l_val < c_val and l_val < r_val:
+                        x_min = l_pos
+                        col_temp = data[l_pos, row]
+                        data[l_pos, row] = (col_temp[0] + 256, col_temp[1], col_temp[2])
+                    elif c_val < r_val:
+                        x_min = c_pos
+                        col_temp = data[c_pos, row]
+                        data[c_pos, row] = (col_temp[0] + 256, col_temp[1], col_temp[2])
+                    else:
+                        x_min = r_pos
+                        col_temp = data[r_pos, row]
+                        data[r_pos, row] = (col_temp[0] + 256, col_temp[1], col_temp[2])
+            # from here, we should have a set of red pixels that we can ignore, along the vertical
+            size_final = (size[0] - size_target[0], size[1])
+            finale = Image.new("RGB", size_final)
+            f_data = finale.load()
+            init_data = img.load()
+            for j in range(size[1]):
+                cur_x = 0
+                for i in range(size[0]):
+                    coltemp = data[i, j]
+                    if coltemp[0] == coltemp[1] and cur_x < size_final[0]:
+                        f_data[cur_x, j] = init_data[i, j]
+                        cur_x += 1
+            result = BytesIO()
+            finale.save(result, "PNG")
+            result.seek(0)
+        except Exception as e:
+            import traceback
+            print("An error occurred!")
+            print(e)
+            traceback.print_exc()
+        return result
+        # attempt to program in the seam carving method
+
+        pass
 
 
 class StatView(ImageQueueable):
@@ -222,8 +346,9 @@ Pixelsort(channel, url, [filename='upload.png', isHorizontal=True, threshold=0.5
         return Pixelsort.apply_filter, (self.image, self.isHorizontal, self.compare, self.mode, self.threshold)
 
     def apply_filter(img, isHorizontal, compare, mode, threshold):
-        img, size = super().apply_filter(img)
-        print("started")
+        print("hello hello")
+        img, size = ImageQueueable.apply_filter(img)
+        print("goodbye goodbye")
 
         data = img.load()
 
@@ -337,3 +462,10 @@ g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma
                 targetinfo = await cur.fetchone()
         statview = StatView(channel=state.message.channel, target=targetinfo, url=str(target.avatar_url_as(static_format="png", size=128)))
         await state.command_host.queue.add_to_queue(statview)
+
+    @Command.cooldown(scope=Scope.CHANNEL, time=10)
+    @Command.register(name="magik")
+    async def magik(host, state):
+        url, args = ImageModule.parse_string(host, state.content, state.message)
+        magik = Magik(channel=state.message.channel, url=url)
+        await state.command_host.queue.add_to_queue(magik)
