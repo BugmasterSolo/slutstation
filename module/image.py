@@ -185,7 +185,7 @@ class Magik(ImageQueueable):
         if start >= size[0]:
             return -1
         coltemp = data[x, row]
-        while coltemp[0] != coltemp[1]:
+        while coltemp[3] == 128:
             x += step
             if x < 0 or x >= size[0]:
                 return -1
@@ -201,15 +201,22 @@ class Magik(ImageQueueable):
         kernelY = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_Y, scale=1))
         kernelXInv = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_X_INV, scale=1))
         kernelYInv = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_Y_INV, scale=1))
-        gradientMag = ImageChops.add(ImageChops.add(kernelX, kernelY, scale=1), ImageChops.add(kernelXInv, kernelYInv, scale=1), scale=2).convert("L").convert("RGB").crop((1, 1, size[0] - 1, size[1] - 1))  # shitfuck
+        gradientMag = ImageChops.add(ImageChops.add(kernelX, kernelY, scale=1), ImageChops.add(kernelXInv, kernelYInv, scale=1), scale=2).convert("L").convert("RGBA").crop((1, 1, size[0] - 1, size[1] - 1))  # shitfuck
+        # r: color value
+        # g: seam id
+        # b: color value (duplicate)
+        # a: 0 if removed, 128 if recorded, 256 if not
+        print("gradient calculated")
         if debug:
             return gradientMag
         size = gradientMag.size
         data = gradientMag.load()
-        for cut_vert in range(size_target[0]):
-            x_min = random.randint(0, size[0] - 1)  # produces best effects
-            coltemp = data[x_min, 0]
-            data[x_min, 0] = (coltemp[0] + 1, coltemp[1], coltemp[2])  # fuck em
+
+        seed_array = []  # 2-tuples: seed row and final energy (ID fetched from row, iterate back)
+        for x in range(size[0]):
+            seed_sum = data[x, 0][0]
+            data[x, 0] = (seed_sum, int(x / 256), x % 256, 128)
+            x_min = x  # initial x represents seed ID
             for row in range(1, size[1]):
                 c_pos = Magik.explore(x_min, 1, row, data, size)
                 if c_pos == -1:
@@ -231,17 +238,22 @@ class Magik(ImageQueueable):
                 if l_val < c_val and l_val < r_val:
                     x_min = l_pos
                     col_temp = data[l_pos, row]
-                    data[l_pos, row] = (col_temp[0] + 256, col_temp[1], col_temp[2])
                 elif c_val < r_val:
                     x_min = c_pos
                     col_temp = data[c_pos, row]
-                    data[c_pos, row] = (col_temp[0] + 256, col_temp[1], col_temp[2])
                 else:
                     x_min = r_pos
                     col_temp = data[r_pos, row]
-                    data[r_pos, row] = (col_temp[0] + 256, col_temp[1], col_temp[2])
-        # from here, we should have a set of red pixels that we can ignore, along the vertical
+                seed_sum += col_temp[0]
+                data[x_min, row] = (col_temp[0], int(x / 256), x % 256, 128)
+            seed_array.append((x, seed_sum))
+        seed_array = sorted(seed_array, key=lambda i: i[1])
+        seed_table = {}
+        for i in range(len(seed_array)):  # whatever dude
+            seed_table[seed_array[i][0]] = i
+            pass
         size_final = (size[0] - size_target[0], size[1])
+        print(size_final)
         finale = Image.new("RGB", size_final)
         f_data = finale.load()
         init_data = img.load()
@@ -249,7 +261,7 @@ class Magik(ImageQueueable):
             cur_x = 0
             for i in range(size[0]):
                 coltemp = data[i, j]
-                if coltemp[0] == coltemp[1] and cur_x < size_final[0]:
+                if seed_table[(coltemp[1] * 256) + coltemp[2]] >= size_target[0] and cur_x < size_final[0]:
                     f_data[cur_x, j] = init_data[i, j]
                     cur_x += 1
         return finale
@@ -263,6 +275,7 @@ class Magik(ImageQueueable):
         else:
             img_temp = Magik.apply_magik(img, scale).rotate(90, expand=True)
             img_final = Magik.apply_magik(img_temp, scale).rotate(-90, expand=True)
+
         result = BytesIO()
         img_final.save(result, "PNG")
         result.seek(0)
@@ -453,7 +466,7 @@ g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma
         statview = StatView(channel=state.message.channel, target=targetinfo, url=str(target.avatar_url_as(static_format="png", size=128)))
         await state.command_host.queue.add_to_queue(statview)
 
-    @Command.cooldown(scope=Scope.CHANNEL, time=10)
+    @Command.cooldown(scope=Scope.CHANNEL, time=2)
     @Command.register(name="magik")
     async def magik(host, state):
         url, args = ImageModule.parse_string(host, state.content, state.message)
