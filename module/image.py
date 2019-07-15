@@ -68,7 +68,6 @@ Manages the core processing loop that powers the image queue.
                 await process.channel.send("Invalid URL provided.")
                 continue
 
-            print("image fetched")
             self.load_event.clear()
             func, args = process.bundle_filter_call()
             self.pool.apply_async(func, args=args, callback=lambda ret: self.prepare_upload(ret, process))
@@ -78,7 +77,6 @@ Manages the core processing loop that powers the image queue.
         asyncio.run_coroutine_threadsafe(self.post(img, proc), self.loop)
 
     async def post(self, data, q):
-        print("sending")
         await q.channel.send(file=File(data, filename=q.filename))
 
     async def load_image(self, q):
@@ -125,7 +123,6 @@ class ImageQueueable:
     def apply_filter(img):
         '''Rescales images to 1024 by 1024.'''
         size = img.size
-        print(size)
         resize = False
         size_zero_larger = True if size[0] > size[1] else False
         larger_dimension = size[0] if size_zero_larger else size[1]
@@ -189,13 +186,11 @@ class Magik(ImageQueueable):
         size_target = [int(size[0] * scale), int(size[1] * scale)]
         kernelX = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_X, scale=1))
         kernelY = img.filter(ImageFilter.Kernel((3, 3), Magik.SOBEL_Y, scale=1))
-        print("kernels performed")
         gradientMag = ImageChops.add(kernelX, kernelY, scale=1.414).convert("L").convert("RGB").crop((1, 1, size[0] - 1, size[1] - 1))  # shitfuck
         size = gradientMag.size
         data = gradientMag.load()
         for cut_vert in range(size_target[0]):
             x_min = random.randint(0, size[0] - 1)  # produces best effects
-            print(x_min)
             coltemp = data[x_min, 0]
             data[x_min, 0] = (coltemp[0] + 1, coltemp[1], coltemp[2])  # fuck em
             for row in range(1, size[1]):
@@ -332,9 +327,7 @@ Pixelsort(channel, url, [filename='upload.png', isHorizontal=True, threshold=0.5
         return Pixelsort.apply_filter, (self.image, self.isHorizontal, self.compare, self.mode, self.threshold)
 
     def apply_filter(img, isHorizontal, compare, mode, threshold):
-        print("hello hello")
         img, size = ImageQueueable.apply_filter(img)
-        print("goodbye goodbye")
 
         data = img.load()
 
@@ -357,31 +350,24 @@ Pixelsort(channel, url, [filename='upload.png', isHorizontal=True, threshold=0.5
             def set_func(g, f, col):
                 data[g, f] = col
 
-        try:
-            for g in range(gross_axis):
-                cur = 0
-                store = []
-                while cur < fine_axis:
-                    start = cur
-                    coldata = get_func(g, cur)
-                    thr = compare(coldata, mode)
-                    while cur < fine_axis and thr > threshold:
-                        store.append((thr, coldata))
-                        cur += 1
-                        if cur < fine_axis:
-                            coldata = get_func(g, cur)
-                            thr = compare(coldata, mode)
-                    sorted_store = sorted(store, key=lambda val: val[0])  # avoid recalculation
-                    store = []
-                    for f in range(start, cur):  # truncated at one before cur -- should be good
-                        set_func(g, f, sorted_store[start - f][1])
+        for g in range(gross_axis):
+            cur = 0
+            store = []
+            while cur < fine_axis:
+                start = cur
+                coldata = get_func(g, cur)
+                thr = compare(coldata, mode)
+                while cur < fine_axis and thr > threshold:
+                    store.append((thr, coldata))
                     cur += 1
-        except Exception as e:
-            import traceback
-            print("An error occurred!")
-            print(e)
-            traceback.print_exc()
-        print("sort complete")
+                    if cur < fine_axis:
+                        coldata = get_func(g, cur)
+                        thr = compare(coldata, mode)
+                sorted_store = sorted(store, key=lambda val: val[0])  # avoid recalculation
+                store = []
+                for f in range(start, cur):  # truncated at one before cur -- should be good
+                    set_func(g, f, sorted_store[start - f][1])
+                cur += 1
         result = BytesIO()
         img.save(result, "PNG")
         result.seek(0)
@@ -410,7 +396,6 @@ class ImageModule(Module):
 
     def parse_string(host, content, message):
         array = host.split(content)
-        print(array)
         url = None
         if (len(message.attachments)):
             attachment = message.attachments[0]
@@ -430,7 +415,6 @@ Usage:
 g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma)>]
         '''
         url, args = ImageModule.parse_string(host, state.content, state.message)
-        print(args)
         if len(args) >= 1:
             sort = Pixelsort(channel=state.message.channel, url=url, threshold=float(args[0]), isHorizontal=True)
         else:
