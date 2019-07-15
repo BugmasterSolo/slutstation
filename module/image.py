@@ -212,7 +212,7 @@ class Magik(ImageQueueable):
         size = gradientMag.size
         data = gradientMag.load()
 
-        seed_array = []  # 2-tuples: seed row and final energy (ID fetched from row, iterate back)
+        seed_array = []
         for x in range(size[0]):
             seed_sum = data[x, 0][0]
             data[x, 0] = (seed_sum, int(x / 256), x % 256, 128)
@@ -466,7 +466,7 @@ g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma
         statview = StatView(channel=state.message.channel, target=targetinfo, url=str(target.avatar_url_as(static_format="png", size=128)))
         await state.command_host.queue.add_to_queue(statview)
 
-    @Command.cooldown(scope=Scope.CHANNEL, time=2)
+    @Command.cooldown(scope=Scope.CHANNEL, time=10)
     @Command.register(name="magik")
     async def magik(host, state):
         url, args = ImageModule.parse_string(host, state.content, state.message)
