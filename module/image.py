@@ -13,6 +13,10 @@ import types
 # todo: make these function names consistent. they're a pain :)
 
 
+class ImageNotFoundException(Exception):
+    pass
+
+
 # if this works then we can avoid the dill call
 # https://stackoverflow.com/questions/27318290/why-can-i-pass-an-instance-method-to-multiprocessing-process-but-not-a-multipro
 def pickler_redirect(method):
@@ -78,9 +82,6 @@ Manages the core processing loop that powers the image queue.
         await q.channel.send(file=File(data, filename=q.filename))
 
     async def load_image(self, q):
-        print(q)
-        print(q.url)
-        print("get image: " + q.url)
         if q.url:  # hate this just want her back x
             async with aiohttp.ClientSession() as session:
                 async with session.get(q.url) as resp:
@@ -92,6 +93,8 @@ Manages the core processing loop that powers the image queue.
                 return False
             self.pass_image(q, ret)
             await self.load_event.wait()
+        else:
+            return False
         return True
 
     def bytes_and_load(data):
