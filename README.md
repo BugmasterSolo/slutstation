@@ -3,7 +3,7 @@
 (credit to artist of)
 
 # TODO LIST
-- Do some status checking and add a canned exception.
+- Add format checking for image imports
 
 # government
 ###### a bot for discord
