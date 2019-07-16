@@ -6,7 +6,6 @@ import multiprocessing as mp
 from io import BytesIO
 from .base import Module, Command, Scope
 import random
-from wand.image import Image as wimg
 import copyreg
 import types
 
