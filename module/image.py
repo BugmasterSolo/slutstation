@@ -49,6 +49,7 @@ different complex operations, for instance shader renders and the like.
 
     async def add_to_queue(self, item):
         await self.queue.put(item)
+        print("added!")
 
     async def process_images(self, loop):
         '''
@@ -61,14 +62,17 @@ Manages the core processing loop that powers the image queue.
             try:
                 image_successful = await self.load_image(process)
                 if not image_successful:
+                    print("duy")
                     await process.channel.send("Something went wrong while parsing that link. Make sure it contains an image.")
                     continue
             except aiohttp.InvalidURL:
+                print("doy")
                 await process.channel.send("Invalid URL provided.")
                 continue
 
             self.load_event.clear()
             func, args = process.bundle_filter_call()
+            print("run")
             self.pool.apply_async(func, args=args, callback=lambda ret: self.prepare_upload(ret, process))
             print("done!")
 
@@ -122,6 +126,7 @@ class ImageQueueable:
 
     def apply_filter(img, maxsize=1024):
         '''Rescales images to the passed size.'''
+        print("scale down")
         size = img.size
         resize = False
         size_zero_larger = True if size[0] > size[1] else False
@@ -414,6 +419,26 @@ class StatView(ImageQueueable):
     pass
 
 
+class JPEGFilter(ImageQueueable):
+    def __init__(self, *, channel, url):
+        print("filter created")
+        super().__init__(channel=channel, url=url)
+
+    def bundle_filter_call(self):
+        return JPEGFilter.apply_filter, (self.image,)
+
+    def apply_filter(img, quality=5):
+        print("ok")
+        try:
+            result = BytesIO()
+            img.save(result, "JPEG", quality=quality)
+            result.seek(0)
+            print("saved")
+            return result
+        except Exception as e:
+            print(e)
+
+
 class MemeFilter(ImageQueueable):
     def __init__(self, *, channel, url, text):
         super().__init__(channel=channel, url=url)
@@ -677,4 +702,12 @@ Implementation of seam carving in Pillow. Relatively slow for now.
         meme = MemeFilter(channel=state.message.channel, url=url, text=args)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(meme)
-        pass
+
+    @Command.cooldown(scope=Scope.CHANNEL, time=3)
+    @Command.register(name="jpeg")
+    async def jpeg(host, state):
+        url, args = ImageModule.parse_string(host, state.content, state.message)
+        jaypeg = JPEGFilter(channel=state.message.channel, url=url)
+        print("dab")
+        await state.message.channel.trigger_typing()
+        await state.command_host.queue.add_to_queue(jaypeg)
