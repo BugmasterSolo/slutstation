@@ -296,14 +296,13 @@ class Cruncher(ImageQueueable):
             return gradientMag
         size = gradientMag.size
         data = gradientMag.load()
-
+        # if possible, speed up this loop
         for x in range(size_target):
             x_min = random.randint(0, size[0] - 1)
             while data[x_min, 0][3] == 128:
                 x_min = random.randint(0, size[0] - 1)
             col_temp = data[x_min, 0]
             data[x_min, 0] = (col_temp[0], col_temp[1], col_temp[2], 128)
-            print(x_min)
             for row in range(1, size[1]):
                 c_pos = Cruncher.explore(x_min, 1, row, data, size)
                 if c_pos == -1:
@@ -354,7 +353,7 @@ class Cruncher(ImageQueueable):
             img_final = Cruncher.apply_crunch_lazy(img_temp, scale).rotate(-90, expand=True)
 
         result = BytesIO()
-        img_final.save(result, "PNG")
+        img_final.save(result, "JPEG", quality=int(max(100 / (scale * 25), 5)))
         result.seek(0)
         return result
 
