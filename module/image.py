@@ -6,7 +6,7 @@ import multiprocessing as mp
 from io import BytesIO
 from .base import Module, Command, Scope
 import random
-
+from wand.image import Image as wimg
 import copyreg
 import types
 
@@ -71,6 +71,7 @@ Manages the core processing loop that powers the image queue.
             self.load_event.clear()
             func, args = process.bundle_filter_call()
             self.pool.apply_async(func, args=args, callback=lambda ret: self.prepare_upload(ret, process))
+            print("done!")
 
     # this is lame for now
     def prepare_upload(self, img, proc):
@@ -120,14 +121,14 @@ class ImageQueueable:
         self.mode = None
         self.image = None
 
-    def apply_filter(img):
-        '''Rescales images to 1024 by 1024.'''
+    def apply_filter(img, maxsize=1024):
+        '''Rescales images to the passed size.'''
         size = img.size
         resize = False
         size_zero_larger = True if size[0] > size[1] else False
         larger_dimension = size[0] if size_zero_larger else size[1]
-        if larger_dimension > 1024:  # replace with const
-            scale_factor = larger_dimension / 1024
+        if larger_dimension > maxsize:  # replace with const
+            scale_factor = larger_dimension / maxsize
             size = (int(size[0] / scale_factor), int(size[1] / scale_factor))
             resize = True
         if resize:
@@ -140,6 +141,14 @@ Bundles up necessary internal parameters for the class's sorting function and re
 as a tuple containing a static reference to the sorting functions and all necessary arguments.
         '''
         pass
+
+    def bytes_and_load(self, data):
+        byte = BytesIO(data)
+        try:
+            img = Image.open(byte)
+        except IOError:
+            return None
+        return img
 
     def set_image(self, img):
         self.image = img
@@ -185,12 +194,12 @@ class Cruncher(ImageQueueable):
         x = start
         if start >= size[0]:
             return -1
-        coltemp = data[x, row][3]
-        while coltemp == 128:
+        coltemp = data[x, row]
+        while coltemp[3] == 128:
             x += step
             if x < 0 or x >= size[0]:
                 return -1
-            coltemp = data[x, row][3]
+            coltemp = data[x, row]
         return x
 
     def apply_crunch(img, scale, debug=False):
@@ -274,7 +283,9 @@ class Cruncher(ImageQueueable):
     def apply_crunch_lazy(img, scale, debug=False):
         '''Faster seam carve function that runs a ton faster but crunches it up all nasty'''
         print("starting")
-        img, size = ImageQueueable.apply_filter(img)  # oop
+        img, size = ImageQueueable.apply_filter(img, maxsize=640)  # oop
+        if scale > 0.9:
+            scale = 0.9
         size_target = int(size[0] * scale)
         kernelX = img.filter(ImageFilter.Kernel((3, 3), Cruncher.SOBEL_X, scale=1))
         kernelY = img.filter(ImageFilter.Kernel((3, 3), Cruncher.SOBEL_Y, scale=1))
@@ -287,61 +298,54 @@ class Cruncher(ImageQueueable):
         size = gradientMag.size
         data = gradientMag.load()
 
-        try:
-            for x in range(size_target):
+        for x in range(size_target):
+            x_min = random.randint(0, size[0] - 1)
+            while data[x_min, 0][3] == 128:
                 x_min = random.randint(0, size[0] - 1)
-                while data[x_min, 0][3] == 128:
-                    x_min = random.randint(0, size[0] - 1)
-                col_temp = data[x_min, 0]
-                data[x_min, 0] = (col_temp[0], col_temp[1], col_temp[2], 128)
-                for row in range(1, size[1]):
-                    c_pos = Cruncher.explore(x_min, 1, row, data, size)
-                    if c_pos == -1:
-                        c_pos = Cruncher.explore(x_min - 1, -1, row, data, size)
+            col_temp = data[x_min, 0]
+            data[x_min, 0] = (col_temp[0], col_temp[1], col_temp[2], 128)
+            print(x_min)
+            for row in range(1, size[1]):
+                c_pos = Cruncher.explore(x_min, 1, row, data, size)
+                if c_pos == -1:
+                    c_pos = Cruncher.explore(x_min - 1, -1, row, data, size)
+                    r_val = 4096
+                else:
+                    r_pos = Cruncher.explore(c_pos + 1, 1, row, data, size)
+                    if r_pos == -1:
                         r_val = 4096
                     else:
-                        r_pos = Cruncher.explore(c_pos + 1, 1, row, data, size)
-                        if r_pos == -1:
-                            r_val = 4096
-                        else:
-                            r_val = data[r_pos, row][0]
-                    c_val = data[c_pos, row][0]
-                    l_pos = Cruncher.explore(c_pos - 1, -1, row, data, size)
-                    if l_pos == -1:
-                        l_val = 4096
-                    else:
-                        l_val = data[l_pos, row][0]
-                    # values determined -- decide where to go
-                    if l_val < c_val and l_val < r_val:
-                        x_min = l_pos
-                        col_temp = data[l_pos, row]
-                    elif c_val < r_val:
-                        x_min = c_pos
-                        col_temp = data[c_pos, row]
-                    else:
-                        x_min = r_pos
-                        col_temp = data[r_pos, row]
-                    data[x_min, row] = (col_temp[0], col_temp[1], col_temp[2], 128)
-            size_final = (size[0] - size_target, size[1])
-            finale = Image.new("RGB", size_final)
-            f_data = finale.load()
-            init_data = img.load()
-            for j in range(size[1]):
-                cur_x = 0
-                for i in range(size[0]):
-                    col_temp = data[i, j]
-                    if col_temp[3] != 128:
-                        f_data[cur_x, j] = init_data[i, j]
-                        cur_x += 1
-            print("done!")
-            return finale
-        except Exception as e:
-            import traceback
-            print(e)
-            print(traceback.format_exc())
-        # attempt to program in the seam carving method
-
-        pass
+                        r_val = data[r_pos, row][0]
+                c_val = data[c_pos, row][0]
+                l_pos = Cruncher.explore(c_pos - 1, -1, row, data, size)
+                if l_pos == -1:
+                    l_val = 4096
+                else:
+                    l_val = data[l_pos, row][0]
+                # values determined -- decide where to go
+                if l_val < c_val and l_val < r_val:
+                    x_min = l_pos
+                    col_temp = data[l_pos, row]
+                elif c_val < r_val:
+                    x_min = c_pos
+                    col_temp = data[c_pos, row]
+                else:
+                    x_min = r_pos
+                    col_temp = data[r_pos, row]
+                data[x_min, row] = (col_temp[0], col_temp[1], col_temp[2], 128)
+        size_final = (size[0] - size_target, size[1])
+        finale = Image.new("RGB", size_final)
+        f_data = finale.load()
+        init_data = img.load()
+        for j in range(size[1]):
+            cur_x = 0
+            for i in range(size[0]):
+                col_temp = data[i, j]
+                if col_temp[3] != 128:
+                    f_data[cur_x, j] = init_data[i, j]
+                    cur_x += 1
+        print("done!")
+        return finale
 
     def apply_filter(img, scale, debug=False):
         if debug:
