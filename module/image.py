@@ -202,6 +202,7 @@ class Cruncher(ImageQueueable):
         return x
 
     def apply_crunch(img, scale, debug=False):
+        '''For brevity -- more sophisticated image crunch model'''
         img, size = ImageQueueable.apply_filter(img)  # oop
         size_target = int(size[0] * scale)
         kernelX = img.filter(ImageFilter.Kernel((3, 3), Cruncher.SOBEL_X, scale=1))
@@ -413,6 +414,115 @@ class StatView(ImageQueueable):
     pass
 
 
+class MemeFilter(ImageQueueable):
+    def __init__(self, *, channel, url, text):
+        super().__init__(channel=channel, url=url)
+        self.text = text
+
+    def bundle_filter_call(self):
+        return MemeFilter.apply_filter, (self.image, self.text)
+
+    def split_text(text_arr, font, size_limit):
+        line_size = 0
+        string_temp = ""
+        first_line = True
+        linecount = 0
+        for word in text_arr:
+            line_size += ImageDraw.textsize(word, font=font)
+            if first_line:
+                linecount += 1
+            if line_size > size_limit:
+                if first_line:
+                    string_temp += word + "\n"
+                else:
+                    string_temp += "\n" + word + " "
+                    first_line = True
+            else:
+                first_line = False
+                string_temp += word + " "
+        return string_temp, linecount
+        pass
+
+    def apply_filter(img, text):
+        # todo:
+        #   - optimize textsize calls
+        try:
+            print("hello")
+            if "|" in text:
+                splitindex = text.index("|")
+                text_top = text[:splitindex]
+                text_bottom = text[splitindex + 1:]
+            else:
+                char_count = len(text)
+                cur = 0
+                half_len = 0
+                while half_len < char_count:
+                    half_len += len(text[cur]) * 2.1
+                    cur += 1
+                text_top = " ".join(text[:cur])
+                text_bottom = " ".join(text[cur:])
+            MIN_SIZE = 48
+            MAX_SIZE = 144
+            multiline = False
+            img, size = ImageQueueable.apply_filter(img)
+            size_limit = size[0] * 0.8
+            font = ImageFont.truetype(font="impact.ttf", size=MAX_SIZE)
+            text_top_str = " ".join(text_top)
+            text_bot_str = " ".join(text_bottom)
+            font_size = MAX_SIZE
+
+            print("text split")
+
+            brush = ImageDraw.Draw(img)
+            max_width = max(brush.textsize(text_top_str, font=font)[0], brush.textsize(text_bot_str, font=font)[0])
+            if max_width > size_limit:
+                font_scale = size_limit / max_width
+                if font_scale > (MAX_SIZE / MIN_SIZE):
+                    multiline = True
+                font_size = int(max(MIN_SIZE, MAX_SIZE * font_scale))
+                print(font_size)
+                font = ImageFont.truetype("impact.ttf", size=font_size)
+            center = int(size[0] / 2)
+            if multiline:
+                text_top_str, linecount_top = MemeFilter.split_text(text_top, font, size_limit)
+                text_bot_str, linecount_bottom = MemeFilter.split_text(text_bottom, font, size_limit)
+
+                def draw_text(x, y, fill):
+                    brush.multiline_text((center + x, 48 + y), text_top_str, fill=fill, font=font, align="center")
+                    v_bottom = linecount_bottom * font_size  # rough guess
+                    brush.multiline_text((center + x, size[1] - 48 - v_bottom + y), text_bot_str, fill=fill, font=font, align="center")
+
+            else:
+                def draw_text(x, y, fill):
+                    top_pos = int(center - (brush.textsize(text_top_str, font=font)[0]) / 2)
+                    bottom_pos = int(center - (brush.textsize(text_bot_str, font=font)[0]) / 2)
+                    brush.text((top_pos + x, 48 + y), text_top_str, fill=fill, font=font)
+                    brush.text((bottom_pos + x, size[1] - 48 - font_size + y), text_bot_str, fill=fill, font=font)
+
+            BLACK = 0x000000
+            WHITE = 0xffffff
+
+            draw_text(-3, -3, BLACK)
+            draw_text(-3, 0, BLACK)
+            draw_text(-3, 3, BLACK)
+            draw_text(0, 3, BLACK)
+            draw_text(3, 3, BLACK)
+            draw_text(3, 0, BLACK)
+            draw_text(3, -3, BLACK)
+            draw_text(0, -3, BLACK)
+            draw_text(0, 0, WHITE)
+
+            result = BytesIO()
+            img.save(result, "JPEG", quality=80)
+            result.seek(0)
+            print("saved")
+            return result
+        except Exception as e:
+            print(e)
+            import traceback
+            print(traceback.format_exc())
+
+
 class Pixelsort(ImageQueueable):
     '''Pixelsort implementation extending ImageQueueable.
 
@@ -480,6 +590,7 @@ Pixelsort(channel, url, [filename='upload.png', isHorizontal=True, threshold=0.5
         result = BytesIO()
         img.save(result, "PNG")
         result.seek(0)
+        print("saved")
         return result
 
 
@@ -557,3 +668,13 @@ Implementation of seam carving in Pillow. Relatively slow for now.
             cruncher = Cruncher(channel=state.message.channel, url=url)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(cruncher)
+
+    # todo: improve text here
+    @Command.cooldown(scope=Scope.CHANNEL, time=3)
+    @Command.register(name="meme")
+    async def meme(host, state):
+        url, args = ImageModule.parse_string(host, state.content, state.message)
+        meme = MemeFilter(channel=state.message.channel, url=url, text=args)
+        await state.message.channel.trigger_typing()
+        await state.command_host.queue.add_to_queue(meme)
+        pass
