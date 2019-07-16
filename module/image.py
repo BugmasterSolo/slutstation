@@ -385,9 +385,11 @@ class StatView(ImageQueueable):
         brush.rectangle((0, 0, 256, 256), fill=GREEN)
         brush.rectangle((0, 256, 128, 384), fill=GREEN)
 
+        levelbar_x = int(12 + (target[9] / target[8]) * 232)
+
         brush.rectangle((10, 104, 12, 120), fill=GRAY)
         brush.rectangle((244, 104, 246, 120), fill=GRAY)
-        brush.rectangle((12, 110, 200, 118), fill=GRAY)
+        brush.rectangle((12, 110, levelbar_x, 118), fill=GRAY)
 
         try:
             fontBig = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=64)
@@ -668,7 +670,7 @@ g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma
         await state.command_host.queue.add_to_queue(sort)
         pass
 
-    @Command.cooldown(scope=Scope.CHANNEL, time=20)
+    @Command.cooldown(scope=Scope.USER, time=20)
     @Command.register(name="stat")
     async def stat(host, state):
         target = state.message.author
