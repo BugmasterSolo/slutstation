@@ -8,6 +8,7 @@ from .base import Module, Command, Scope
 import random
 import copyreg
 import types
+from functools import reduce
 
 # todo: make these function names consistent. they're a pain :)
 
@@ -49,7 +50,6 @@ different complex operations, for instance shader renders and the like.
 
     async def add_to_queue(self, item):
         await self.queue.put(item)
-        print("added!")
 
     async def process_images(self, loop):
         '''
@@ -62,17 +62,14 @@ Manages the core processing loop that powers the image queue.
             try:
                 image_successful = await self.load_image(process)
                 if not image_successful:
-                    print("duy")
                     await process.channel.send("Something went wrong while parsing that link. Make sure it contains an image.")
                     continue
             except aiohttp.InvalidURL:
-                print("doy")
                 await process.channel.send("Invalid URL provided.")
                 continue
 
             self.load_event.clear()
             func, args = process.bundle_filter_call()
-            print("run")
             self.pool.apply_async(func, args=args, callback=lambda ret: self.prepare_upload(ret, process))
             print("done!")
 
@@ -126,7 +123,6 @@ class ImageQueueable:
 
     def apply_filter(img, maxsize=1024):
         '''Rescales images to the passed size.'''
-        print("scale down")
         size = img.size
         resize = False
         size_zero_larger = True if size[0] > size[1] else False
@@ -423,19 +419,16 @@ class StatView(ImageQueueable):
 
 class JPEGFilter(ImageQueueable):
     def __init__(self, *, channel, url):
-        print("filter created")
         super().__init__(channel=channel, url=url)
 
     def bundle_filter_call(self):
         return JPEGFilter.apply_filter, (self.image,)
 
     def apply_filter(img, quality=5):
-        print("ok")
         try:
             result = BytesIO()
             img.save(result, "JPEG", quality=quality)
             result.seek(0)
-            print("saved")
             return result
         except Exception as e:
             print(e)
@@ -449,13 +442,14 @@ class MemeFilter(ImageQueueable):
     def bundle_filter_call(self):
         return MemeFilter.apply_filter, (self.image, self.text)
 
-    def split_text(text_arr, font, size_limit):
+    def split_text(text_arr, font, size_limit, brush):
         line_size = 0
         string_temp = ""
         first_line = True
         linecount = 0
-        for word in text_arr:
-            line_size += ImageDraw.textsize(word, font=font)
+        for index in range(len(text_arr)):
+            word = text_arr[index]
+            line_size += brush.textsize(word, font=font)[0]
             if first_line:
                 linecount += 1
             if line_size > size_limit:
@@ -467,64 +461,72 @@ class MemeFilter(ImageQueueable):
             else:
                 first_line = False
                 string_temp += word + " "
-        return string_temp, linecount
+        return string_temp
         pass
 
     def apply_filter(img, text):
         # todo:
         #   - optimize textsize calls
         try:
-            print("hello")
             if "|" in text:
                 splitindex = text.index("|")
                 text_top = text[:splitindex]
                 text_bottom = text[splitindex + 1:]
             else:
-                char_count = len(text)
+                char_count = reduce(lambda i, j: i + len(j), text, 0)
                 cur = 0
                 half_len = 0
                 while half_len < char_count:
                     half_len += len(text[cur]) * 2.1
                     cur += 1
-                text_top = " ".join(text[:cur])
-                text_bottom = " ".join(text[cur:])
-            MIN_SIZE = 48
+                text_top = text[:cur]
+                text_bottom = text[cur:]
+            MIN_SIZE = 36
             MAX_SIZE = 144
             multiline = False
             img, size = ImageQueueable.apply_filter(img)
             size_limit = size[0] * 0.8
+            v_offset = min(size[0] * 0.05, 48)
             font = ImageFont.truetype(font="impact.ttf", size=MAX_SIZE)
             text_top_str = " ".join(text_top)
             text_bot_str = " ".join(text_bottom)
             font_size = MAX_SIZE
 
-            print("text split")
-
             brush = ImageDraw.Draw(img)
             max_width = max(brush.textsize(text_top_str, font=font)[0], brush.textsize(text_bot_str, font=font)[0])
             if max_width > size_limit:
-                font_scale = size_limit / max_width
+                font_scale = max_width / size_limit
                 if font_scale > (MAX_SIZE / MIN_SIZE):
                     multiline = True
-                font_size = int(max(MIN_SIZE, MAX_SIZE * font_scale))
-                print(font_size)
+                font_size = int(max(MIN_SIZE, MAX_SIZE / font_scale))
                 font = ImageFont.truetype("impact.ttf", size=font_size)
             center = int(size[0] / 2)
             if multiline:
-                text_top_str, linecount_top = MemeFilter.split_text(text_top, font, size_limit)
-                text_bot_str, linecount_bottom = MemeFilter.split_text(text_bottom, font, size_limit)
+                text_top_str = MemeFilter.split_text(text_top, font, size_limit, brush)
+                text_bot_str = MemeFilter.split_text(text_bottom, font, size_limit, brush)
+
+                top_size = brush.textsize(text_top_str, font=font)
+                bot_size = brush.textsize(text_bot_str, font=font)
+                top_pos = int(center - (top_size[0]) / 2)
+                bot_pos = int(center - (bot_size[0]) / 2)
+
+                v_bottom = size[1] - v_offset - bot_size[1]
 
                 def draw_text(x, y, fill):
-                    brush.multiline_text((center + x, 48 + y), text_top_str, fill=fill, font=font, align="center")
-                    v_bottom = linecount_bottom * font_size  # rough guess
-                    brush.multiline_text((center + x, size[1] - 48 - v_bottom + y), text_bot_str, fill=fill, font=font, align="center")
+                    brush.multiline_text((top_pos + x, v_offset + y), text_top_str, fill=fill, font=font, align="center")
+                    brush.multiline_text((bot_pos + x, v_bottom + y), text_bot_str, fill=fill, font=font, align="center")
 
             else:
+                top_size = brush.textsize(text_top_str, font=font)
+                bot_size = brush.textsize(text_bot_str, font=font)
+                top_pos = int(center - (top_size[0]) / 2)
+                bot_pos = int(center - (bot_size[0]) / 2)
+
+                v_bottom = size[1] - v_offset - bot_size[1]
+
                 def draw_text(x, y, fill):
-                    top_pos = int(center - (brush.textsize(text_top_str, font=font)[0]) / 2)
-                    bottom_pos = int(center - (brush.textsize(text_bot_str, font=font)[0]) / 2)
-                    brush.text((top_pos + x, 48 + y), text_top_str, fill=fill, font=font)
-                    brush.text((bottom_pos + x, size[1] - 48 - font_size + y), text_bot_str, fill=fill, font=font)
+                    brush.text((top_pos + x, v_offset + y), text_top_str, fill=fill, font=font)
+                    brush.text((bot_pos + x, v_bottom + y), text_bot_str, fill=fill, font=font)
 
             BLACK = 0x000000
             WHITE = 0xffffff
@@ -542,7 +544,6 @@ class MemeFilter(ImageQueueable):
             result = BytesIO()
             img.save(result, "JPEG", quality=80)
             result.seek(0)
-            print("saved")
             return result
         except Exception as e:
             print(e)
@@ -710,6 +711,5 @@ Implementation of seam carving in Pillow. Relatively slow for now.
     async def jpeg(host, state):
         url, args = ImageModule.parse_string(host, state.content, state.message)
         jaypeg = JPEGFilter(channel=state.message.channel, url=url)
-        print("dab")
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(jaypeg)
