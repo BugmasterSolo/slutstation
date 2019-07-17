@@ -203,7 +203,7 @@ class Cruncher(ImageQueueable):
         return x
 
     def apply_crunch(img, scale, debug=False):
-        '''For brevity -- more sophisticated image crunch model'''
+        '''For whatever -- more sophisticated image crunch model'''
         img, size = ImageQueueable.apply_filter(img)  # oop
         size_target = int(size[0] * scale)
         kernelX = img.filter(ImageFilter.Kernel((3, 3), Cruncher.SOBEL_X, scale=1))
@@ -427,7 +427,7 @@ class JPEGFilter(ImageQueueable):
     def apply_filter(img, quality=5):
         try:
             result = BytesIO()
-            img.save(result, "JPEG", quality=quality)
+            img.convert("RGB").save(result, "JPEG", quality=quality)
             result.seek(0)
             return result
         except Exception as e:
@@ -542,7 +542,7 @@ class MemeFilter(ImageQueueable):
             draw_text(0, 0, WHITE)
 
             result = BytesIO()
-            img.save(result, "JPEG", quality=80)
+            img.convert("RGB").save(result, "JPEG", quality=80)
             result.seek(0)
             return result
         except Exception as e:
