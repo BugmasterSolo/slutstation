@@ -385,12 +385,13 @@ class StatView(ImageQueueable):
 
         brush.rectangle((10, 104, 12, 120), fill=GRAY)
         brush.rectangle((244, 104, 246, 120), fill=GRAY)
-        brush.rectangle((12, 110, levelbar_x, 118), fill=GRAY)
+        brush.rectangle((12, 108, levelbar_x, 118), fill=GRAY)
 
         try:
             fontBig = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=64)
             fontSmall = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=32)
             fontTiny = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=16)
+            fontMiniscule = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=8)
         except Exception as e:
             print(e)
 
@@ -410,6 +411,7 @@ class StatView(ImageQueueable):
         lrWidth = brush.textsize(rank_local, font=fontSmall)
         brush.text((118 - grWidth[0], 208), rank_global, font=fontSmall, fill=GRAY)
         brush.text((246 - lrWidth[0], 208), rank_local, font=fontSmall, fill=GRAY)
+        brush.text((14, 108), "EXP", font=fontMiniscule, fill=GREEN)
 
         result = BytesIO()
         canvas.save(result, "PNG")
