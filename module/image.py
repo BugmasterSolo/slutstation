@@ -1,6 +1,6 @@
 import asyncio
 import aiohttp
-from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageFilter, ImageOps
 from discord import File
 import multiprocessing as mp
 from io import BytesIO
@@ -664,6 +664,19 @@ Pixelsort(channel, url, [filename='upload.png', isHorizontal=True, threshold=0.5
         return result
 
 
+class InvertFilter(ImageQueueable):
+    def bundle_filter_call(self):
+        return InvertFilter.apply_filter, (self.image, )
+
+    def apply_filter(img):
+        img = ImageOps.invert(img)
+        result = BytesIO()
+        img.save(result, "JPEG", quality=88)
+        result.seek(0)
+        print("saved")
+        return result
+
+
 # ~~ THRESHOLD FUNCTIONS ~~ #
 class compare_funcs:
     def luma(col, mode="RGB"):
@@ -755,3 +768,11 @@ Implementation of seam carving in Pillow. Relatively slow for now.
         jaypeg = JPEGFilter(channel=state.message.channel, url=url)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(jaypeg)
+
+    @Command.cooldown(scope=Scope.CHANNEL, time=3)
+    @Command.register(name="invert")
+    async def invert(host, state):
+        url, args = ImageModule.parse_string(host, state.content, state.message)
+        inverter = InvertFilter(channel=state.message.channel, url=url)
+        await state.message.channel.trigger_typing()
+        await state.command_host.queue.add_to_queue(inverter)
