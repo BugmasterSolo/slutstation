@@ -1,6 +1,6 @@
 import asyncio
 import aiohttp
-from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageFilter, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageFilter, ImageOps, ExifTags
 from discord import File
 import multiprocessing as mp
 from io import BytesIO
@@ -123,8 +123,26 @@ class ImageQueueable:
 
     def apply_filter(img, maxsize=1024):
         '''Rescales images to the passed size.'''
+        exif_orientation = 0x0112  # thanks SO
+        EXIF_ORIENTATIONS = [
+            [],
+            [],
+            [Image.FLIP_LEFT_RIGHT],
+            [Image.ROTATE_180],
+            [Image.FLIP_TOP_BOTTOM],
+            [Image.FLIP_LEFT_RIGHT, Image.ROTATE_90],
+            [Image.ROTATE_270],
+            [Image.FLOR_TOP_BOTTOM, Image.ROTATE_90],
+            [Image.ROTATE_90]
+        ]
         size = img.size
         resize = False
+        #  https://stackoverflow.com/questions/4228530/pil-thumbnail-is-rotating-my-image
+        #  image reorients itself
+        if hasattr(img, '_getexif'):
+            tfs = EXIF_ORIENTATIONS[img._getexif()[exif_orientation]]
+            img = reduce(Image.transpose, tfs, img)
+
         size_zero_larger = True if size[0] > size[1] else False
         larger_dimension = size[0] if size_zero_larger else size[1]
         if larger_dimension > maxsize:  # replace with const
