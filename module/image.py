@@ -1,6 +1,6 @@
 import asyncio
 import aiohttp
-from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageFilter, ImageOps, ExifTags
+from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageFilter, ImageOps
 from discord import File
 import multiprocessing as mp
 from io import BytesIO
@@ -522,6 +522,7 @@ class MemeFilter(ImageQueueable):
             if first_line:
                 linecount += 1
             if line_size > size_limit:
+                line_size = 0
                 if first_line:
                     string_temp += word + "\n"
                 else:
@@ -696,12 +697,16 @@ class InvertFilter(ImageQueueable):
         return InvertFilter.apply_filter, (self.image, )
 
     def apply_filter(img):
-        img = ImageOps.invert(img)
-        result = BytesIO()
-        img.save(result, "JPEG", quality=88)
-        result.seek(0)
-        print("saved")
-        return result
+        try:
+            img, size = ImageQueueable.apply_filter(img)
+            img = ImageOps.invert(img)
+            result = BytesIO()
+            img.save(result, "JPEG", quality=88)
+            result.seek(0)
+            print("saved")
+            return result
+        except Exception as e:
+            print(e)
 
 
 # ~~ THRESHOLD FUNCTIONS ~~ #
