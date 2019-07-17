@@ -124,6 +124,8 @@ class ImageQueueable:
     def apply_filter(img, maxsize=1024):
         '''Rescales images to the passed size.'''
         exif_orientation = 0x0112  # thanks SO
+        print("bing ding")
+        # list of valid exif orientations and their inverse transforms
         EXIF_ORIENTATIONS = [
             [],
             [],
@@ -132,17 +134,24 @@ class ImageQueueable:
             [Image.FLIP_TOP_BOTTOM],
             [Image.FLIP_LEFT_RIGHT, Image.ROTATE_90],
             [Image.ROTATE_270],
-            [Image.FLOR_TOP_BOTTOM, Image.ROTATE_90],
+            [Image.FLIP_TOP_BOTTOM, Image.ROTATE_90],
             [Image.ROTATE_90]
         ]
-        size = img.size
         resize = False
         #  https://stackoverflow.com/questions/4228530/pil-thumbnail-is-rotating-my-image
-        #  image reorients itself
-        if hasattr(img, '_getexif'):
-            tfs = EXIF_ORIENTATIONS[img._getexif()[exif_orientation]]
-            img = reduce(Image.transpose, tfs, img)
+        #  i can't wait to get better at python
+        try:
+            if hasattr(img, '_getexif'):
+                print("ok")
+                # use the recorded orientation attr to get the img orientation
+                tfs = EXIF_ORIENTATIONS[img._getexif()[exif_orientation]]
+                # reduce with the Image func -- img is passed as self, tfs is passed as the transform
+                # a for loop would work here as well but this solution is much more interesting (thanks SO!)
+                img = reduce(type(img).transpose, tfs, img)
+        except Exception as e:
+            print(e)
 
+        size = img.size
         size_zero_larger = True if size[0] > size[1] else False
         larger_dimension = size[0] if size_zero_larger else size[1]
         if larger_dimension > maxsize:  # replace with const
