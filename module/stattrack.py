@@ -34,6 +34,7 @@ class Stattrack(Module):
     async def guildtop(host, state):
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
+                # TODO: remove
                 statement = "SELECT users.username, guilds.guildexp FROM guilds JOIN users on users.user_id = guilds.user_id WHERE guild_id = %s ORDER BY guildexp DESC LIMIT 10"
                 val = (state.message.guild.id)
                 await cur.execute(statement, val)
@@ -64,7 +65,7 @@ class Stattrack(Module):
             target = msg.author
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.callproc("GLOBALINFO", (userid,))
+                await cur.callproc("GLOBALINFO", (userid, state.message.guild.id))
                 res = await cur.fetchone()
         print(res)
         if res is None:

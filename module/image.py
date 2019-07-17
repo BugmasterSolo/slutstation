@@ -395,7 +395,8 @@ class StatView(ImageQueueable):
             print(e)
 
         level = str(target[7])
-        rank = "#" + str(target[6])
+        rank_global = "#" + str(target[6])
+        rank_local = "#" + str(target[11])
         expnext = str(target[8])
         expcur = str(target[9])
 
@@ -405,10 +406,10 @@ class StatView(ImageQueueable):
         brush.text((138, 140), "LR", font=fontBig, fill=GRAY)
         brush.text((levelWidth[0] + 15, 60), expcur, font=fontTiny, fill=GRAY)
         brush.text((levelWidth[0] + 15, 80), expnext, font=fontTiny, fill=GRAY)
-        grWidth = brush.textsize(rank, font=fontSmall)
-        lrWidth = brush.textsize("N/A", font=fontSmall)
-        brush.text((118 - grWidth[0], 208), rank, font=fontSmall, fill=GRAY)
-        brush.text((246 - lrWidth[0], 208), "N/A", font=fontSmall, fill=GRAY)
+        grWidth = brush.textsize(rank_global, font=fontSmall)
+        lrWidth = brush.textsize(rank_local, font=fontSmall)
+        brush.text((118 - grWidth[0], 208), rank_global, font=fontSmall, fill=GRAY)
+        brush.text((246 - lrWidth[0], 208), rank_local, font=fontSmall, fill=GRAY)
 
         result = BytesIO()
         canvas.save(result, "PNG")
@@ -677,7 +678,7 @@ g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma
         target = state.message.author
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.callproc("GLOBALINFO", (target.id,))
+                await cur.callproc("GLOBALINFO", (target.id, state.message.guild.id))
                 targetinfo = await cur.fetchone()
         statview = StatView(channel=state.message.channel, target=targetinfo, url=str(target.avatar_url_as(static_format="png", size=128)))
         await state.command_host.queue.add_to_queue(statview)
