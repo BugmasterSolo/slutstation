@@ -202,9 +202,15 @@ class Cruncher(ImageQueueable):
             coltemp = data[x, row]
         return x
 
-    def apply_crunch(img, scale, debug=False):
-        '''For whatever -- more sophisticated image crunch model'''
-        img, size = ImageQueueable.apply_filter(img)  # oop
+    # todo: I implemented this wrong. redo it.
+    # ideally:
+    #  - work from bottom to top, recording the current standing min sum. The old algo does this. Look left right and center.
+    #  - What the current algo does NOT do is record this minimum value in the image table. Use a new image for that.
+    #  - From there, we can use the prefabbed exploration function to find our potential seeds. From there, we evaluate the seed cost of each option and choose the lowest one. The new algo relies on predetermined seed minimums.
+    #  - This then iterates through the entire image.
+    def apply_crunch(img, scale, debug=False, debug2=False):
+        '''To return back to in the future -- a technically "proper" implementation'''
+        img, size = ImageQueueable.apply_filter(img, 640)  # oop
         size_target = int(size[0] * scale)
         kernelX = img.filter(ImageFilter.Kernel((3, 3), Cruncher.SOBEL_X, scale=1))
         kernelY = img.filter(ImageFilter.Kernel((3, 3), Cruncher.SOBEL_Y, scale=1))
@@ -216,70 +222,92 @@ class Cruncher(ImageQueueable):
         # b: color value (duplicate)
         # a: 0 if removed, 128 if recorded, 256 if not
         print("gradients calculated!")
-        if debug:
-            return gradientMag
+
         size = gradientMag.size
         data = gradientMag.load()
 
-        seed_array = []
-        for x in range(size[0]):
-            seed_sum = data[x, 0][0]
-            x_big = int(x / 256)
-            x_small = x % 256
-            data[x, 0] = (seed_sum, x_big, x_small, 128)
-            x_min = x  # initial x represents seed ID
-            for row in range(1, size[1]):
-                c_pos = Cruncher.explore(x_min, 1, row, data, size)
-                if c_pos == -1:
-                    c_pos = Cruncher.explore(x_min - 1, -1, row, data, size)
-                    r_val = 4096
-                else:
-                    r_pos = Cruncher.explore(c_pos + 1, 1, row, data, size)
-                    if r_pos == -1:
-                        r_val = 4096
-                    else:
-                        r_val = data[r_pos, row][0]
-                c_val = data[c_pos, row][0]
-                l_pos = Cruncher.explore(x_min - 1, -1, row, data, size)
-                if l_pos == -1:
-                    l_val = 4096
-                else:
-                    l_val = data[l_pos, row][0]
-                # values determined -- decide where to go
-                if l_val < c_val and l_val < r_val:
-                    x_min = l_pos
-                    col_temp = data[l_pos, row]
-                elif c_val < r_val:
-                    x_min = c_pos
-                    col_temp = data[c_pos, row]
-                else:
-                    x_min = r_pos
-                    col_temp = data[r_pos, row]
-                seed_sum += col_temp[0]
-                data[x_min, row] = (col_temp[0], x_big, x_small, 128)
-            seed_array.append((x, seed_sum))
-        seed_array = sorted(seed_array, key=lambda i: i[1])
-        seed_table = {}
-        for i in range(len(seed_array)):  # whatever dude
-            seed_table[seed_array[i][0]] = i
-            pass
-        size_final = (size[0] - size_target, size[1])
-        print("seam carving done!")
-        finale = Image.new("RGB", size_final)
-        f_data = finale.load()
-        init_data = img.load()
-        for j in range(size[1]):
-            cur_x = 0
-            for i in range(size[0]):
-                coltemp = data[i, j]
-                if seed_table[(coltemp[1] * 256) + coltemp[2]] >= size_target and cur_x < size_final[0]:
-                    f_data[cur_x, j] = init_data[i, j]
-                    cur_x += 1
-        print("done!")
-        return finale
-        # attempt to program in the seam carving method
+        seam_min = Image.new("I", size)
+        dats = seam_min.load()
+        try:
+            for col in range(size[0]):
+                dats[col, 0] = data[col, 0][0]
 
-        pass
+            for row in range(1, size[1]):
+                for col in range(size[0]):
+                    # calculate min above
+                    if col <= 0:
+                        l_val = 256 * size[1]
+                    else:
+                        l_val = dats[col - 1, row - 1]
+                    c_val = dats[col, row - 1]
+                    if col >= size[0] - 1:
+                        r_val = 256 * size[1]
+                    else:
+                        r_val = dats[col + 1, row - 1]
+                    dats[col, row] = data[col, row][0] + min(l_val, c_val, r_val)
+            # seed record done -- keep moving (enough for 65536 x 65536, which we will not have)
+            print("map crunched!")
+            if debug:
+                for i in range(size[0]):
+                    for j in range(size[1]):
+                        dats[i, j] = int(4 * dats[i, j] / (j + 1))  # weighted avg
+                return seam_min
+            for i in range(size_target):
+                col_min = -1
+                col_sum = size[1] * 256  # guaranteed maximum possible
+                for j in range(size[0]):
+                    if dats[j, size[1] - 1] < col_sum and data[j, size[1] - 1][3] != 128:
+                        col_min = j
+                        col_sum = dats[j, size[1] - 1]
+                data[col_min, size[1] - 1] = (255, 0, 0, 128)
+                for row in range(size[1] - 2, -1, -1):
+                    c_pos = Cruncher.explore(col_min, 1, row, data, size)
+                    if c_pos == -1:
+                        c_pos = Cruncher.explore(col_min - 1, -1, row, data, size)
+                        r_val = size[1] * 256
+                    else:
+                        r_pos = Cruncher.explore(c_pos + 1, 1, row, data, size)
+                        if r_pos == -1:
+                            r_val = size[1] * 256
+                        else:
+                            r_val = dats[r_pos, row]
+                    c_val = dats[c_pos, row]
+                    l_pos = Cruncher.explore(c_pos - 1, -1, row, data, size)
+                    if l_pos == -1:
+                        l_val = size[1] * 256
+                    else:
+                        l_val = dats[l_pos, row]
+                    # values determined -- decide where to go
+                    if l_val < c_val and l_val < r_val:
+                        col_min = l_pos
+                        col_temp = data[l_pos, row]
+                    elif c_val < r_val:
+                        col_min = c_pos
+                        col_temp = data[c_pos, row]
+                    else:
+                        col_min = r_pos
+                        col_temp = data[r_pos, row]
+                    data[col_min, row] = (255, 0, 0, 128)
+            size_final = (size[0] - size_target, size[1])
+            finale = Image.new("RGB", size_final)
+            f_data = finale.load()
+            init_data = img.load()
+            if debug2:
+                return gradientMag
+            for j in range(size[1]):
+                cur_x = 0
+                for i in range(size[0]):
+                    col_temp = data[i, j]
+                    if not (col_temp[0] == 255 and col_temp[3] == 128):
+                        f_data[cur_x, j] = init_data[i, j][:3]
+                        cur_x += 1
+
+            print("calculated!")
+        except Exception as e:
+            print(e)
+            import traceback
+            print(traceback.format_exc())
+        return finale
 
     def apply_crunch_lazy(img, scale, debug=False):
         '''Faster seam carve function that runs a ton faster but crunches it up all nasty'''
@@ -299,57 +327,68 @@ class Cruncher(ImageQueueable):
         size = gradientMag.size
         data = gradientMag.load()
         # if possible, speed up this loop
-        for x in range(size_target):
-            x_min = random.randint(0, size[0] - 1)
-            while data[x_min, 0][3] == 128:
+        try:
+            for x in range(size_target):
                 x_min = random.randint(0, size[0] - 1)
-            col_temp = data[x_min, 0]
-            data[x_min, 0] = (col_temp[0], col_temp[1], col_temp[2], 128)
-            for row in range(1, size[1]):
-                c_pos = Cruncher.explore(x_min, 1, row, data, size)
-                if c_pos == -1:
-                    c_pos = Cruncher.explore(x_min - 1, -1, row, data, size)
-                    r_val = 4096
-                else:
-                    r_pos = Cruncher.explore(c_pos + 1, 1, row, data, size)
-                    if r_pos == -1:
+                while data[x_min, 0][3] == 128:
+                    x_min = random.randint(0, size[0] - 1)
+                col_temp = data[x_min, 0]
+                data[x_min, 0] = (col_temp[0], col_temp[1], col_temp[2], 128)
+                for row in range(1, size[1]):
+                    c_pos = Cruncher.explore(x_min, 1, row, data, size)
+                    if c_pos == -1:
+                        c_pos = Cruncher.explore(x_min - 1, -1, row, data, size)
                         r_val = 4096
                     else:
-                        r_val = data[r_pos, row][0]
-                c_val = data[c_pos, row][0]
-                l_pos = Cruncher.explore(c_pos - 1, -1, row, data, size)
-                if l_pos == -1:
-                    l_val = 4096
-                else:
-                    l_val = data[l_pos, row][0]
-                # values determined -- decide where to go
-                if l_val < c_val and l_val < r_val:
-                    x_min = l_pos
-                    col_temp = data[l_pos, row]
-                elif c_val < r_val:
-                    x_min = c_pos
-                    col_temp = data[c_pos, row]
-                else:
-                    x_min = r_pos
-                    col_temp = data[r_pos, row]
-                data[x_min, row] = (col_temp[0], col_temp[1], col_temp[2], 128)
-        size_final = (size[0] - size_target, size[1])
-        finale = Image.new("RGB", size_final)
-        f_data = finale.load()
-        init_data = img.load()
-        for j in range(size[1]):
-            cur_x = 0
-            for i in range(size[0]):
-                col_temp = data[i, j]
-                if col_temp[3] != 128:
-                    f_data[cur_x, j] = init_data[i, j]
-                    cur_x += 1
-        print("done!")
-        return finale
+                        r_pos = Cruncher.explore(c_pos + 1, 1, row, data, size)
+                        if r_pos == -1:
+                            r_val = 4096
+                        else:
+                            r_val = data[r_pos, row][0]
+                    c_val = data[c_pos, row][0]
+                    l_pos = Cruncher.explore(c_pos - 1, -1, row, data, size)
+                    if l_pos == -1:
+                        l_val = 4096
+                    else:
+                        l_val = data[l_pos, row][0]
+                    # values determined -- decide where to go
+                    if l_val < c_val and l_val < r_val:
+                        x_min = l_pos
+                        col_temp = data[l_pos, row]
+                    elif c_val < r_val:
+                        x_min = c_pos
+                        col_temp = data[c_pos, row]
+                    else:
+                        x_min = r_pos
+                        col_temp = data[r_pos, row]
+                    data[x_min, row] = (col_temp[0], col_temp[1], col_temp[2], 128)
+            size_final = (size[0] - size_target, size[1])
+            finale = Image.new("RGB", size_final)
+            f_data = finale.load()
+            init_data = img.load()
+            for j in range(size[1]):
+                cur_x = 0
+                for i in range(size[0]):
+                    coltemp = data[i, j]
+                    if coltemp[3] != 128:
+                        f_data[cur_x, j] = init_data[i, j]
+                        cur_x += 1
+            print("done!")
+            return finale
+        except Exception as e:
+            print(e)
+            import traceback
+            print(traceback.format_exc())
 
-    def apply_filter(img, scale, debug=False):
-        if debug:
-            img_final = Cruncher.apply_crunch(img, scale, debug)
+    def apply_filter(img, scale, debug=False, ultradebug=False):
+        if ultradebug:
+            img_temp = Cruncher.apply_crunch(img, scale, False, False).convert("RGB").rotate(-90, expand=True)
+            img_final = Cruncher.apply_crunch(img_temp, scale, False, True).convert("RGB").rotate(90, expand=True)
+            scale = 0.025
+        elif debug:
+            img_temp = Cruncher.apply_crunch(img, scale, False).convert("RGB").rotate(90, expand=True)
+            img_final = Cruncher.apply_crunch(img_temp, scale, False).convert("RGB").rotate(-90, expand=True)
+            scale = 0.025
         else:
             img_temp = Cruncher.apply_crunch_lazy(img, scale).rotate(90, expand=True)
             img_final = Cruncher.apply_crunch_lazy(img_temp, scale).rotate(-90, expand=True)
