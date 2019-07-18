@@ -21,10 +21,10 @@ class Convo:
     async def timeout_loop(self):
         self.message_status.clear()
         try:
-            async with async_timeout.timeout(60):
+            async with async_timeout.timeout(30):
                 await self.message_status.wait()
         except asyncio.TimeoutError:
-            self.end_call()
+            await self.end_call()
 
     async def process_message(self, state):
         self.message_status.set()
@@ -46,8 +46,9 @@ class Convo:
         await self.end_a['channel'].send("Conversation closed.")
         await self.end_b['channel'].send("Conversation closed.")
 
-        self.cmdhost.calllist.pop(self.end_a['guild'].id)
-        self.cmdhost.calllist.pop(self.end_b['guild'].id)
+        self.host.calllist.pop(self.end_a['guild'].id)
+        self.host.calllist.pop(self.end_b['guild'].id)
+        print(self.host.calllist)
 
 
 class Telephone(Module):
@@ -66,24 +67,17 @@ class Telephone(Module):
             await call.process_message(state)
         return self == state.command_host
 
-    # when users are connected, several ways to manage it.
-    #   - we could use listeners to track when a given user messages something. This could get hairy fast.
-    #   - write a check function which relies on "conversation" objects.
-    #     - when a message is sent, simply poll the user dict to see if it corresponds to an ongoing phone call.
-    #     - ie: the channels involved are added to the dict (O{1} recall!)
-    #     - this means two dupes of the message object.
-
     @Command.register(name="telephone")
     async def telephone(host, state):
         target = state.message.channel
-        # perform some db function to get a user's rep
+        # TODO: perform some db function to get a user's rep
         # users match with people with roughly their rating or lower
         # if no suitable matches, sit around and wait
+        if state.command_host.calllist.get(state.message.guild.id, None):
+            await target.send("You're already in a call here!")
+            return
         if state.command_host.userqueue:
-            if state.command_host.calllist.get(state.message.guild.id, None):
-                await target.send("You're already in a call here!")
-                return
-            pardner = state.command_host.userqueue[0]
+            pardner = state.command_host.userqueue.pop(0)
             convo = Convo(state.message, pardner, state.command_host)
             state.command_host.calllist[pardner.guild.id] = convo
             state.command_host.calllist[state.message.guild.id] = convo
