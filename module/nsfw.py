@@ -19,6 +19,7 @@ class NSFW(Module):
     def check_tags(args):
         BANNED_ARGS = ("loli", "child", "shota", "cub", "kid", "pedophilia")
         overlap = [x for x in args if x in BANNED_ARGS]
+        # i see you staff team
         return (len(overlap) > 0)
 
     # TODO:
