@@ -519,17 +519,19 @@ class MemeFilter(ImageQueueable):
     def bundle_filter_call(self):
         return MemeFilter.apply_filter, (self.image, self.text)
 
-    def split_text(text_arr, font, size_limit, brush):
+    def split_text(text_arr, font, size_limit, brush, get_size=False):
         line_size = 0
         string_temp = ""
         first_line = True
         linecount = 0
+        max_len = 0
         for index in range(len(text_arr)):
             word = text_arr[index]
             line_size += brush.textsize(word + " ", font=font)[0]
             if first_line:
                 linecount += 1
             if line_size > size_limit:
+                max_len = max(line_size, max_len)
                 line_size = 0
                 if first_line:
                     string_temp += word + "\n"
@@ -539,6 +541,8 @@ class MemeFilter(ImageQueueable):
             else:
                 first_line = False
                 string_temp += word + " "
+        if get_size:
+            return string_temp, max_len
         return string_temp
 
     def apply_filter(img, text):
@@ -659,7 +663,7 @@ class PeterGriffinFilter(MemeFilter):
             font = ImageFont.truetype(font="arial.ttf", size=max(MIN_SIZE, min(MAX_SIZE, int(MAX_SIZE / widthratio))))
 
             if widthratio > (MAX_SIZE / MIN_SIZE):
-                text_format = PeterGriffinFilter.split_text(text, font, size_limit, brush)
+                text_format, max_width = PeterGriffinFilter.split_text(text, font, size_limit, brush, get_size=True)
                 multiline = True
 
             textbox = brush.textsize(text_format, font=font)
@@ -667,7 +671,11 @@ class PeterGriffinFilter(MemeFilter):
             img_final = Image.new("RGB", (img.size[0], img.size[1] + textbox[1] + 80), color=0)
 
             brush = ImageDraw.Draw(img_final)
-            text_loc = (int(img.size[0] * 0.3), img.size[1] + 40)
+            if multiline:
+                text_loc = (int(img.size[0] * 0.65 - (max_width / 2)), img.size[1] + 40)
+                pass
+            else:
+                text_loc = (int(img.size[0] * 0.3), img.size[1] + 40)
             img_final.paste(img)
             img_final.paste(griffin, (int(img.size[0] * 0.05), img.size[1] + 20))
             if multiline:
