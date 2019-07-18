@@ -81,7 +81,7 @@ class Telephone(Module):
         if state.command_host.calllist.get(state.message.guild.id, None):
             await target.send("You're already in a call here!")
             return
-        elif len([1 for m in state.command_host.userqueue if m.guild.id == state.message.guild.id]):
+        elif len([1 for m in state.command_host.userqueue if m.guild.id == state.message.guild.id]):  # TODO: ehehe
             await target.send("You're already waiting for a call on this server!")
             return
         if state.command_host.userqueue:
@@ -101,4 +101,13 @@ class Telephone(Module):
         call = state.command_host.calllist.get(state.message.guild.id, None)
         if call and call.check_channels(state.message.channel):
             await call.end_call()
+            pass
+        else:
+            user_dupes = [m for m in state.command_host.userqueue if m.guild.id == state.message.guild.id]  # TODO: ohoho
+            if user_dupes:
+                state.command_host.userqueue.remove(user_dupes[0])
+                await state.message.channel.send("Removed from queue.")
+            else:
+                await state.message.channel.send("You are not in the message queue!")
+
             pass
