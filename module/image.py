@@ -158,7 +158,7 @@ class ImageQueueable:
                 # reduce with the Image func -- img is passed as self, tfs is passed as the transform
                 # a for loop would work here as well but this solution is much more interesting (thanks SO!)
                     img = reduce(type(img).transpose, tfs, img)
-                except TypeError:
+                except (TypeError, KeyError):
                     pass
         except Exception as e:
             print(e)
@@ -526,7 +526,7 @@ class MemeFilter(ImageQueueable):
         linecount = 0
         for index in range(len(text_arr)):
             word = text_arr[index]
-            line_size += brush.textsize(word, font=font)[0]
+            line_size += brush.textsize(word + " ", font=font)[0]
             if first_line:
                 linecount += 1
             if line_size > size_limit:
@@ -669,11 +669,11 @@ class PeterGriffinFilter(MemeFilter):
             brush = ImageDraw.Draw(img_final)
             text_loc = (int(img.size[0] * 0.3), img.size[1] + 40)
             img_final.paste(img)
+            img_final.paste(griffin, (int(img.size[0] * 0.05), img.size[1] + 20))
             if multiline:
                 brush.multiline_text(text_loc, text_format, fill=0xffffff, font=font, align="center")
             else:
                 brush.text(text_loc, text_format, fill=0xffffff, font=font)
-            img_final.paste(griffin, (int(img.size[0] * 0.05), img.size[1] + 20))
 
             result = BytesIO()
             img_final.save(result, "JPEG", quality=80)
