@@ -619,6 +619,63 @@ class MemeFilter(ImageQueueable):
             print(traceback.format_exc())
 
 
+class PeterGriffinFilter(MemeFilter):
+    def __init__(self, *, channel, url, text):
+        super().__init__(channel=channel, url=url, text=text)
+        # griffin from Wikipedia: https://en.wikipedia.org/wiki/Peter_Griffin
+
+    def bundle_filter_call(self):
+        return PeterGriffinFilter.apply_filter, (self.image, self.text)
+
+    def apply_filter(img, text):
+        try:
+            griffin = Image.open('module/module_resources/putridgriffith.png')
+            GRIFFIN_RATIO = 320 / 220
+            griffin = griffin.resize((int(img.size[0] * 0.2), int(img.size[0] * 0.2 * GRIFFIN_RATIO)), Image.BICUBIC)
+            # TODO: refactor
+            MIN_SIZE = 24
+            MAX_SIZE = 72
+            multiline = False
+            img, size = ImageQueueable.apply_filter(img)
+            size_limit = size[0] * 0.6
+            font = ImageFont.truetype(font="arial.ttf", size=MAX_SIZE)
+
+            brush = ImageDraw.Draw(img)
+            # not really a way to avoid creating this unfortunately
+            text_format = " ".join(text)
+            textbox = brush.textsize(text_format, font=font)
+            widthratio = textbox[0] / size_limit
+
+            font = ImageFont.truetype(font="arial.ttf", size=max(MIN_SIZE, min(MAX_SIZE, int(MAX_SIZE / widthratio))))
+
+            if widthratio > (MAX_SIZE / MIN_SIZE):
+                text_format = PeterGriffinFilter.split_text(text, font, size_limit, brush)
+                multiline = True
+
+            textbox = brush.textsize(text_format, font=font)
+            # 40px margin on each size
+            img_final = Image.new("RGB", (img.size[0], img.size[1] + textbox[1] + 80), color=0)
+
+            brush = ImageDraw.Draw(img_final)
+            text_loc = (int(img.size[0] * 0.3), img.size[1] + 40)
+            img_final.paste(img)
+            if multiline:
+                brush.multiline_text(text_loc, text_format, fill=0xffffff, font=font, align="center")
+            else:
+                brush.text(text_loc, text_format, fill=0xffffff, font=font)
+            img_final.paste(griffin, (int(img.size[0] * 0.05), img.size[1] + 20))
+
+            result = BytesIO()
+            img_final.save(result, "JPEG", quality=80)
+            result.seek(0)
+            print("saved")
+            return result
+        except Exception as e:
+            print(e)
+            import traceback
+            print(traceback.format_exc())
+
+
 class Pixelsort(ImageQueueable):
     '''Pixelsort implementation extending ImageQueueable.
 
@@ -806,3 +863,11 @@ Implementation of seam carving in Pillow. Relatively slow for now.
         inverter = InvertFilter(channel=state.message.channel, url=url)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(inverter)
+
+    @Command.cooldown(scope=Scope.CHANNEL, time=5)
+    @Command.register(name="peterhere")
+    async def peterhere(host, state):
+        url, args = ImageModule.parse_string(host, state.content, state.message)
+        griffin = PeterGriffinFilter(channel=state.message.channel, url=url, text=args)
+        await state.message.channel.trigger_typing()
+        await state.command_host.queue.add_to_queue(griffin)
