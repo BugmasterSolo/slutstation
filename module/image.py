@@ -55,30 +55,41 @@ different complex operations, for instance shader renders and the like.
         '''
 Manages the core processing loop that powers the image queue.
         '''
-        while True:
-            process = await self.queue.get()
-            # parameterize this further. Move the image queue to the client, and submit draw requests to it.
-            # then we can submit multiple types of images easily.
-            try:
-                image_successful = await self.load_image(process)
-                if not image_successful:
-                    await process.channel.send("Something went wrong while parsing that link. Make sure it contains an image.")
+        try:
+            while True:
+                process = await self.queue.get()
+                # parameterize this further. Move the image queue to the client, and submit draw requests to it.
+                # then we can submit multiple types of images easily.
+                try:
+                    print("loading start")
+                    image_successful = await self.load_image(process)
+                    print("loading finish")
+                    if not image_successful:
+                        await process.channel.send("Something went wrong while parsing that link. Make sure it contains an image.")
+                        continue
+                except aiohttp.InvalidURL:
+                    await process.channel.send("Invalid URL provided.")
                     continue
-            except aiohttp.InvalidURL:
-                await process.channel.send("Invalid URL provided.")
-                continue
 
-            self.load_event.clear()
-            func, args = process.bundle_filter_call()
-            self.pool.apply_async(func, args=args, callback=lambda ret: self.prepare_upload(ret, process))
-            print("done!")
+                self.load_event.clear()
+                func, args = process.bundle_filter_call()
+                self.pool.apply_async(func, args=args, callback=lambda ret: self.prepare_upload(ret, process))
+                print("done!")
+        except Exception as e:
+            print(e)
+            import traceback
+            print(traceback.format_exc())
 
     # this is lame for now
     def prepare_upload(self, img, proc):
         asyncio.run_coroutine_threadsafe(self.post(img, proc), self.loop)
 
     async def post(self, data, q):
-        await q.channel.send(file=File(data, filename=q.filename))
+        try:
+            await q.channel.send(file=File(data, filename=q.filename))
+        except Exception as e:
+            print(e)
+            print("we got em")
 
     async def load_image(self, q):
         if q.url:  # hate this just want her back x
@@ -142,12 +153,17 @@ class ImageQueueable:
         try:
             if hasattr(img, '_getexif'):
                 # use the recorded orientation attr to get the img orientation
-                tfs = EXIF_ORIENTATIONS[img._getexif()[exif_orientation]]
+                try:
+                    tfs = EXIF_ORIENTATIONS[img._getexif()[exif_orientation]]
                 # reduce with the Image func -- img is passed as self, tfs is passed as the transform
                 # a for loop would work here as well but this solution is much more interesting (thanks SO!)
-                img = reduce(type(img).transpose, tfs, img)
+                    img = reduce(type(img).transpose, tfs, img)
+                except TypeError:
+                    pass
         except Exception as e:
             print(e)
+            import traceback
+            print(traceback.format_exc())
 
         size = img.size
         size_zero_larger = True if size[0] > size[1] else False
@@ -451,13 +467,10 @@ class StatView(ImageQueueable):
         brush.rectangle((244, 104, 246, 120), fill=GRAY)
         brush.rectangle((12, 108, levelbar_x, 118), fill=GRAY)
 
-        try:
-            fontBig = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=64)
-            fontSmall = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=32)
-            fontTiny = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=16)
-            fontMiniscule = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=8)
-        except Exception as e:
-            print(e)
+        fontBig = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=64)
+        fontSmall = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=32)
+        fontTiny = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=16)
+        fontMiniscule = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=8)
 
         level = str(target[7])
         rank_global = "#" + str(target[6])
@@ -492,13 +505,10 @@ class JPEGFilter(ImageQueueable):
         return JPEGFilter.apply_filter, (self.image,)
 
     def apply_filter(img, quality=5):
-        try:
-            result = BytesIO()
-            img.convert("RGB").save(result, "JPEG", quality=quality)
-            result.seek(0)
-            return result
-        except Exception as e:
-            print(e)
+        result = BytesIO()
+        img.convert("RGB").save(result, "JPEG", quality=quality)
+        result.seek(0)
+        return result
 
 
 class MemeFilter(ImageQueueable):
@@ -530,7 +540,6 @@ class MemeFilter(ImageQueueable):
                 first_line = False
                 string_temp += word + " "
         return string_temp
-        pass
 
     def apply_filter(img, text):
         # todo:
@@ -637,6 +646,7 @@ class PeterGriffinFilter(MemeFilter):
             MAX_SIZE = 72
             multiline = False
             img, size = ImageQueueable.apply_filter(img)
+            print("dingoid")
             size_limit = size[0] * 0.6
             font = ImageFont.truetype(font="arial.ttf", size=MAX_SIZE)
 
@@ -752,16 +762,13 @@ class InvertFilter(ImageQueueable):
         return InvertFilter.apply_filter, (self.image, )
 
     def apply_filter(img):
-        try:
-            img, size = ImageQueueable.apply_filter(img)
-            img = ImageOps.invert(img)
-            result = BytesIO()
-            img.save(result, "JPEG", quality=88)
-            result.seek(0)
-            print("saved")
-            return result
-        except Exception as e:
-            print(e)
+        img, size = ImageQueueable.apply_filter(img)
+        img = ImageOps.invert(img)
+        result = BytesIO()
+        img.save(result, "JPEG", quality=88)
+        result.seek(0)
+        print("saved")
+        return result
 
 
 # ~~ THRESHOLD FUNCTIONS ~~ #
