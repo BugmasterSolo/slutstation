@@ -16,6 +16,11 @@ class NSFW(Module):
             else:
                 await self.command_list[state.command_name](self.host, state)
 
+    def check_tags(args):
+        BANNED_ARGS = ("loli", "child", "shota", "cub", "kid", "pedophilia")
+        overlap = [x for x in args if x in BANNED_ARGS]
+        return (len(overlap) > 0)
+
     # TODO:
     #       - add bantags (please, per-server)
     @Command.cooldown(scope=Scope.CHANNEL, time=5)
@@ -32,6 +37,11 @@ g e621 [tag1 tag2 ... tag6] (page<int>)
         # check if the command is it
         chan = state.message.channel
         args = host.split(state.content)
+        if NSFW.check_tags(args):
+            await chan.send("https://www.youtube.com/watch?v=_YmDcCpD1gc")
+            print("diddler")
+            print(state.message.author.name + "#" + str(state.message.author.discriminator))
+            return
         tag_array, pagenum = await NSFW._parse_tags(args, chan)
         tagstring = ("+".join(tag_array))
         if pagenum is not None:
@@ -106,6 +116,11 @@ g rule34 [tag1 tag2 tag3 ... tag6] (page<int>)
         '''
         chan = state.message.channel
         args = host.split(state.content)
+        if NSFW.check_tags(args):
+            await chan.send("Please do not search child porn on the bot.")
+            print("diddler")
+            print(state.message.author.name + "#" + str(state.message.author.discriminator))
+            return
         tag_array, pagenum = await NSFW._parse_tags(args, chan)
         tagstring = "+".join(tag_array)
         url = f"https://rule34.xxx/index.php?page=dapi&s=post&q=index&limit=50&tags={tagstring}"
