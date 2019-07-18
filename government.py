@@ -115,6 +115,7 @@ class Government(Client):
                     trimmed_message = trimmed_message[word_cut:].strip()
                 command_host = self.unique_commands.get(command_name, "INVALID")
             state = State(host=self, message=message, command_host=command_host, content=trimmed_message, command_name=command_name)
+            # TODO: We have the channel -- the only one we want to call is stattrack.
             for mod in self.module_list:
                 if await mod.check(state):
                     try:
@@ -151,6 +152,7 @@ class Government(Client):
         await self.import_extension(module.Player)
         await self.import_extension(module.ImageModule)
         await self.import_extension(module.Fishing)
+        await self.import_extension(module.Telephone)
 
     async def import_extension(self, cls):
         try:

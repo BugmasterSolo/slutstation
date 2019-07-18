@@ -20,3 +20,4 @@ from .stattrack import *
 from .player import *
 from .image import *
 from .fishing import *
+from .telephone import *
