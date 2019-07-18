@@ -40,7 +40,6 @@ g e621 [tag1 tag2 ... tag6] (page<int>)
         if NSFW.check_tags(args):
             await chan.send("https://www.youtube.com/watch?v=_YmDcCpD1gc")
             print("diddler")
-            print(state.message.author.name + "#" + str(state.message.author.discriminator))
             return
         tag_array, pagenum = await NSFW._parse_tags(args, chan)
         tagstring = ("+".join(tag_array))
