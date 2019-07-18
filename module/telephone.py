@@ -26,6 +26,9 @@ class Convo:
         except asyncio.TimeoutError:
             await self.end_call()
 
+    def check_channels(self, chan):
+        return chan.id == self.end_a['channel'].id or chan.id == self.end_b['channel'].id
+
     async def process_message(self, state):
         self.message_status.set()
         if state.message.author.bot:
@@ -43,8 +46,9 @@ class Convo:
         pass
 
     async def end_call(self):
-        await self.end_a['channel'].send("Conversation closed.")
-        await self.end_b['channel'].send("Conversation closed.")
+        self.message_status.set()
+        await self.end_a['channel'].send("**Conversation closed.**")
+        await self.end_b['channel'].send("**Conversation closed.**")
 
         self.host.calllist.pop(self.end_a['guild'].id)
         self.host.calllist.pop(self.end_b['guild'].id)
@@ -52,6 +56,7 @@ class Convo:
 
 
 class Telephone(Module):
+    # TODO: segregate sfw/nsfw
     def __init__(self, host):  # TODO: host instance not necessary
         super().__init__(self, host)
         # potentially managing hundreds of server connections at a time -- how to streamline it?
@@ -62,8 +67,8 @@ class Telephone(Module):
     async def check(self, state):
         guild = state.message.guild
         call = self.calllist.get(guild.id, None)
-        if call:
-            print("hello!")
+        is_cmd = state.message.content.startswith(state.host.prefix)
+        if call and not is_cmd and call.check_channels(state.message.channel):
             await call.process_message(state)
         return self == state.command_host
 
@@ -76,13 +81,24 @@ class Telephone(Module):
         if state.command_host.calllist.get(state.message.guild.id, None):
             await target.send("You're already in a call here!")
             return
+        elif len([1 for m in state.command_host.userqueue if m.guild.id == state.message.guild.id]):
+            await target.send("You're already waiting for a call on this server!")
+            return
         if state.command_host.userqueue:
             pardner = state.command_host.userqueue.pop(0)
+            # TODO: better way to deliver this data and avoid the list comprehension step, maybe just storing the channel as a value to a guild list dict?
             convo = Convo(state.message, pardner, state.command_host)
             state.command_host.calllist[pardner.guild.id] = convo
             state.command_host.calllist[state.message.guild.id] = convo
-            await target.send("Connected to a random place in cyberspace...")
-            await pardner.channel.send("Connected to a random place in cyberspace...")
+            await target.send("***Connected to a random place in cyberspace...***")
+            await pardner.channel.send("***Connected to a random place in cyberspace...***")
         else:
             state.command_host.userqueue.append(state.message)
-            await target.send("Added to call queue!")
+            await target.send("*Added to call queue!*")
+
+    @Command.register(name="hangup")
+    async def hangup(host, state):
+        call = state.command_host.calllist.get(state.message.guild.id, None)
+        if call and call.check_channels(state.message.channel):
+            await call.end_call()
+            pass
