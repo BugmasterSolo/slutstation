@@ -672,7 +672,7 @@ class PeterGriffinFilter(MemeFilter):
 
             brush = ImageDraw.Draw(img_final)
             if multiline:
-                text_loc = (int(img.size[0] * 0.65 - (max_width / 2)), img.size[1] + 40)
+                text_loc = (int(img.size[0] * 0.6 - (max_width / 2)), img.size[1] + 40)
                 pass
             else:
                 text_loc = (int(img.size[0] * 0.3), img.size[1] + 40)
