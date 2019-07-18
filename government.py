@@ -320,7 +320,6 @@ discord.User author             - The user that posted the relevant request.
 
     async def http_get_request(self, domain):  # todo: deal with exceptions cleanly
         async with aiohttp.ClientSession(headers=http_header) as session:
-            print("get: " + domain)
             async with session.get(domain) as resp:
                 if not (resp.status >= 200 and resp.status < 400):
                     raise HTTPNotFoundException(f"HTTP ERROR {resp['status']}")
@@ -332,7 +331,6 @@ discord.User author             - The user that posted the relevant request.
 
     async def http_post_request(self, domain, payload):
         async with aiohttp.ClientSession(headers=http_header) as session:
-            print("post: " + domain)
             async with session.post(domain, data=payload) as resp:
                 if not (resp.status >= 200 and resp.status < 400):
                     raise HTTPNotFoundException(f"HTTP ERROR {resp['status']}")

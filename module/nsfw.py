@@ -117,9 +117,8 @@ g rule34 [tag1 tag2 tag3 ... tag6] (page<int>)
         chan = state.message.channel
         args = host.split(state.content)
         if NSFW.check_tags(args):
-            await chan.send("Please do not search child porn on the bot.")
+            await chan.send("https://www.youtube.com/watch?v=C_bJyDxYGW4")
             print("diddler")
-            print(state.message.author.name + "#" + str(state.message.author.discriminator))
             return
         tag_array, pagenum = await NSFW._parse_tags(args, chan)
         tagstring = "+".join(tag_array)

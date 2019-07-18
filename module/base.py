@@ -183,7 +183,6 @@ class Command:
                             await cooldown_msg.delete()
                         # eh
                         return
-                print("called")
             await self.func(host, state, *args, **kwargs)
             if not uid == 0 and self.cooldown >= 4:
                 self.cooldown_array[uid] = time.time()

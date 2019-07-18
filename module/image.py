@@ -124,7 +124,6 @@ class ImageQueueable:
     def apply_filter(img, maxsize=1024):
         '''Rescales images to the passed size.'''
         exif_orientation = 0x0112  # thanks SO
-        print("bing ding")
         # list of valid exif orientations and their inverse transforms
         EXIF_ORIENTATIONS = [
             [],
@@ -142,7 +141,6 @@ class ImageQueueable:
         #  i can't wait to get better at python
         try:
             if hasattr(img, '_getexif'):
-                print("ok")
                 # use the recorded orientation attr to get the img orientation
                 tfs = EXIF_ORIENTATIONS[img._getexif()[exif_orientation]]
                 # reduce with the Image func -- img is passed as self, tfs is passed as the transform
