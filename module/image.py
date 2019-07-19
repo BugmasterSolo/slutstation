@@ -61,9 +61,7 @@ Manages the core processing loop that powers the image queue.
                 # parameterize this further. Move the image queue to the client, and submit draw requests to it.
                 # then we can submit multiple types of images easily.
                 try:
-                    print("loading start")
                     image_successful = await self.load_image(process)
-                    print("loading finish")
                     if not image_successful:
                         await process.channel.send("Something went wrong while parsing that link. Make sure it contains an image.")
                         continue
@@ -668,13 +666,10 @@ class PeterGriffinFilter(MemeFilter):
             FONT_NAME = 'arial.ttf'
             multiline = False
             img, size = ImageQueueable.apply_filter(img)
-            print("dingoid")
             size_limit = size[0] * 0.6
             brush = ImageDraw.Draw(img)
 
             text_format, font, multiline = PeterGriffinFilter.fit_text(brush, FONT_NAME, MAX_SIZE, MIN_SIZE, text, size_limit)
-            print(text_format)
-            print(text)
 
             textbox = brush.textsize(text_format, font=font)
             # 40px margin on each size
