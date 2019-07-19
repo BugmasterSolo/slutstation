@@ -369,7 +369,7 @@ class Cruncher(ImageQueueable):
         data = gradientMag.load()
         # if possible, speed up this loop
         try:
-            for x in range(size_target):
+            for _ in range(size_target):
                 x_min = random.randint(0, size[0] - 1)
                 while data[x_min, 0][3] == 128:
                     x_min = random.randint(0, size[0] - 1)
@@ -775,7 +775,7 @@ class InvertFilter(ImageQueueable):
         return InvertFilter.apply_filter, (self.image, )
 
     def apply_filter(img):
-        img, size = ImageQueueable.apply_filter(img)
+        img,_ = ImageQueueable.apply_filter(img)
         img = ImageOps.invert(img)
         result = BytesIO()
         img.save(result, "JPEG", quality=88)
@@ -878,7 +878,7 @@ Implementation of seam carving in Pillow. Relatively slow for now.
     @Command.cooldown(scope=Scope.CHANNEL, time=3)
     @Command.register(name="invert")
     async def invert(host, state):
-        url, args = ImageModule.parse_string(host, state.content, state.message)
+        url,_ = ImageModule.parse_string(host, state.content, state.message)
         inverter = InvertFilter(channel=state.message.channel, url=url)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(inverter)
