@@ -545,8 +545,8 @@ class MemeFilter(ImageQueueable):
 
     def fit_text(brush, font, maxim, minim, text, width):
         font = ImageFont.truetype(font, size=maxim)
-        text = " ".join(text)
-        textbox = brush.textsize(text, font=font)
+        text_format = " ".join(text)
+        textbox = brush.textsize(text_format, font=font)
 
         widthratio = textbox[0] / width
 
@@ -555,10 +555,10 @@ class MemeFilter(ImageQueueable):
         font = ImageFont.truetype(font="arial.ttf", size=max(minim, min(maxim, int(maxim / widthratio))))
 
         if widthratio > (maxim / minim):
-            text = PeterGriffinFilter.split_text(text, font, width, brush)
+            text_format = PeterGriffinFilter.split_text(text, font, width, brush)
             multiline = True
 
-        return (text, font, multiline)
+        return (text_format, font, multiline)
 
     def apply_filter(img, text):
         # todo:
@@ -673,6 +673,8 @@ class PeterGriffinFilter(MemeFilter):
             brush = ImageDraw.Draw(img)
 
             text_format, font, multiline = PeterGriffinFilter.fit_text(brush, FONT_NAME, MAX_SIZE, MIN_SIZE, text, size_limit)
+            print(text_format)
+            print(text)
 
             textbox = brush.textsize(text_format, font=font)
             # 40px margin on each size
