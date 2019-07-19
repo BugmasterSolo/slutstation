@@ -224,12 +224,12 @@ class Command:
 
     def cooldown(cmd=None, scope=Scope.CHANNEL, type=Scope.TIME, time=15):
         if cmd:
-            cmd.cooldown = scope
+            cmd.cool = scope
             cmd.cooltime = time
             return cmd
 
         def wrapper(cmd):
-            cmd.cooldown = scope.value | type.value
+            cmd.cool = scope.value | type.value
             cmd.cooltime = time
             return cmd
 
