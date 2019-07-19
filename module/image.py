@@ -543,6 +543,23 @@ class MemeFilter(ImageQueueable):
                 string_temp += word + " "
         return string_temp
 
+    def fit_text(brush, font, maxim, minim, text, width):
+        font = ImageFont.truetype(font, size=maxim)
+        text = " ".join(text)
+        textbox = brush.textsize(text, font=font)
+
+        widthratio = textbox[0] / width
+
+        multiline = False
+
+        font = ImageFont.truetype(font="arial.ttf", size=max(minim, min(maxim, int(maxim / widthratio))))
+
+        if widthratio > (maxim / minim):
+            text = PeterGriffinFilter.split_text(text, font, width, brush)
+            multiline = True
+
+        return (text, font, multiline)
+
     def apply_filter(img, text):
         # todo:
         #   - optimize textsize calls
@@ -560,8 +577,8 @@ class MemeFilter(ImageQueueable):
                     cur += 1
                 text_top = text[:cur]
                 text_bottom = text[cur:]
-            MIN_SIZE = 36
-            MAX_SIZE = 144
+            MIN_SIZE = 18
+            MAX_SIZE = 224
             multiline = False
             img, size = ImageQueueable.apply_filter(img)
             size_limit = size[0] * 0.8
@@ -572,7 +589,9 @@ class MemeFilter(ImageQueueable):
             font_size = MAX_SIZE
 
             brush = ImageDraw.Draw(img)
-            max_width = max(brush.textsize(text_top_str, font=font)[0], brush.textsize(text_bot_str, font=font)[0])
+            topbox = brush.textsize(text_top_str, font=font)
+            botbox = brush.textsize(text_bot_str, font=font)
+            max_width = max(topbox[0], botbox[0], size_limit * max(topbox[1], topbox[0]) / (size[1] * 0.2))
             if max_width > size_limit:
                 font_scale = max_width / size_limit
                 if font_scale > (MAX_SIZE / MIN_SIZE):
@@ -641,28 +660,19 @@ class PeterGriffinFilter(MemeFilter):
     def apply_filter(img, text):
         try:
             griffin = Image.open('module/module_resources/putridgriffith.png')
-            GRIFFIN_RATIO = 320 / 220
+            GRIFFIN_RATIO = griffin.size[1] / griffin.size[0]
             griffin = griffin.resize((int(img.size[0] * 0.2), int(img.size[0] * 0.2 * GRIFFIN_RATIO)), Image.BICUBIC)
             # TODO: refactor
-            MIN_SIZE = 24
+            MIN_SIZE = 14
             MAX_SIZE = 72
+            FONT_NAME = 'arial.ttf'
             multiline = False
             img, size = ImageQueueable.apply_filter(img)
             print("dingoid")
             size_limit = size[0] * 0.6
-            font = ImageFont.truetype(font="arial.ttf", size=MAX_SIZE)
-
             brush = ImageDraw.Draw(img)
-            # not really a way to avoid creating this unfortunately
-            text_format = " ".join(text)
-            textbox = brush.textsize(text_format, font=font)
-            widthratio = textbox[0] / size_limit
 
-            font = ImageFont.truetype(font="arial.ttf", size=max(MIN_SIZE, min(MAX_SIZE, int(MAX_SIZE / widthratio))))
-
-            if widthratio > (MAX_SIZE / MIN_SIZE):
-                text_format = PeterGriffinFilter.split_text(text, font, size_limit, brush)
-                multiline = True
+            text_format, font, multiline = PeterGriffinFilter.fit_text(brush, FONT_NAME, MAX_SIZE, MIN_SIZE, text, size_limit)
 
             textbox = brush.textsize(text_format, font=font)
             # 40px margin on each size

@@ -78,6 +78,8 @@ class Telephone(Module):
         # TODO: perform some db function to get a user's rep
         # users match with people with roughly their rating or lower
         # if no suitable matches, sit around and wait
+        if target.nsfw:
+            await target.send("Sorry, we're not fully functioning in NSFW channels at the moment.")
         if state.command_host.calllist.get(state.message.guild.id, None):
             await target.send("You're already in a call here!")
             return
