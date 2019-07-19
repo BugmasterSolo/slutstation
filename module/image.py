@@ -590,7 +590,8 @@ class MemeFilter(ImageQueueable):
             brush = ImageDraw.Draw(img)
             topbox = brush.textsize(text_top_str, font=font)
             botbox = brush.textsize(text_bot_str, font=font)
-            max_width = max(topbox[0], botbox[0], size_limit * max(topbox[1], topbox[0]) / (size[1] * 0.2))
+            max_width = max(topbox[0], botbox[0], size_limit * max(topbox[1], botbox[1]) / (size[1] * 0.3))
+            print(max_width)
             if max_width > size_limit:
                 font_scale = max_width / size_limit
                 if font_scale > (MAX_SIZE / MIN_SIZE):
@@ -775,7 +776,7 @@ class InvertFilter(ImageQueueable):
         return InvertFilter.apply_filter, (self.image, )
 
     def apply_filter(img):
-        img,_ = ImageQueueable.apply_filter(img)
+        img, _ = ImageQueueable.apply_filter(img)
         img = ImageOps.invert(img)
         result = BytesIO()
         img.save(result, "JPEG", quality=88)
@@ -878,7 +879,7 @@ Implementation of seam carving in Pillow. Relatively slow for now.
     @Command.cooldown(scope=Scope.CHANNEL, time=3)
     @Command.register(name="invert")
     async def invert(host, state):
-        url,_ = ImageModule.parse_string(host, state.content, state.message)
+        url, _ = ImageModule.parse_string(host, state.content, state.message)
         inverter = InvertFilter(channel=state.message.channel, url=url)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(inverter)
