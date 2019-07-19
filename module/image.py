@@ -540,22 +540,25 @@ class MemeFilter(ImageQueueable):
                 string_temp += word + " "
         return string_temp
 
-    def fit_text(brush, font, maxim, minim, text, width):
-        font = ImageFont.truetype(font, size=maxim)
+    def fit_text(brush, font, maxim, minim, text, width, height=0):
+        fontface = ImageFont.truetype(font, size=maxim)
         text_format = " ".join(text)
-        textbox = brush.textsize(text_format, font=font)
+        textbox = brush.textsize(text_format, font=fontface)
 
         widthratio = textbox[0] / width
 
+        if height:
+            widthratio = max(widthratio, textbox[1] / height)
+
         multiline = False
 
-        font = ImageFont.truetype(font="arial.ttf", size=max(minim, min(maxim, int(maxim / widthratio))))
+        fontface = ImageFont.truetype(font=font, size=max(minim, min(maxim, int(maxim / widthratio))))
 
         if widthratio > (maxim / minim):
-            text_format = PeterGriffinFilter.split_text(text, font, width, brush)
+            text_format = PeterGriffinFilter.split_text(text, fontface, width, brush)
             multiline = True
 
-        return (text_format, font, multiline)
+        return (text_format, fontface, multiline)
 
     def apply_filter(img, text):
         # todo:
@@ -574,55 +577,47 @@ class MemeFilter(ImageQueueable):
                     cur += 1
                 text_top = text[:cur]
                 text_bottom = text[cur:]
-            MIN_SIZE = 18
+            MIN_SIZE = 24
             MAX_SIZE = 224
             multiline = False
+
             img, size = ImageQueueable.apply_filter(img)
             size_limit = size[0] * 0.8
+            height_limit = size[1] * 0.3
             v_offset = min(size[0] * 0.05, 48)
-            font = ImageFont.truetype(font="impact.ttf", size=MAX_SIZE)
-            text_top_str = " ".join(text_top)
-            text_bot_str = " ".join(text_bottom)
-            font_size = MAX_SIZE
 
             brush = ImageDraw.Draw(img)
-            topbox = brush.textsize(text_top_str, font=font)
-            botbox = brush.textsize(text_bot_str, font=font)
-            max_width = max(topbox[0], botbox[0], size_limit * max(topbox[1], botbox[1]) / (size[1] * 0.3))
-            print(max_width)
-            if max_width > size_limit:
-                font_scale = max_width / size_limit
-                if font_scale > (MAX_SIZE / MIN_SIZE):
-                    multiline = True
-                font_size = int(max(MIN_SIZE, MAX_SIZE / font_scale))
-                font = ImageFont.truetype("impact.ttf", size=font_size)
+
+            text_top_str, font_top, multiline_top = MemeFilter.fit_text(brush, "impact.ttf", MAX_SIZE, MIN_SIZE, text_top, size_limit, height_limit)
+
+            text_bot_str, font_bot, multiline_bot = MemeFilter.fit_text(brush, "impact.ttf", MAX_SIZE, MIN_SIZE, text_bottom, size_limit, height_limit)
+
+            multiline = multiline_top or multiline_bot
+
             center = int(size[0] / 2)
             if multiline:
-                text_top_str = MemeFilter.split_text(text_top, font, size_limit, brush)
-                text_bot_str = MemeFilter.split_text(text_bottom, font, size_limit, brush)
-
-                top_size = brush.textsize(text_top_str, font=font)
-                bot_size = brush.textsize(text_bot_str, font=font)
+                top_size = brush.textsize(text_top_str, font=font_top)
+                bot_size = brush.textsize(text_bot_str, font=font_bot)
                 top_pos = int(center - (top_size[0]) / 2)
                 bot_pos = int(center - (bot_size[0]) / 2)
 
                 v_bottom = size[1] - v_offset - bot_size[1]
 
                 def draw_text(x, y, fill):
-                    brush.multiline_text((top_pos + x, v_offset + y), text_top_str, fill=fill, font=font, align="center")
-                    brush.multiline_text((bot_pos + x, v_bottom + y), text_bot_str, fill=fill, font=font, align="center")
+                    brush.multiline_text((top_pos + x, v_offset + y), text_top_str, fill=fill, font=font_top, align="center")
+                    brush.multiline_text((bot_pos + x, v_bottom + y), text_bot_str, fill=fill, font=font_bot, align="center")
 
             else:
-                top_size = brush.textsize(text_top_str, font=font)
-                bot_size = brush.textsize(text_bot_str, font=font)
+                top_size = brush.textsize(text_top_str, font=font_top)
+                bot_size = brush.textsize(text_bot_str, font=font_bot)
                 top_pos = int(center - (top_size[0]) / 2)
                 bot_pos = int(center - (bot_size[0]) / 2)
 
                 v_bottom = size[1] - v_offset - bot_size[1]
 
                 def draw_text(x, y, fill):
-                    brush.text((top_pos + x, v_offset + y), text_top_str, fill=fill, font=font)
-                    brush.text((bot_pos + x, v_bottom + y), text_bot_str, fill=fill, font=font)
+                    brush.text((top_pos + x, v_offset + y), text_top_str, fill=fill, font=font_top)
+                    brush.text((bot_pos + x, v_bottom + y), text_bot_str, fill=fill, font=font_bot)
 
             BLACK = 0x000000
             WHITE = 0xffffff
