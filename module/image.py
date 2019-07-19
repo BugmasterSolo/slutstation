@@ -663,7 +663,7 @@ class PeterGriffinFilter(MemeFilter):
             GRIFFIN_RATIO = griffin.size[1] / griffin.size[0]
             griffin = griffin.resize((int(img.size[0] * 0.2), int(img.size[0] * 0.2 * GRIFFIN_RATIO)), Image.BICUBIC)
             # TODO: refactor
-            MIN_SIZE = 14
+            MIN_SIZE = 21
             MAX_SIZE = 72
             FONT_NAME = 'arial.ttf'
             multiline = False
