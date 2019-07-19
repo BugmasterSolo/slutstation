@@ -47,8 +47,11 @@ class Convo:
 
     async def end_call(self):
         self.message_status.set()
-        await self.end_a['channel'].send("**Conversation closed.**")
-        await self.end_b['channel'].send("**Conversation closed.**")
+
+        ta = asyncio.create_task(self.end_a['channel'].send("**Conversation closed.**"))
+        tb = asyncio.create_task(self.end_b['channel'].send("**Conversation closed.**"))
+
+        await asyncio.wait([ta, tb])
 
         self.host.calllist.pop(self.end_a['guild'].id)
         self.host.calllist.pop(self.end_b['guild'].id)
