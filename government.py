@@ -30,7 +30,7 @@ import aiohttp
 
 from module.base import GuildUpdateListener, MessageDeletedException, HTTPNotFoundException
 
-logger = logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 http_header = {
     "user-agent": "Government(Discord.py) / 0.091 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"

@@ -144,7 +144,7 @@ class Command:
         self.func = func
         self.descrip = kwargs.get("descrip", func.__doc__ or "No description available.")
         self.alias = []
-        self.cooldown = None
+        self.cool = None
         # safe to set
         self.cooltime = None
         self.cooldown_array = {}
@@ -161,13 +161,13 @@ class Command:
                 call_time = self.cooldown_array.get(uid)
                 if call_time is None:
                     # poppin
-                    if self.cooldown >= 4:
+                    if self.cool >= 4:
                         cur_time = cur_time * -1
                     self.cooldown_array[uid] = cur_time
                 else:
                     time_diff = cur_time - call_time
                     if time_diff > self.cooltime and call_time > 0:
-                        if self.cooldown >= 4:
+                        if self.cool >= 4:
                             cur_time = cur_time * -1
                         self.cooldown_array[uid] = cur_time
                     else:
@@ -183,7 +183,7 @@ class Command:
                         # eh
                         return
             await self.func(host, state, *args, **kwargs)
-            if not uid == 0 and self.cooldown >= 4:
+            if not uid == 0 and self.cool >= 4:
                 self.cooldown_array[uid] = time.time()
         except Exception as e:
             print("Something went wrong during a command call. The following exception was thrown: ")  # still throws, should be more graceful
@@ -193,8 +193,8 @@ class Command:
             traceback.print_exc()
 
     def _get_cooldown_id(self, message):
-        if self.cooldown is not None:
-            cool = self.cooldown & 3
+        if self.cool is not None:
+            cool = self.cool & 3
             if cool == 0:
                 return message.author.id
             elif cool == 1:
