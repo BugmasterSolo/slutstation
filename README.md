@@ -2,7 +2,6 @@
 
 (credit to artist of)
 
-
 # government
 ## a bot for discord
 
@@ -18,4 +17,4 @@ the goal of government is to implement every cool feature i've seen from every o
 ### *please give him time*
 
 ### TODO LIST
-- Add format checking for image imports
+  - Add format checking for image imports
