@@ -37,8 +37,8 @@ class Fun(Module):
                   "You will not be pleased with the result",
                   "I'm very sorry")
     # referred to from host, with command_host this can be a module value
-    with open("./module/module_resources/fortune_cookie.json", "r") as fortune:
-        FORTUNE_LIST = json.loads(fortune.read())
+    with open("./module/module_resources/fortune_cookie.json", "r") as fortunes:
+        FORTUNE_LIST = json.loads(fortunes.read())
 
     @Command.register(name="fortune")
     async def fortune(host, state):  # if any issues come up check here.

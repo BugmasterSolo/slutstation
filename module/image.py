@@ -116,9 +116,9 @@ Manages the core processing loop that powers the image queue.
         return img
 
     def pass_image(self, queueable, result):
-        if result is None:
-            # wipe item
-            pass
+        # if result is None:
+        #     wipe item
+        #     pass
         queueable.set_image(result)
         self.load_event.set()
 
@@ -494,7 +494,6 @@ class StatView(ImageQueueable):
         canvas.save(result, "PNG")
         result.seek(0)
         return result
-    pass
 
 
 class JPEGFilter(ImageQueueable):
@@ -832,7 +831,6 @@ g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma
             sort = Pixelsort(channel=state.message.channel, url=url, isHorizontal=True)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(sort)
-        pass
 
     @Command.cooldown(scope=Scope.USER, time=20)
     @Command.register(name="stat")

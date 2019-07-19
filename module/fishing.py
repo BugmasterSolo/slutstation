@@ -43,7 +43,6 @@ class FishingAttractor:
         self.conditions = {}
         for arg in fish_conditions:
             self.conditions[arg] = fish_conditions[arg]
-        pass
 
 
 class Bait(FishingItem):
@@ -95,7 +94,6 @@ class Fishing(Module):
         locindex = await host.add_reactions(state.message.channel, reaction_embed, state.host, answer_count=len(self.LOCATIONS), author=state.message.author)
         if locindex == -1:
             await state.message.channel.send("`Fishing cancelled -- response not sent in time.`")
-            pass
         target = None
         cast_msg = await state.message.channel.send(f"{self.LOC_EMOJI[locindex]} | ***Casting...***")
         async with state.host.db.acquire() as conn:

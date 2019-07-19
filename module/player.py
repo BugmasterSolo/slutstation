@@ -80,7 +80,6 @@ class YTPlayer:
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=False))
         except PermissionError:
             await state.message.channel.send("Look, something went wrong. I'm sorry.")
-            pass
 
         if 'entries' in data:
             data = data['entries'][0]
@@ -101,7 +100,6 @@ class YTPlayer:
         response_embed.set_footer(text=f"Added by {author.name}#{author.discriminator}",
                                   icon_url=author.avatar_url_as(static_format="png", size=128))
         return StreamGenerator(generator, response_embed)
-        pass
 
 
 def check(guild_old, guild_new):
@@ -221,7 +219,6 @@ class MusicPlayer:
         if self.voice_channel is None:
             print("Error in voice. Disconnecting completely.")
             self.destroy()
-            pass
         self.voice_channel = self.voice_channel.channel
         listener_threshold = math.ceil((len(self.voice_channel.members) - 1) / 2)  # bot doesn't count
         perms = chan.permissions_for(member)

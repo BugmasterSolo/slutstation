@@ -93,7 +93,6 @@ async def pushup(ctx, *args):
         await msg.channel.send("that's cool but i can do " +
                                str(base64.b64encode(msg.content.encode())) +
                                " pushups")
-        pass
 
 
 

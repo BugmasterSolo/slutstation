@@ -43,7 +43,6 @@ class Convo:
         msg = f"**{state.message.author.name}#{state.message.author.discriminator}** {state.message.content}"
         await destination.send(msg)
         await self.timeout_loop()
-        pass
 
     async def end_call(self):
         self.message_status.set()
@@ -65,7 +64,6 @@ class Telephone(Module):
         # potentially managing hundreds of server connections at a time -- how to streamline it?
         self.userqueue = []
         self.calllist = {}
-        pass
 
     async def check(self, state):
         guild = state.message.guild
@@ -106,7 +104,6 @@ class Telephone(Module):
         call = state.command_host.calllist.get(state.message.guild.id, None)
         if call and call.check_channels(state.message.channel):
             await call.end_call()
-            pass
         else:
             user_dupes = [m for m in state.command_host.userqueue if m.guild.id == state.message.guild.id]  # TODO: ohoho
             if user_dupes:
@@ -114,5 +111,3 @@ class Telephone(Module):
                 await state.message.channel.send("Removed from queue.")
             else:
                 await state.message.channel.send("You are not in the message queue!")
-
-            pass

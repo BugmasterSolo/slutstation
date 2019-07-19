@@ -160,7 +160,6 @@ class Government(Client):
         except Exception as e:
             err_string = str(e)
             print(f"Exception occurred: \n{err_string}")
-            pass
 
     async def checkuser(self, message):
         isLogged = self.logged_users.get(message.channel.id)
@@ -263,7 +262,6 @@ discord.User author             - The user that posted the relevant request.
             if char_list:
                 def check(reaction, user):
                     return (True if author is None else user == author) and reaction.message.id == poll.id and not reaction.custom_emoji and reaction.emoji in char_list
-                pass
             else:
                 def check(reaction, user):
                     return (True if author is None else user == author) and reaction.message.id == poll.id and not reaction.custom_emoji and (ord(reaction.emoji) - self.A_EMOJI) < answer_count

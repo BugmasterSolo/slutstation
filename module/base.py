@@ -74,7 +74,6 @@ class Module:
         Returns the relevant Command if available, otherwise returns none.
         '''
         return self.command_list.get(cmd)
-        pass
 
     async def check(self, state):
         '''
