@@ -379,7 +379,9 @@ discord.User author             - The user that posted the relevant request.
                     if msg.author.permissions_in(msg.channel).manage_messages:
                         correct_users = []
                         incorrect_users = [msg.author]
-                        return (correct_users, incorrect_users, triv)
+                        return (correct_users, incorrect_users, None)
+                    else:
+                        return([], [], None)
             elif type == "multiple":
                 answer_array = triv['incorrect_answers']
                 correct_index = random.randint(0, len(answer_array))
@@ -404,6 +406,8 @@ discord.User author             - The user that posted the relevant request.
                         correct_users = []
                         incorrect_users = [msg.author]
                         return (correct_users, incorrect_users, None)
+                    else:
+                        return([], [], None)
             # refresh the reaction list
             done = await msg.channel.send("***Time's up!***")
             poll = await msg.channel.fetch_message(poll)  # update message data

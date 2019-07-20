@@ -173,8 +173,6 @@ Usage: g trivia
                 # todo: fix that maybe if necessary
                 return_string = f"The correct answer was {html.unescape(triv['correct_answer'])}!\n\nCongratulations to " + ", ".join(user_ids) + " for answering correctly!"
                 await chan.send(return_string)
-        else:
-            await chan.send("Command caller marked as incorrect.")
         # i dont like this very much but its ok
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
