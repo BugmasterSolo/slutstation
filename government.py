@@ -79,7 +79,7 @@ class Government(Client):
                 if command_info.get(command) is None:
                     command_info[command] = {
                         "name": command,
-                        "descrip": mod.command_list[command].descrip,
+                        "descrip": mod.command_list[command].descrip.strip(),
                         "aliases": mod.command_list[command].alias
                     }
         # whatever

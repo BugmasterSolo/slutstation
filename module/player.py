@@ -288,7 +288,7 @@ Fetches a link if provided, otherwise searches the query on Youtube.
 If paused, resumes playback.
 
 Usage:
-g play (<valid URL>|<search query>)
+g play (<valid URL> or <search query>)
         '''
         # call the proper instance of ytdl
         chan = state.message.channel

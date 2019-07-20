@@ -1,4 +1,4 @@
-from .base import Module, Command, Scope, MessageDeletedException, HTTPNotFoundException
+from .base import Module, Command, Scope, MessageDeletedException
 from discord import Status, Embed
 # import mysql.connector as mysql
 
@@ -101,6 +101,9 @@ Usage:
 g pushup <int>
         '''
         args = host.split(state.content)
+        if len(args) == 0:
+            await state.message.channel.send("bro no flex")
+            return
         count = int(float(args[0]) + 1)
         await state.message.channel.send(f"that's cool but i can do {count} pushups")
 
@@ -110,7 +113,10 @@ g pushup <int>
 Usage:
 g roll [dice1, dice2, ...]
 
-Dice are specified as <number>d<sides>. Modifiers are provided as positive or negative integers: +4 = 4, -3 = -3.'''
+Dice are specified as <number>d<sides>. Modifiers are provided as positive or negative integers: +4 = 4, -3 = -3.
+
+Example:
+g roll 3d6 2d20 -3 - three six-sided die + two 20-sided die - 3'''
         args = host.split(state.content)
         sum = 0
         try:
@@ -183,6 +189,10 @@ Run a poll in your current server.
 
 Usage:
 g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
+
+Bot will send reminder messages every few, with a link to the message.
+
+Prints the final results at the end of the poll!
         '''
         chan = state.message.channel
         msg = state.content
@@ -269,11 +279,9 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
                 answer_summary = f"{answer_list[i]} -- {poll_responses[i]} vote(s) ({percent}%)"
                 if i in maxindex:
                     answer_summary = f"***{answer_summary}***"
-                poll_summary += f"{answer_summary}\n"
+                poll_summary += f"{answer_summary}\n\n{poll.jump_url}"
             result_string += poll_summary
-        notify = await chan.send(result_string)
-        await asyncio.sleep(5)
-        await notify.delete()
+        await chan.send(result_string)
         await poll.edit(content=result_string)
 
     @Command.register(name="8ball")
@@ -301,6 +309,10 @@ Funny little 8ball game for you and friends.
 
     # desc's are not necessary for short queries, such as trivia.
     # todo: move into host.
+
+    @Command.register(name="help")
+    async def help(host, state):
+        await state.message.channel.send("oh sorry\nthis isnt done yet\nsend me a message and i'll help out i guess\nhallo#1700")
 
     # 32 bit xorshift. used for state dependent PRNG.
     def _xorshift(num):

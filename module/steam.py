@@ -11,6 +11,12 @@ class Steam(Module):
 
     @Command.register(name="steamid")
     async def steamid(host, state):
+        '''
+Look up a friend!
+
+Usage:
+g steamid (<vanityurl> or <steamid>)
+        '''
         await state.message.channel.trigger_typing()
         args = host.split(state.content)
         userID = args[0]

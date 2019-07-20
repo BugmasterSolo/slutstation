@@ -71,7 +71,8 @@ class Fishing(Module):
     @Command.register(name="fish")
     async def fish(host, state):
         '''
-        Initializes a command relating to fishing.
+        Initializes a command relating to fishing. The following commands are currently available:
+g fish cast - Casts the fishing line at a chosen location.
         '''
         subcommand = host.split(state.content)
         try:

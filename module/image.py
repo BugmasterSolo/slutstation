@@ -802,8 +802,10 @@ class ImageModule(Module):
             attachment = message.attachments[0]
             if attachment.height is not None:
                 url = attachment.proxy_url
-        if url is None and len(array) > 0:
+        if not url and len(array) > 0:
             url = array.pop(0)
+        if not url:
+            raise ImageNotFoundException("Image not provided!")
         return url, array
 
     @Command.cooldown(scope=Scope.CHANNEL, time=5)
@@ -813,11 +815,19 @@ class ImageModule(Module):
 Quick pixelsorting function. URL or image upload must be provided.
 
 Usage:
-g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma)>]
+g pixelsort (<url> or ignore if uploaded image) [<threshold (0.5)> <comparison function (luma)>]
         '''
-        url, args = ImageModule.parse_string(host, state.content, state.message)
+        try:
+            url, args = ImageModule.parse_string(host, state.content, state.message)
+        except ImageNotFoundException:
+            await state.message.channel.send("Please include an image URL or attachment!")
+            return
         if len(args) >= 1:
-            sort = Pixelsort(channel=state.message.channel, url=url, threshold=float(args[0]), isHorizontal=True)
+            try:
+                threshold = float(args[0])
+            except ValueError:
+                threshold = 0.5
+            sort = Pixelsort(channel=state.message.channel, url=url, threshold=threshold, isHorizontal=True)
         else:
             sort = Pixelsort(channel=state.message.channel, url=url, isHorizontal=True)
         await state.message.channel.trigger_typing()
@@ -826,6 +836,12 @@ g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma
     @Command.cooldown(scope=Scope.USER, time=20)
     @Command.register(name="stat")
     async def stat(host, state):
+        '''
+Display your user statistics in an image!
+
+Usage:
+g stat
+        '''
         target = state.message.author
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
@@ -838,12 +854,23 @@ g pixelsort (<url>|uploaded image) [<threshold (0.5)> <comparison function (luma
     @Command.register(name="crunch")
     async def crunch(host, state):
         '''
-Implementation of seam carving in Pillow. Relatively slow for now.
+Naive seam carving (Content aware scale) algorithm with JPEG filter.
+
+Usage:
+g crunch (<url> or ignore if uploaded image) [<crunch amount(0.2)>]
         '''
         # todo: implement FXAA step or something similar to smooth out the result
-        url, args = ImageModule.parse_string(host, state.content, state.message)
+        try:
+            url, args = ImageModule.parse_string(host, state.content, state.message)
+        except ImageNotFoundException:
+            await state.message.channel.send("Please include an image URL or attachment!")
+            return
         if len(args) >= 1:
-            cruncher = Cruncher(channel=state.message.channel, url=url, scale=(float(args[0]) or 0.2))
+            try:
+                scale = float(args[0])
+            except ValueError:
+                scale = 0.2
+            cruncher = Cruncher(channel=state.message.channel, url=url, scale=scale)
         else:
             cruncher = Cruncher(channel=state.message.channel, url=url)
         await state.message.channel.trigger_typing()
@@ -853,7 +880,19 @@ Implementation of seam carving in Pillow. Relatively slow for now.
     @Command.cooldown(scope=Scope.CHANNEL, time=3)
     @Command.register(name="meme")
     async def meme(host, state):
-        url, args = ImageModule.parse_string(host, state.content, state.message)
+        '''
+Make a meme.
+
+Usage:
+g meme (<url> or ignore if uploaded image) (<TEXT> or <TOPTEXT> | <BOTTOMTEXT>)
+        '''
+        try:
+            url, args = ImageModule.parse_string(host, state.content, state.message)
+        except ImageNotFoundException:
+            await state.message.channel.send("Please include an image URL or attachment!")
+            return
+        if len(args) == 0:
+            args = ["ERR", "|", "TRANSLATION", "SERVICE", "UNAVAILABLE"]
         meme = MemeFilter(channel=state.message.channel, url=url, text=args)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(meme)
@@ -861,7 +900,17 @@ Implementation of seam carving in Pillow. Relatively slow for now.
     @Command.cooldown(scope=Scope.CHANNEL, time=3)
     @Command.register(name="jpeg")
     async def jpeg(host, state):
-        url, args = ImageModule.parse_string(host, state.content, state.message)
+        '''
+Do I look like I-- no no not doing that.
+
+Usage:
+g jpeg (<url> or ignore if uploaded image)
+        '''
+        try:
+            url, _ = ImageModule.parse_string(host, state.content, state.message)
+        except ImageNotFoundException:
+            await state.message.channel.send("Please include an image URL or attachment!")
+            return
         jaypeg = JPEGFilter(channel=state.message.channel, url=url)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(jaypeg)
@@ -869,7 +918,17 @@ Implementation of seam carving in Pillow. Relatively slow for now.
     @Command.cooldown(scope=Scope.CHANNEL, time=3)
     @Command.register(name="invert")
     async def invert(host, state):
-        url, _ = ImageModule.parse_string(host, state.content, state.message)
+        '''
+Invert the colors.
+
+Usage:
+g invert (<url> or ignore if uploaded image)
+        '''
+        try:
+            url, _ = ImageModule.parse_string(host, state.content, state.message)
+        except ImageNotFoundException:
+            await state.message.channel.send("Please include an image URL or attachment!")
+            return
         inverter = InvertFilter(channel=state.message.channel, url=url)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(inverter)
@@ -877,7 +936,19 @@ Implementation of seam carving in Pillow. Relatively slow for now.
     @Command.cooldown(scope=Scope.CHANNEL, time=5)
     @Command.register(name="peterhere")
     async def peterhere(host, state):
-        url, args = ImageModule.parse_string(host, state.content, state.message)
+        '''
+Hey guys, peter here.
+
+Usage:
+g peterhere (<url> or ignore if uploaded image) <text>
+        '''
+        try:
+            url, args = ImageModule.parse_string(host, state.content, state.message)
+        except ImageNotFoundException:
+            await state.message.channel.send("Please include an image URL or attachment!")
+            return
+        if len(args) == 0:
+            args = ['fortnite']
         griffin = PeterGriffinFilter(channel=state.message.channel, url=url, text=args)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(griffin)

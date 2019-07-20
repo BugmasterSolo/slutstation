@@ -12,10 +12,10 @@ class Stattrack(Module):
         if not strleng <= 0:
             strleng = math.floor(math.log(strleng) * 3)
         msg = state.message.content.lower()
-        hard = len(re.findall("nigger", msg))
+        hard = len(re.findall("nigger", msg))  # bro its cool i bought a pass
         soft = len(re.findall(r"(nigg\w*|\bnig\b)", msg)) - hard
         auth = state.message.author
-        # todo: save some time by bundling commits:
+        # TODO: save some time by bundling commits:
         #       - create a connection from the pool.
         #       - save it, and let it collect over here.
         #       - after X seconds, commit however many messages are stacked up.
@@ -32,6 +32,12 @@ class Stattrack(Module):
 
     @Command.register(name="board")
     async def guildtop(host, state):
+        '''
+See who's killing it locally.
+
+Usage:
+g board
+        '''
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
                 # TODO: remove
@@ -50,6 +56,12 @@ class Stattrack(Module):
 
     @Command.register(name="rank")
     async def rank(host, state):
+        '''
+Displays an embedded summary of your history as a user, or the history of another user.
+
+Usage:
+g rank <user mention>
+        '''
         msg = state.message
         if len(msg.mentions) > 0:
             target = msg.mentions[0]
