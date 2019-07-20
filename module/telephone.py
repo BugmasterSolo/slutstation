@@ -2,18 +2,22 @@ from .base import Module, Command
 import asyncio
 import async_timeout
 
+# TODO: SERVER JEOPARDY! waiting out asyncs to allow servers to guess for an answer
+# additionally: using telephone as scaffolding for multiplayer trivia
+
+# todo: break up the convo
 
 class Convo:
     def __init__(self, message1, message2, cmdhost):
         self.host = cmdhost
         self.end_a = {
-            'channel': message1.channel,
-            'guild': message1.guild
+            'channel': message1[0],
+            'guild': message1[1]
         }
 
         self.end_b = {
-            'channel': message2.channel,
-            'guild': message2.guild
+            'channel': message2[0],
+            'guild': message2[1]
         }
         self.message_status = asyncio.Event()
         asyncio.create_task(self.timeout_loop())
@@ -63,12 +67,14 @@ class Telephone(Module):
         super().__init__(self, host)
         # potentially managing hundreds of server connections at a time -- how to streamline it?
         self.userqueue = []
+        self.userqueue_nsfw = []
+        # might be necessary later to lay out more discriminators and do some more complex set logic
         self.calllist = {}
 
     async def check(self, state):
         guild = state.message.guild
         call = self.calllist.get(guild.id, None)
-        is_cmd = state.message.content.startswith(state.host.prefix)
+        is_cmd = state.message.content.startswith(state.host.prefix)  # TODO: do this elsewhere please
         if call and not is_cmd and call.check_channels(state.message.channel):
             await call.process_message(state)
         return self == state.command_host
@@ -79,24 +85,30 @@ class Telephone(Module):
         # TODO: perform some db function to get a user's rep
         # users match with people with roughly their rating or lower
         # if no suitable matches, sit around and wait
-        if target.nsfw:
-            await target.send("Sorry, we're not fully functioning in NSFW channels at the moment.")
         if state.command_host.calllist.get(state.message.guild.id, None):
             await target.send("You're already in a call here!")
             return
-        elif len([1 for m in state.command_host.userqueue if m.guild.id == state.message.guild.id]):  # TODO: ehehe
+        # config
+        if target.nsfw:
+            valid_channels = state.command_host.userqueue_nsfw
+        else:
+            valid_channels = state.command_host.userqueue
+        if (target, target.guild) in valid_channels:  # TODO: ehehe
             await target.send("You're already waiting for a call on this server!")
             return
-        if state.command_host.userqueue:
+        if valid_channels:
             pardner = state.command_host.userqueue.pop(0)
             # TODO: better way to deliver this data and avoid the list comprehension step, maybe just storing the channel as a value to a guild list dict?
             convo = Convo(state.message, pardner, state.command_host)
             state.command_host.calllist[pardner.guild.id] = convo
             state.command_host.calllist[state.message.guild.id] = convo
-            await target.send("***Connected to a random place in cyberspace...***")
-            await pardner.channel.send("***Connected to a random place in cyberspace...***")
+            # task creation
+            c1 = asyncio.create_task(target.send("***Connected to a random place in cyberspace...***"))
+            c2 = asyncio.create_task(pardner.channel.send("***Connected to a random place in cyberspace...***"))
+
+            await asyncio.wait([c1, c2])
         else:
-            state.command_host.userqueue.append(state.message)
+            state.command_host.userqueue.append((state.message.channel, state.message.guild))
             await target.send("*Added to call queue!*")
 
     @Command.register(name="hangup")

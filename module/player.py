@@ -276,7 +276,6 @@ class Player(Module):
     def pop_player(self, id):
         self.active_players.pop(id)
 
-
     @Command.register(name="play")
     async def play(host, state):
         '''

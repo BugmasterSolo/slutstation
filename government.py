@@ -16,7 +16,7 @@ import asyncio
 import sys
 
 import discord
-from discord import Client, Game
+from discord import Client, Game, Embed
 import module
 import time
 import json
@@ -24,8 +24,10 @@ import aiomysql as sql
 import logging
 import math
 import re
+import html
 from discord.errors import NotFound
 import aiohttp
+import random
 
 
 from module.base import GuildUpdateListener, MessageDeletedException, HTTPNotFoundException
@@ -185,7 +187,7 @@ class Government(Client):
 
     # UTILITY FUNCTIONS BELOW!
 
-    async def add_reactions(self, chan, embed, host, timer=0, answer_count=2, char_list=None, descrip="Get your answer in!", author=None):
+    async def add_reactions(self, chan, embed, timer=0, answer_count=2, char_list=None, descrip="Get your answer in!", author=None):
         '''
 Adds reactions to a desired embed, and waits for responses to come in.
 In the event that the message is timed, returns the message ID to be handled appropriately.
@@ -205,12 +207,17 @@ discord.User author             - The user that posted the relevant request.
         '''
         poll = await chan.send(embed=embed)
         # specifics!
+        reaction_list = []
         if char_list:
             for emote in char_list:
-                await poll.add_reaction(emote)
+                # create task :)
+                reaction_list.append(asyncio.create_task(poll.add_reaction(emote)))
         else:
             for i in range(answer_count):
-                await poll.add_reaction(chr(self.A_EMOJI + i))
+                reaction_list.append(asyncio.create_task(poll.add_reaction(chr(self.A_EMOJI + i))))
+
+        # TODO: timeout = timer-param, if anything in pending call the game off
+        await asyncio.wait(reaction_list)
         # use wait_for to record deletion and back out of here if it occurs
         # create an async event which tracks deletion status
         # on passing delete, flip the event
@@ -266,7 +273,7 @@ discord.User author             - The user that posted the relevant request.
                 def check(reaction, user):
                     return (True if author is None else user == author) and reaction.message.id == poll.id and not reaction.custom_emoji and (ord(reaction.emoji) - self.A_EMOJI) < answer_count
             try:
-                react = await host.wait_for("reaction_add", check=check, timeout=30)  # perform something on timeout (should handle deletion)
+                react = await self.wait_for("reaction_add", check=check, timeout=30)  # perform something on timeout (should handle deletion)
                 await poll.delete()
                 if char_list:
                     return char_list.index(react[0].emoji)
@@ -339,6 +346,79 @@ discord.User author             - The user that posted the relevant request.
                     "status": resp.status,
                     "text": text
                 }
+
+    async def tdb_trivia(self, msg):
+        TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001f1e6", "\U0001f1e7", "\U0001f1e8", "\U0001f1e9")
+        url = "https://opentdb.com/api.php?amount=1"
+        try:
+            response = await self.http_get_request(url)
+        except HTTPNotFoundException:
+            await msg.channel.send("Failed to fetch trivia data.")
+            return
+        status = response['status']
+        if status >= 200 and status < 300:
+            triv = json.loads(response['text'])['results'][0]
+            descrip = html.unescape(f"{triv['question']}\n\n")
+            type = triv['type']
+            correct_index = None
+            poll = None
+            # TODO: reduce diffeerences
+            if type == "boolean":
+                correct_index = 0 if triv['correct_answer'] == "True" else 1
+                descrip = "*You have 20 seconds to answer the following question.*\n\nTrue or False:\n\n" + descrip
+                trivia_embed = Embed(title=f"{triv['category']} -- {triv['difficulty']}",
+                                     description=descrip,
+                                     color=0x8050ff)
+                trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
+                char_list = [TRIVIA_REACTION_LIST[0], TRIVIA_REACTION_LIST[1]]  # what
+                try:
+                    poll = await self.add_reactions(msg.channel, trivia_embed, 20, answer_count=2, char_list=char_list)
+                except MessageDeletedException:
+                    await msg.channel.send("Trivia question deleted.")
+                    if msg.author.permissions_in(msg.channel).manage_messages:
+                        async with self.db.acquire() as conn:
+                            async with conn.cursor() as cur:
+                                cur.callproc("TRIVIACALL", (False, msg.author.id))  # assume the author is proximal to someone with influence
+                    return
+            elif type == "multiple":
+                answer_array = triv['incorrect_answers']
+                correct_index = random.randint(0, len(answer_array))
+                answer_array.insert(correct_index, triv['correct_answer'])
+                answer_array = list(map(html.unescape, answer_array))
+                descrip = "*You have 20 seconds to answer the following question.*\n\n" + descrip + f"A) {answer_array[0]}\nB) {answer_array[1]}\nC) {answer_array[2]}\nD) {answer_array[3]}\n\n"
+                #
+                #
+                # use the unicode constant for this?
+                #
+                #
+                correct_index += 2
+                trivia_embed = Embed(title=f"{triv['category']} - {triv['difficulty']}",
+                                     description=descrip,
+                                     color=0x8050ff)
+                trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
+                poll = await self.add_reactions(msg.channel, trivia_embed, 20, answer_count=4)
+            # refresh the reaction list
+            done = await msg.channel.send("***Time's up!***")
+            poll = await msg.channel.fetch_message(poll)  # update message data
+            msg_reactions = poll.reactions
+            correct_users = []
+            incorrect_users = []
+            for reaction in msg_reactions:
+                if str(reaction) in TRIVIA_REACTION_LIST:
+                    answer_index = TRIVIA_REACTION_LIST.index(str(reaction))
+                    async for user in reaction.users():
+                        if not user == self.user:
+                            if answer_index == correct_index:
+                                if user not in incorrect_users:
+                                    correct_users.append(user)
+                            else:
+                                if user in correct_users:
+                                    correct_users.remove(user)
+                                    incorrect_users.append(user)
+                                else:
+                                    incorrect_users.append(user)
+            await done.delete()
+            return (correct_users, incorrect_users, triv)
 
 
 def load_token():

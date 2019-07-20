@@ -91,12 +91,12 @@ class Fishing(Module):
             descrip += f"\n{chr(i + 0x41)}. {self.LOC_PRINT[i]} | {self.CAST_COST}{host.CURRENCY_SYMBOL}"
         descrip += "```"
         reaction_embed = Embed(title="Choose a location:", description=descrip, color=0xa0fff0)
-        locindex = await host.add_reactions(state.message.channel, reaction_embed, state.host, answer_count=len(self.LOCATIONS), author=state.message.author)
+        locindex = await host.add_reactions(state.message.channel, reaction_embed, answer_count=len(self.LOCATIONS), author=state.message.author)
         if locindex == -1:
             await state.message.channel.send("`Fishing cancelled -- response not sent in time.`")
         target = None
         cast_msg = await state.message.channel.send(f"{self.LOC_EMOJI[locindex]} | ***Casting...***")
-        async with state.host.db.acquire() as conn:
+        async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.callproc('SPEND_CREDITS', (state.message.author.id, Fishing.CAST_COST))
                 await cur.callproc('GETFISH', (1, 1, self.LOCATIONS[locindex]))

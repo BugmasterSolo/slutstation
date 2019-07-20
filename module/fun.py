@@ -153,96 +153,27 @@ Play a funky trivia game with your friends.
 Usage: g trivia
         '''
         chan = state.message.channel
-        url = "https://opentdb.com/api.php?amount=1"
-        try:
-            response = await host.http_get_request(url)
-        except HTTPNotFoundException:
-            await chan.send("Failed to fetch trivia data.")
-            return
-        status = response['status']
-        if status >= 200 and status < 300:
-            triv = json.loads(response['text'])['results'][0]
-            descrip = html.unescape(f"{triv['question']}\n\n")
-            type = triv['type']
-            correct_index = None
-            msg = None
-            # TODO: reduce diffeerences
-            if type == "boolean":
-                correct_index = 0 if triv['correct_answer'] == "True" else 1
-                descrip = "*You have 20 seconds to answer the following question.*\n\nTrue or False:\n\n" + descrip
-                trivia_embed = Embed(title=f"{triv['category']} -- {triv['difficulty']}",
-                                     description=descrip,
-                                     color=0x8050ff)
-                trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
-                char_list = [Fun.TRIVIA_REACTION_LIST[0], Fun.TRIVIA_REACTION_LIST[1]]  # what
-                try:
-                    msg = await host.add_reactions(chan, trivia_embed, host, 20, answer_count=2, char_list=char_list)
-                except MessageDeletedException:
-                    await chan.send("Trivia question deleted.")
-                    if state.message.author.permissions_in(chan).manage_messages:
-                        async with state.host.db.acquire() as conn:
-                            async with conn.cursor() as cur:
-                                cur.callproc("TRIVIACALL", (False, state.message.author.id))  # assume the author is proximal to someone with influence
-                    return
-            elif type == "multiple":
-                answer_array = triv['incorrect_answers']
-                correct_index = random.randint(0, len(answer_array))
-                answer_array.insert(correct_index, triv['correct_answer'])
-                answer_array = list(map(html.unescape, answer_array))
-                descrip = "*You have 20 seconds to answer the following question.*\n\n" + descrip + f"A) {answer_array[0]}\nB) {answer_array[1]}\nC) {answer_array[2]}\nD) {answer_array[3]}\n\n"
-                #
-                #
-                # use the unicode constant for this?
-                #
-                #
-                correct_index += 2
-                trivia_embed = Embed(title=f"{triv['category']} - {triv['difficulty']}",
-                                     description=descrip,
-                                     color=0x8050ff)
-                trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
-                msg = await host.add_reactions(chan, trivia_embed, host, 20, answer_count=4)
-            # refresh the reaction list
-            done = await chan.send("***Time's up!***")
-            msg_reactions = await chan.fetch_message(msg)
-            msg_reactions = msg_reactions.reactions
-            correct_users = []
-            incorrect_users = []
-            for reaction in msg_reactions:
-                if str(reaction) in Fun.TRIVIA_REACTION_LIST:
-                    answer_index = Fun.TRIVIA_REACTION_LIST.index(str(reaction))
-                    async for user in reaction.users():
-                        if not user == host.user:
-                            if answer_index == correct_index:
-                                if user not in incorrect_users:
-                                    correct_users.append(user)
-                            else:
-                                if user in correct_users:
-                                    correct_users.remove(user)
-                                    incorrect_users.append(user)
-                                else:
-                                    incorrect_users.append(user)
-            await done.delete()
-            if (state.message.author not in correct_users and state.message.author not in incorrect_users):
-                incorrect_users.append(state.message.author)
-            if len(correct_users) == 0:
-                await chan.send(f"Sorry, no one answered correctly.\nThe correct answer was {html.unescape(triv['correct_answer'])}.")
-            else:
-                user_ids = map(lambda u: "<@" + str(u.id) + ">", correct_users)
-                # answer array not dependable, we just have to reparse it for now
-
-                # todo: fix that maybe if necessary
-                return_string = f"The correct answer was {html.unescape(triv['correct_answer'])}!\n\nCongratulations to " + ", ".join(user_ids) + " for answering correctly!"
-                await chan.send(return_string)
-            # i dont like this very much but its ok
-            async with host.db.acquire() as conn:
-                async with conn.cursor() as cur:
-                    for user in correct_users:
-                        await cur.callproc("TRIVIACALL", (True, user.id))
-                    for user in incorrect_users:
-                        await cur.callproc("TRIVIACALL", (False, user.id))
-                await conn.commit()  # im retadad
+        correct_users, incorrect_users, triv = await host.tdb_trivia(state.message)
+        if (state.message.author not in correct_users and state.message.author not in incorrect_users):
+            incorrect_users.append(state.message.author)
+        if len(correct_users) == 0:
+            await chan.send(f"Sorry, no one answered correctly.\nThe correct answer was {html.unescape(triv['correct_answer'])}.")
         else:
-            chan.send("Could not fetch trivia questions from server.")
+            user_ids = map(lambda u: "<@" + str(u.id) + ">", correct_users)
+            # answer array not dependable, we just have to reparse it for now
+
+            # todo: fix that maybe if necessary
+            return_string = f"The correct answer was {html.unescape(triv['correct_answer'])}!\n\nCongratulations to " + ", ".join(user_ids) + " for answering correctly!"
+            await chan.send(return_string)
+        # i dont like this very much but its ok
+        async with host.db.acquire() as conn:
+            async with conn.cursor() as cur:
+                for user in correct_users:
+                    await cur.callproc("TRIVIACALL", (True, user.id))
+                for user in incorrect_users:
+                    await cur.callproc("TRIVIACALL", (False, user.id))
+            await conn.commit()  # im retadad
+
 
     @Command.cooldown(scope=Scope.CHANNEL, time=10, type=Scope.TIME)
     @Command.register(name="poll")
@@ -294,7 +225,7 @@ g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
         description += "\n*Created on " + time.strftime("%B %d %Y, %H:%M:%S ", time.gmtime()) + "UTC*"
         question_embed = Embed(title=question, description=description, color=0x8050ff)
         try:
-            poll_id = await host.add_reactions(chan, question_embed, host, timer, answer_count=answer_count, descrip=question)
+            poll_id = await host.add_reactions(chan, question_embed, timer, answer_count=answer_count, descrip=question)
         except MessageDeletedException:
             await chan.send(f"The poll for *{question}* was deleted.")
         poll = await chan.fetch_message(poll_id)
