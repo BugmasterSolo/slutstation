@@ -94,6 +94,7 @@ class Government(Client):
 
     async def on_ready(self):
         await self.change_presence(activity=Game(name="mike craft"))
+        print(f"Connected to {len(self.guilds)} servers!")
 
     async def on_message(self, message):
         if message.author.id != self.user.id:
