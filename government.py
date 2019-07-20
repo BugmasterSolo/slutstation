@@ -425,7 +425,7 @@ discord.User author             - The user that posted the relevant request.
                                 else:
                                     incorrect_users.append(user)
             await done.delete()
-            return (correct_users, incorrect_users, None)
+            return (correct_users, incorrect_users, triv)
 
 
 def load_token():
