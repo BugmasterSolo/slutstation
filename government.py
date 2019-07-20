@@ -379,7 +379,7 @@ discord.User author             - The user that posted the relevant request.
                     if msg.author.permissions_in(msg.channel).manage_messages:
                         async with self.db.acquire() as conn:
                             async with conn.cursor() as cur:
-                                cur.callproc("TRIVIACALL", (False, msg.author.id))  # assume the author is proximal to someone with influence
+                                await cur.callproc("TRIVIACALL", (False, msg.author.id))  # assume the author is proximal to someone with influence
                     return
             elif type == "multiple":
                 answer_array = triv['incorrect_answers']
@@ -404,7 +404,7 @@ discord.User author             - The user that posted the relevant request.
                     if msg.author.permissions_in(msg.channel).manage_messages:
                         async with self.db.acquire() as conn:
                             async with conn.cursor() as cur:
-                                cur.callproc("TRIVIACALL", (False, msg.author.id))  # assume the author is proximal to someone with influence
+                                await cur.callproc("TRIVIACALL", (False, msg.author.id))  # assume the author is proximal to someone with influence
                     return
             # refresh the reaction list
             done = await msg.channel.send("***Time's up!***")
