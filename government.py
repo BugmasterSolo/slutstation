@@ -377,10 +377,9 @@ discord.User author             - The user that posted the relevant request.
                 except MessageDeletedException:
                     await msg.channel.send("Trivia question deleted.")
                     if msg.author.permissions_in(msg.channel).manage_messages:
-                        async with self.db.acquire() as conn:
-                            async with conn.cursor() as cur:
-                                await cur.callproc("TRIVIACALL", (False, msg.author.id))  # assume the author is proximal to someone with influence
-                    return
+                        correct_users = []
+                        incorrect_users = [msg.author]
+                        return (correct_users, incorrect_users, triv)
             elif type == "multiple":
                 answer_array = triv['incorrect_answers']
                 correct_index = random.randint(0, len(answer_array))
@@ -402,10 +401,9 @@ discord.User author             - The user that posted the relevant request.
                 except MessageDeletedException:
                     await msg.channel.send("Trivia question deleted.")
                     if msg.author.permissions_in(msg.channel).manage_messages:
-                        async with self.db.acquire() as conn:
-                            async with conn.cursor() as cur:
-                                await cur.callproc("TRIVIACALL", (False, msg.author.id))  # assume the author is proximal to someone with influence
-                    return
+                        correct_users = []
+                        incorrect_users = [msg.author]
+                        return (correct_users, incorrect_users, None)
             # refresh the reaction list
             done = await msg.channel.send("***Time's up!***")
             poll = await msg.channel.fetch_message(poll)  # update message data
@@ -427,7 +425,7 @@ discord.User author             - The user that posted the relevant request.
                                 else:
                                     incorrect_users.append(user)
             await done.delete()
-            return (correct_users, incorrect_users, triv)
+            return (correct_users, incorrect_users, None)
 
 
 def load_token():

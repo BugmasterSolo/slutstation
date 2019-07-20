@@ -160,17 +160,21 @@ Usage: g trivia
         '''
         chan = state.message.channel
         correct_users, incorrect_users, triv = await host.tdb_trivia(state.message)
-        if (state.message.author not in correct_users and state.message.author not in incorrect_users):
-            incorrect_users.append(state.message.author)
-        if len(correct_users) == 0:
-            await chan.send(f"Sorry, no one answered correctly.\nThe correct answer was {html.unescape(triv['correct_answer'])}.")
-        else:
-            user_ids = map(lambda u: "<@" + str(u.id) + ">", correct_users)
-            # answer array not dependable, we just have to reparse it for now
+        if triv is not None:  # something went wrong
+        # note: fix other none checks, oops
+            if (state.message.author not in correct_users and state.message.author not in incorrect_users):
+                incorrect_users.append(state.message.author)
+            if len(correct_users) == 0:
+                await chan.send(f"Sorry, no one answered correctly.\nThe correct answer was {html.unescape(triv['correct_answer'])}.")
+            else:
+                user_ids = map(lambda u: "<@" + str(u.id) + ">", correct_users)
+                # answer array not dependable, we just have to reparse it for now
 
-            # todo: fix that maybe if necessary
-            return_string = f"The correct answer was {html.unescape(triv['correct_answer'])}!\n\nCongratulations to " + ", ".join(user_ids) + " for answering correctly!"
-            await chan.send(return_string)
+                # todo: fix that maybe if necessary
+                return_string = f"The correct answer was {html.unescape(triv['correct_answer'])}!\n\nCongratulations to " + ", ".join(user_ids) + " for answering correctly!"
+                await chan.send(return_string)
+        else:
+            await chan.send("Command caller marked as incorrect.")
         # i dont like this very much but its ok
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
