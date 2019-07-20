@@ -397,7 +397,15 @@ discord.User author             - The user that posted the relevant request.
                                      description=descrip,
                                      color=0x8050ff)
                 trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
-                poll = await self.add_reactions(msg.channel, trivia_embed, 20, answer_count=4)
+                try:
+                    poll = await self.add_reactions(msg.channel, trivia_embed, 20, answer_count=4)
+                except MessageDeletedException:
+                    await msg.channel.send("Trivia question deleted.")
+                    if msg.author.permissions_in(msg.channel).manage_messages:
+                        async with self.db.acquire() as conn:
+                            async with conn.cursor() as cur:
+                                cur.callproc("TRIVIACALL", (False, msg.author.id))  # assume the author is proximal to someone with influence
+                    return
             # refresh the reaction list
             done = await msg.channel.send("***Time's up!***")
             poll = await msg.channel.fetch_message(poll)  # update message data

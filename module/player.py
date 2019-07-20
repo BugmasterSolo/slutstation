@@ -290,6 +290,8 @@ If paused, resumes playback.
 Usage:
 g play (<valid URL> or <search query>)
         '''
+        # TODO: double prints at times -- check out syntax for invalid urls.
+        # PLUS: look into better arrow handling
         # call the proper instance of ytdl
         chan = state.message.channel
         msg = await chan.send("`Searching...`")
