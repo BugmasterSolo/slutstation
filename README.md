@@ -1,5 +1,7 @@
 ![bot pic](https://raw.githubusercontent.com/jamieboy1337/slutstation/master/botimage.png)
 
+[![Discord Bots](https://discordbots.org/api/widget/status/564180091676917781.svg)](https://discordbots.org/bot/564180091676917781)
+
 (credit to artist of)
 
 # government
