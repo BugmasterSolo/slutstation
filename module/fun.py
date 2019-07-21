@@ -5,7 +5,6 @@ from discord import Status, Embed
 import time
 import random
 import json
-import asyncio
 import html
 import re
 from string import ascii_uppercase as letters
@@ -104,7 +103,11 @@ g pushup <int>
         if len(args) == 0:
             await state.message.channel.send("bro no flex")
             return
-        count = int(float(args[0]) + 1)
+        try:
+            count = int(float(args[0]) + 1)
+        except ValueError:
+            await state.message.channel.send("no digits? no time")
+            return
         await state.message.channel.send(f"that's cool but i can do {count} pushups")
 
     @Command.register(name="roll")
@@ -161,7 +164,7 @@ Usage: g trivia
         chan = state.message.channel
         correct_users, incorrect_users, triv = await host.tdb_trivia(state.message)
         if triv is not None:  # something went wrong
-        # note: fix other none checks, oops
+            # note: fix other none checks, oops
             if (state.message.author not in correct_users and state.message.author not in incorrect_users):
                 incorrect_users.append(state.message.author)
             if len(correct_users) == 0:
@@ -174,6 +177,7 @@ Usage: g trivia
                 return_string = f"The correct answer was {html.unescape(triv['correct_answer'])}!\n\nCongratulations to " + ", ".join(user_ids) + " for answering correctly!"
                 await chan.send(return_string)
         # i dont like this very much but its ok
+        # create a stack of awaitables to call?
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
                 for user in correct_users:
@@ -181,7 +185,6 @@ Usage: g trivia
                 for user in incorrect_users:
                     await cur.callproc("TRIVIACALL", (False, user.id))
             await conn.commit()  # im retadad
-
 
     @Command.cooldown(scope=Scope.CHANNEL, time=10, type=Scope.TIME)
     @Command.register(name="poll")
