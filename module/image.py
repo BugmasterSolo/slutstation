@@ -349,12 +349,14 @@ class Cruncher(ImageQueueable):
         return finale
 
     def apply_crunch_lazy(img, scale, debug=False):
-        '''Faster seam carve function that runs a ton faster but crunches it up all nasty'''
+        '''Faster seam carve function that runs better but crunches it up all nasty'''
         print("starting")
         img, size = ImageQueueable.apply_filter(img, maxsize=640)  # oop
         if scale > 0.9:
             scale = 0.9
         size_target = int(size[0] * scale)
+        if size_target <= 0:
+            return img
         kernelX = img.filter(ImageFilter.Kernel((3, 3), Cruncher.SOBEL_X, scale=1))
         kernelY = img.filter(ImageFilter.Kernel((3, 3), Cruncher.SOBEL_Y, scale=1))
         kernelXInv = img.filter(ImageFilter.Kernel((3, 3), Cruncher.SOBEL_X_INV, scale=1))
@@ -369,8 +371,11 @@ class Cruncher(ImageQueueable):
         try:
             for _ in range(size_target):
                 x_min = random.randint(0, size[0] - 1)
-                while data[x_min, 0][3] == 128:
-                    x_min = random.randint(0, size[0] - 1)
+                try:
+                    while data[x_min, 0][3] == 128:
+                        x_min = random.randint(0, size[0] - 1)
+                except TypeError:
+                    return img  # sometimes happens -- my guess is that the image becomes too small so just pass it on for now i guess
                 col_temp = data[x_min, 0]
                 data[x_min, 0] = (col_temp[0], col_temp[1], col_temp[2], 128)
                 for row in range(1, size[1]):

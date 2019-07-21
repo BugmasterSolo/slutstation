@@ -123,9 +123,9 @@ class TriviaConvo(MultiConvo):
                     task_list.append(asyncio.create_task(self.channel_list[i].send(f"The trivia message was deleted. No users were counted as correct.")))
                 else:
                     correct = len(results[0])
-                    sum = correct + len(results[1])
-                    result_list[i] = max(result_list[i], sum)
-                    self.trivia_history[i].append((correct, sum))
+                    q_sum = correct + len(results[1])
+                    result_list[i] = max(result_list[i], q_sum)
+                    self.trivia_history[i].append((correct, q_sum))
                     task_list.append(asyncio.create_task(self.channel_list[i].send(f"{trivia_temp_string}\n{correct} users answered correctly!")))
             await asyncio.sleep(5)
         # game over. handle results here
