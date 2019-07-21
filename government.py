@@ -348,88 +348,93 @@ discord.User author             - The user that posted the relevant request.
                     "text": text
                 }
 
-    async def tdb_trivia(self, msg):
+    async def fetch_trivia(self):
         TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001f1e6", "\U0001f1e7", "\U0001f1e8", "\U0001f1e9")
         url = "https://opentdb.com/api.php?amount=1"
-        try:
-            response = await self.http_get_request(url)
-        except HTTPNotFoundException:
-            await msg.channel.send("Failed to fetch trivia data.")
-            return
+        response = await self.http_get_request(url)
         status = response['status']
         if status >= 200 and status < 300:
             triv = json.loads(response['text'])['results'][0]
-            descrip = html.unescape(f"{triv['question']}\n\n")
-            type = triv['type']
-            correct_index = None
-            poll = None
-            # TODO: reduce diffeerences
-            if type == "boolean":
-                correct_index = 0 if triv['correct_answer'] == "True" else 1
-                descrip = "*You have 20 seconds to answer the following question.*\n\nTrue or False:\n\n" + descrip
-                trivia_embed = Embed(title=f"{triv['category']} -- {triv['difficulty']}",
-                                     description=descrip,
-                                     color=0x8050ff)
-                trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
-                char_list = [TRIVIA_REACTION_LIST[0], TRIVIA_REACTION_LIST[1]]  # what
-                try:
-                    poll = await self.add_reactions(msg.channel, trivia_embed, 20, answer_count=2, char_list=char_list)
-                except MessageDeletedException:
-                    await msg.channel.send("Trivia question deleted.")
-                    if msg.author.permissions_in(msg.channel).manage_messages:
-                        correct_users = []
-                        incorrect_users = [msg.author]
-                        return (correct_users, incorrect_users, None)
-                    else:
-                        return([], [], None)
-            elif type == "multiple":
-                answer_array = triv['incorrect_answers']
-                correct_index = random.randint(0, len(answer_array))
-                answer_array.insert(correct_index, triv['correct_answer'])
-                answer_array = list(map(html.unescape, answer_array))
-                descrip = "*You have 20 seconds to answer the following question.*\n\n" + descrip + f"A) {answer_array[0]}\nB) {answer_array[1]}\nC) {answer_array[2]}\nD) {answer_array[3]}\n\n"
-                #
-                #
-                # use the unicode constant for this?
-                #
-                #
-                correct_index += 2
-                trivia_embed = Embed(title=f"{triv['category']} - {triv['difficulty']}",
-                                     description=descrip,
-                                     color=0x8050ff)
-                trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
-                try:
-                    poll = await self.add_reactions(msg.channel, trivia_embed, 20, answer_count=4)
-                except MessageDeletedException:
-                    await msg.channel.send("Trivia question deleted.")
-                    if msg.author.permissions_in(msg.channel).manage_messages:
-                        correct_users = []
-                        incorrect_users = [msg.author]
-                        return (correct_users, incorrect_users, None)
-                    else:
-                        return([], [], None)
-            # refresh the reaction list
-            done = await msg.channel.send("***Time's up!***")
-            poll = await msg.channel.fetch_message(poll)  # update message data
-            msg_reactions = poll.reactions
-            correct_users = []
-            incorrect_users = []
-            for reaction in msg_reactions:
-                if str(reaction) in TRIVIA_REACTION_LIST:
-                    answer_index = TRIVIA_REACTION_LIST.index(str(reaction))
-                    async for user in reaction.users():
-                        if not user == self.user:
-                            if answer_index == correct_index:
-                                if user not in incorrect_users:
-                                    correct_users.append(user)
+            triv['question'] = html.unescape(f"{triv['question']}\n\n")
+            return triv
+        else:
+            raise HTTPNotFoundException("Failed to fetch trivia data.")
+
+    async def tdb_trivia(self, msg, triv=None):
+        TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001f1e6", "\U0001f1e7", "\U0001f1e8", "\U0001f1e9")
+        if triv is None:
+            triv = await self.fetch_trivia()
+        type = triv['type']
+        descrip = triv['question']
+        correct_index = None
+        poll = None
+        # TODO: reduce diffeerences
+        if type == "boolean":
+            correct_index = 0 if triv['correct_answer'] == "True" else 1
+            descrip = "*You have 20 seconds to answer the following question.*\n\nTrue or False:\n\n" + descrip
+            trivia_embed = Embed(title=f"{triv['category']} -- {triv['difficulty']}",
+                                 description=descrip,
+                                 color=0x8050ff)
+            trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
+            char_list = [TRIVIA_REACTION_LIST[0], TRIVIA_REACTION_LIST[1]]  # what
+            try:
+                poll = await self.add_reactions(msg.channel, trivia_embed, 20, answer_count=2, char_list=char_list)
+            except MessageDeletedException:
+                await msg.channel.send("Trivia question deleted.")
+                if msg.author.permissions_in(msg.channel).manage_messages:
+                    correct_users = []
+                    incorrect_users = [msg.author]
+                    return (correct_users, incorrect_users, None)
+                else:
+                    return([], [], None)
+        elif type == "multiple":
+            answer_array = triv['incorrect_answers']
+            correct_index = random.randint(0, len(answer_array))
+            answer_array.insert(correct_index, triv['correct_answer'])
+            answer_array = list(map(html.unescape, answer_array))
+            descrip = "*You have 20 seconds to answer the following question.*\n\n" + descrip + f"A) {answer_array[0]}\nB) {answer_array[1]}\nC) {answer_array[2]}\nD) {answer_array[3]}\n\n"
+            #
+            #
+            # use the unicode constant for this?
+            #
+            #
+            correct_index += 2
+            trivia_embed = Embed(title=f"{triv['category']} - {triv['difficulty']}",
+                                 description=descrip,
+                                 color=0x8050ff)
+            trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
+            try:
+                poll = await self.add_reactions(msg.channel, trivia_embed, 20, answer_count=4)
+            except MessageDeletedException:
+                await msg.channel.send("Trivia question deleted.")
+                if msg.author.permissions_in(msg.channel).manage_messages:
+                    correct_users = []
+                    incorrect_users = [msg.author]
+                    return (correct_users, incorrect_users, None)
+                else:
+                    return([], [], None)
+        # refresh the reaction list
+        done = await msg.channel.send("***Time's up!***")
+        poll = await msg.channel.fetch_message(poll)  # update message data
+        msg_reactions = poll.reactions
+        correct_users = []
+        incorrect_users = []
+        for reaction in msg_reactions:
+            if str(reaction) in TRIVIA_REACTION_LIST:
+                answer_index = TRIVIA_REACTION_LIST.index(str(reaction))
+                async for user in reaction.users():
+                    if not user == self.user:
+                        if answer_index == correct_index:
+                            if user not in incorrect_users:
+                                correct_users.append(user)
+                        else:
+                            if user in correct_users:
+                                correct_users.remove(user)
+                                incorrect_users.append(user)
                             else:
-                                if user in correct_users:
-                                    correct_users.remove(user)
-                                    incorrect_users.append(user)
-                                else:
-                                    incorrect_users.append(user)
-            await done.delete()
-            return (correct_users, incorrect_users, triv)
+                                incorrect_users.append(user)
+        await done.delete()
+        return (correct_users, incorrect_users, triv)
 
 
 def load_token():

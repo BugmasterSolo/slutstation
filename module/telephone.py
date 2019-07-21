@@ -6,9 +6,19 @@ from discord.errors import Forbidden
 # TODO: SERVER JEOPARDY! waiting out asyncs to allow servers to guess for an answer
 # additionally: using telephone as scaffolding for multiplayer trivia
 
-# todo: break up the convo
 
 class Convo:
+    def check_channels(self, chan):
+        return False
+
+    def process_message(self, state):
+        pass
+
+    def end_call(self):
+        pass
+
+
+class Teleconvo(Convo):
     def __init__(self, message1, message2, cmdhost):
         self.host = cmdhost
         self.end_a = {
@@ -49,7 +59,7 @@ class Convo:
         await destination.send(msg)
         await self.timeout_loop()
 
-    async def end_call(self):
+    async def end_call(self, chan):
         self.message_status.set()
 
         ta = asyncio.create_task(self.end_a['channel'].send("**Conversation closed.**"))
@@ -62,6 +72,135 @@ class Convo:
         print(self.host.calllist)
 
 
+class MultiConvo(Convo):
+    def __init__(self, host, message_list):
+        self.host = host
+        self.party_size = len(message_list)
+        self.channel_list = [m.channel for m in message_list]
+
+    def check_channels(self, chan):
+        return chan in self.channel_list
+
+
+class TriviaConvo(MultiConvo):
+    '''Rules:
+- Each question must be answered by at least 50% of participants.
+- Deleted questions will be penalized based on 50% of the maximum number of respondants to a question.
+  therefore it is in your best interest to answer every question.
+'''
+
+    QUESTION_COUNT = 5
+
+    def __init__(self, host, message_list):
+        super().__init__(host, message_list)
+        self.msg_list = message_list
+        self.trivia_history = self.party_size * [[]]
+        self.accept_messages = False
+        asyncio.create_task(self.trivia_loop())
+        # implement communication in between questions? 30 second window with a bool flag to track
+
+    async def trivia_loop(self):
+        result_list = self.party_size * [0]
+        for q in range(self.QUESTION_COUNT):
+            task_list = []
+            triv = self.host.fetch_trivia()
+            for m in range(self.party_size):
+                task_list.append(asyncio.create_task(self.host.tdb_trivia(self.msg_list[m], triv)))
+            trivia_results = await asyncio.gather(task_list)
+            print(trivia_results)
+            for i in range(self.party_size):
+                # in this situation, deleted messages should be treated as server-wide wrong answers.
+                # they will receive a 0 / (max participants in a question), making their weight at least 20%.
+                # thankfully we can detect this if trivia is set to none
+                results = trivia_results[i]
+                if results[2] is None:
+                    self.trivia_history[i].append((0, -1))  # placeholder to be resolved in the future
+                else:
+                    correct = len(results[0])
+                    incorrect = len(results[1])
+                    sum = correct + incorrect
+                    result_list[i] = max(result_list[i], sum)
+                    self.trivia_history[i].append((correct, sum))
+        # game over. handle results here
+        for i in range(self.party_size):
+            max_users = result_list[i]
+            half_users = int(max_users / 2)
+            correct_sum = 0
+            placeholders = 0
+            submission_sum = 0
+            for j in range(self.QUESTION_COUNT):
+                q_correct = self.trivia_history[i][j][0]
+                q_sum = self.trivia_history[i][j][1]
+                if q_sum < 0:
+                    placeholders += 1
+                    q_sum = 0
+                submission_sum += max(half_users, q_sum)
+                correct_sum += q_correct
+            submission_sum += (max_users * placeholders)
+            result_list[i] = TriviaData(i, correct_sum / submission_sum, max_users)
+        result_list.sort(reverse=True)
+        # results parsed. display to users
+        # indices correspond with message list, use channel prop to send out results!
+        result_string = ""
+        for res in range(self.party_size):
+            result_string += "#{res + 1}: {self.msg_list[res.index].guild.name} -- {res.ratio:.2f}%\n"
+            # might want to parse this elsewhere, but building several user strings is unweildy
+        task_list = []
+        for res in range(self.party_size):  # iterate again to send finished string
+            chan = self.msg_list[result_list[res].index].channel
+            task_list.append(chan.send("**Your server finished #{res + 1}!**\n\n" + result_string))
+        await asyncio.wait(task_list)
+        await asyncio.sleep(10)
+        asyncio.create_task(self.end_call())
+
+    async def process_message(self, state):
+        if self.accept_messages:
+            pass
+        else:
+            pass
+
+    async def end_call(self, chan):
+        task_list = []
+        for chan in self.channel_list:
+            task_list.append(asyncio.create_task(chan.send("**Trivia game ended.")))
+
+        await asyncio.wait(task_list)
+
+        for chan in self.channel_list:
+            self.host.calllist.pop(chan.guild.id)
+        print(self.host.calllist)
+
+
+
+class TriviaData:
+    def __init__(self, index, ratio, users):
+        self.index = index
+        self.ratio = ratio
+        self.user_count = users
+
+    def __eq__(self, other):
+        return self.ratio == other.ratio and self.user_count == other.user_count
+
+    def __lt__(self, other):
+        if (self.ratio == other.ratio):
+            return self.user_count < other.user_count
+        return self.ratio < other.ratio
+
+    def __gt__(self, other):
+        if (self.ratio == other.ratio):
+            return self.user_count > other.user_count
+        return self.ratio > other.ratio
+
+    def __ge__(self, other):
+        return not self.__lt__(self, other)
+
+    def __le__(self, other):
+        return not self.__gt__(self, other)
+
+    def __ne__(self, other):
+        return not self.__eq__(self, other)
+
+
 class Telephone(Module):
     # TODO: segregate sfw/nsfw
     def __init__(self, host):  # TODO: host instance not necessary
@@ -69,6 +208,7 @@ class Telephone(Module):
         # potentially managing hundreds of server connections at a time -- how to streamline it?
         self.userqueue = []
         self.userqueue_nsfw = []
+        self.userqueue_trivia = []
         # might be necessary later to lay out more discriminators and do some more complex set logic
         self.calllist = {}
 
@@ -79,6 +219,41 @@ class Telephone(Module):
         if call and not is_cmd and call.check_channels(state.message.channel):
             await call.process_message(state)
         return self == state.command_host
+
+    @Command.register(name="multitrivia")
+    async def multitrivia(host, state):
+        '''Take on some trivia masters. Indiscriminate for now, until we get game chat working.'''
+        USER_THRESHOLD = 2
+        target = state.message.channel
+        # TODO: implement this into a common method
+        try:
+            await target.send("*Added to call queue!*")  # check if we can post here -- if not, don't bother
+        except Forbidden:
+            print("call blocked due to permissions errors")
+            return
+        if state.command_host.calllist.get(state.message.guild.id, None):
+            await target.send("You're already in a communication channel!")
+            return
+
+        valid_channels = state.command_host.userqueue_trivia
+        for queueitem in valid_channels:
+            if queueitem[1] == target.guild:
+                await target.send("You're already waiting for a channel on this server!")
+                return
+        if len(valid_channels) >= (USER_THRESHOLD - 1):
+            participant_list = [state.message]
+            task_list = [asyncio.create_task(target.send("*The trivia game is about to begin!*"))]
+            for i in range(USER_THRESHOLD - 1):
+                msg = valid_channels.pop(0)
+                participant_list.append(msg)
+                task_list.append(asyncio.create_task(msg.channel.send("*The trivia game is about to begin!*")))
+            await asyncio.wait(task_list)  # ensure all channels have received this
+            await asyncio.sleep(5)
+            t_convo = TriviaConvo(state.command_host, participant_list)
+            for msg in participant_list:
+                state.command_host.calllist[msg.guild.id] = t_convo
+        else:
+            state.command_host.userqueue_trivia.append((target, target.guild))
 
     @Command.register(name="telephone")
     async def telephone(host, state):
@@ -98,29 +273,30 @@ g telephone
             print("call blocked due to permissions errors")
             return
         if state.command_host.calllist.get(state.message.guild.id, None):
-            await target.send("You're already in a call here!")
+            await target.send("You're already in a communication channel!")
             return
         # config
         if target.nsfw:
             valid_channels = state.command_host.userqueue_nsfw
         else:
             valid_channels = state.command_host.userqueue
-        if (target, target.guild) in valid_channels:  # TODO: ehehe
-            await target.send("You're already waiting for a call on this server!")
-            return
+        for queueitem in valid_channels:
+            if queueitem[1] == target.guild:
+                await target.send("You're already waiting for a channel on this server!")
+                return
         if valid_channels:
-            pardner = state.command_host.userqueue.pop(0)
+            pardner = valid_channels.pop(0)
             # TODO: better way to deliver this data and avoid the list comprehension step, maybe just storing the channel as a value to a guild list dict?
             c1 = asyncio.create_task(target.send("***Connected to a random place in cyberspace...***"))
             c2 = asyncio.create_task(pardner.channel.send("***Connected to a random place in cyberspace...***"))
 
             await asyncio.wait([c1, c2])
-            convo = Convo(state.message, pardner, state.command_host)
+            convo = Teleconvo(state.message, pardner, state.command_host)
             state.command_host.calllist[pardner.guild.id] = convo
             state.command_host.calllist[state.message.guild.id] = convo
             # task creation
         else:
-            state.command_host.userqueue.append((state.message.channel, state.message.guild))
+            state.command_host.userqueue.append((target, target.guild))
 
     @Command.register(name="hangup")
     async def hangup(host, state):
@@ -130,14 +306,23 @@ Hangs up the phone. Don't worry, the other person won't see it. Alternatively, r
 Usage:
 g hangup
         '''
-        call = state.command_host.calllist.get(state.message.guild.id, None)
-        if call and call.check_channels(state.message.channel):
-            await call.end_call()
+        chan = state.message.channel
+        call = state.command_host.calllist.get(chan.guild.id, None)
+        if call and call.check_channels(chan):
+            await call.end_call(chan)
         else:
-            user_dupes = [m for m in state.command_host.userqueue if m[1].id == state.message.guild.id]  # TODO: ohoho
-            if user_dupes:
-                for m in user_dupes:
-                    state.command_host.userqueue.remove(m)
-                await state.message.channel.send("Removed from queue.")
+            if chan.nsfw:
+                valid_channels = state.command_host.userqueue_nsfw
             else:
-                await state.message.channel.send("You are not in the message queue!")
+                valid_channels = state.command_host.userqueue
+            for q in valid_channels:
+                if q[1] == chan.guild:
+                    valid_channels.remove(q)
+                    await chan.send("Removed from telephone queue.")
+                    return
+            for q in state.command_host.userqueue_trivia:
+                if q[1] == chan.guild:
+                    state.command_host.userqueue_trivia.remove(q)
+                    await chan.send("Removed from trivia queue.")
+                    return
+            await chan.send("You are not in any queue!")
