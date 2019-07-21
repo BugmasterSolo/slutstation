@@ -356,6 +356,13 @@ discord.User author             - The user that posted the relevant request.
         if status >= 200 and status < 300:
             triv = json.loads(response['text'])['results'][0]
             triv['question'] = html.unescape(f"{triv['question']}\n\n")
+            if triv['type'] == "boolean":
+                correct_index = 0 if triv['correct_answer'] == "True" else 1
+            else:
+                correct_index = random.randint(0, len(triv['incorrect_answers']))
+                triv['incorrect_answers'].insert(correct_index, triv['correct_answer'])
+                triv['incorrect_answers'] = list(map(html.unescape, triv['incorrect_answers']))
+            triv['correct_index'] = correct_index
             return triv
         else:
             raise HTTPNotFoundException("Failed to fetch trivia data.")
@@ -366,7 +373,7 @@ discord.User author             - The user that posted the relevant request.
             triv = await self.fetch_trivia()
         type = triv['type']
         descrip = triv['question']
-        correct_index = None
+        correct_index = triv['correct_index']
         poll = None
         # TODO: reduce diffeerences
         if type == "boolean":
@@ -389,9 +396,6 @@ discord.User author             - The user that posted the relevant request.
                     return([], [], None)
         elif type == "multiple":
             answer_array = triv['incorrect_answers']
-            correct_index = random.randint(0, len(answer_array))
-            answer_array.insert(correct_index, triv['correct_answer'])
-            answer_array = list(map(html.unescape, answer_array))
             descrip = "*You have 20 seconds to answer the following question.*\n\n" + descrip + f"A) {answer_array[0]}\nB) {answer_array[1]}\nC) {answer_array[2]}\nD) {answer_array[3]}\n\n"
             #
             #

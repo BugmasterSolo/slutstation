@@ -19,16 +19,16 @@ class Convo:
 
 
 class Teleconvo(Convo):
-    def __init__(self, message1, message2, cmdhost):
+    def __init__(self, chan1, chan2, cmdhost):
         self.host = cmdhost
         self.end_a = {
-            'channel': message1[0],
-            'guild': message1[1]
+            'channel': chan1,
+            'guild': chan1.guild
         }
 
         self.end_b = {
-            'channel': message2[0],
-            'guild': message2[1]
+            'channel': chan2,
+            'guild': chan2.guild
         }
         self.message_status = asyncio.Event()
         asyncio.create_task(self.timeout_loop())
@@ -91,11 +91,14 @@ class TriviaConvo(MultiConvo):
 
     QUESTION_COUNT = 5
 
-    def __init__(self, host, message_list):
+    def __init__(self, host, message_list, gov):
+        print(host)
+        print(gov)
         super().__init__(host, message_list)
         self.msg_list = message_list
-        self.trivia_history = self.party_size * [[]]
+        self.trivia_history = [[] for n in range(self.party_size)]
         self.accept_messages = False
+        self.gov = gov
         asyncio.create_task(self.trivia_loop())
         # implement communication in between questions? 30 second window with a bool flag to track
 
@@ -103,24 +106,28 @@ class TriviaConvo(MultiConvo):
         result_list = self.party_size * [0]
         for q in range(self.QUESTION_COUNT):
             task_list = []
-            triv = self.host.fetch_trivia()
+            triv = await self.gov.fetch_trivia()
             for m in range(self.party_size):
-                task_list.append(asyncio.create_task(self.host.tdb_trivia(self.msg_list[m], triv)))
-            trivia_results = await asyncio.gather(task_list)
-            print(trivia_results)
+                task_list.append(asyncio.create_task(self.gov.tdb_trivia(self.msg_list[m], triv)))
+            trivia_results = await asyncio.gather(*task_list)
+            task_list = []
+            trivia_temp_string = f"The correct answer was {triv['correct_answer']}."
             for i in range(self.party_size):
                 # in this situation, deleted messages should be treated as server-wide wrong answers.
                 # they will receive a 0 / (max participants in a question), making their weight at least 20%.
                 # thankfully we can detect this if trivia is set to none
                 results = trivia_results[i]
+                print(results)
                 if results[2] is None:
                     self.trivia_history[i].append((0, -1))  # placeholder to be resolved in the future
+                    task_list.append(asyncio.create_task(self.channel_list[i].send(f"The trivia message was deleted. No users were counted as correct.")))
                 else:
                     correct = len(results[0])
-                    incorrect = len(results[1])
-                    sum = correct + incorrect
+                    sum = correct + len(results[1])
                     result_list[i] = max(result_list[i], sum)
                     self.trivia_history[i].append((correct, sum))
+                    task_list.append(asyncio.create_task(self.channel_list[i].send(f"{trivia_temp_string}\n{correct} users answered correctly!")))
+            await asyncio.sleep(5)
         # game over. handle results here
         for i in range(self.party_size):
             max_users = result_list[i]
@@ -137,21 +144,24 @@ class TriviaConvo(MultiConvo):
                 submission_sum += max(half_users, q_sum)
                 correct_sum += q_correct
             submission_sum += (max_users * placeholders)
-            result_list[i] = TriviaData(i, correct_sum / submission_sum, max_users)
+            ratio = 0
+            if submission_sum > 0:
+                ratio = 100 * correct_sum / submission_sum
+            result_list[i] = TriviaData(i, ratio, max_users)
         result_list.sort(reverse=True)
         # results parsed. display to users
         # indices correspond with message list, use channel prop to send out results!
         result_string = ""
         for res in range(self.party_size):
-            result_string += "#{res + 1}: {self.msg_list[res.index].guild.name} -- {res.ratio:.2f}%\n"
+            result_string += f"#{res + 1}: {self.msg_list[result_list[res].index].guild.name} -- {result_list[res].ratio:.2f}%\n"
             # might want to parse this elsewhere, but building several user strings is unweildy
         task_list = []
         for res in range(self.party_size):  # iterate again to send finished string
             chan = self.msg_list[result_list[res].index].channel
-            task_list.append(chan.send("**Your server finished #{res + 1}!**\n\n" + result_string))
+            task_list.append(chan.send(f"**Your server finished #{res + 1}!**\n\n" + result_string))
         await asyncio.wait(task_list)
         await asyncio.sleep(10)
-        asyncio.create_task(self.end_call())
+        asyncio.create_task(self.end_call(None))
 
     async def process_message(self, state):
         if self.accept_messages:
@@ -162,7 +172,7 @@ class TriviaConvo(MultiConvo):
     async def end_call(self, chan):
         task_list = []
         for chan in self.channel_list:
-            task_list.append(asyncio.create_task(chan.send("**Trivia game ended.")))
+            task_list.append(asyncio.create_task(chan.send("**Trivia game ended.**")))
 
         await asyncio.wait(task_list)
 
@@ -204,7 +214,7 @@ class TriviaData:
 class Telephone(Module):
     # TODO: segregate sfw/nsfw
     def __init__(self, host):  # TODO: host instance not necessary
-        super().__init__(self, host)
+        super().__init__(host)
         # potentially managing hundreds of server connections at a time -- how to streamline it?
         self.userqueue = []
         self.userqueue_nsfw = []
@@ -222,6 +232,7 @@ class Telephone(Module):
 
     @Command.register(name="multitrivia")
     async def multitrivia(host, state):
+        print(host)
         '''Take on some trivia masters. Indiscriminate for now, until we get game chat working.'''
         USER_THRESHOLD = 2
         target = state.message.channel
@@ -244,16 +255,16 @@ class Telephone(Module):
             participant_list = [state.message]
             task_list = [asyncio.create_task(target.send("*The trivia game is about to begin!*"))]
             for i in range(USER_THRESHOLD - 1):
-                msg = valid_channels.pop(0)
+                msg = valid_channels.pop(0)[0]
                 participant_list.append(msg)
                 task_list.append(asyncio.create_task(msg.channel.send("*The trivia game is about to begin!*")))
             await asyncio.wait(task_list)  # ensure all channels have received this
             await asyncio.sleep(5)
-            t_convo = TriviaConvo(state.command_host, participant_list)
+            t_convo = TriviaConvo(state.command_host, participant_list, host)
             for msg in participant_list:
                 state.command_host.calllist[msg.guild.id] = t_convo
         else:
-            state.command_host.userqueue_trivia.append((target, target.guild))
+            state.command_host.userqueue_trivia.append((state.message, target.guild))
 
     @Command.register(name="telephone")
     async def telephone(host, state):
@@ -267,15 +278,6 @@ g telephone
         # TODO: perform some db function to get a user's rep
         # users match with people with roughly their rating or lower
         # if no suitable matches, sit around and wait
-        try:
-            await target.send("*Added to call queue!*")  # check if we can post here -- if not, don't bother
-        except Forbidden:
-            print("call blocked due to permissions errors")
-            return
-        if state.command_host.calllist.get(state.message.guild.id, None):
-            await target.send("You're already in a communication channel!")
-            return
-        # config
         if target.nsfw:
             valid_channels = state.command_host.userqueue_nsfw
         else:
@@ -284,19 +286,28 @@ g telephone
             if queueitem[1] == target.guild:
                 await target.send("You're already waiting for a channel on this server!")
                 return
+        if state.command_host.calllist.get(state.message.guild.id, None):
+            await target.send("You're already in a communication channel!")
+            return
+        try:
+            await target.send("*Added to call queue!*")  # check if we can post here -- if not, don't bother
+        except Forbidden:
+            print("call blocked due to permissions errors")
+            return
+        # config
         if valid_channels:
-            pardner = valid_channels.pop(0)
+            pardner = valid_channels.pop(0)[0]
             # TODO: better way to deliver this data and avoid the list comprehension step, maybe just storing the channel as a value to a guild list dict?
             c1 = asyncio.create_task(target.send("***Connected to a random place in cyberspace...***"))
-            c2 = asyncio.create_task(pardner.channel.send("***Connected to a random place in cyberspace...***"))
+            c2 = asyncio.create_task(pardner.send("***Connected to a random place in cyberspace...***"))
 
             await asyncio.wait([c1, c2])
-            convo = Teleconvo(state.message, pardner, state.command_host)
+            convo = Teleconvo(target, pardner, state.command_host)
             state.command_host.calllist[pardner.guild.id] = convo
             state.command_host.calllist[state.message.guild.id] = convo
             # task creation
         else:
-            state.command_host.userqueue.append((target, target.guild))
+            valid_channels.append((target, target.guild))
 
     @Command.register(name="hangup")
     async def hangup(host, state):
