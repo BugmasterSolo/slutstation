@@ -181,7 +181,6 @@ class TriviaConvo(MultiConvo):
         print(self.host.calllist)
 
 
-
 class TriviaData:
     def __init__(self, index, ratio, users):
         self.index = index
@@ -232,8 +231,15 @@ class Telephone(Module):
 
     @Command.register(name="multitrivia")
     async def multitrivia(host, state):
+        '''
+Take on some trivia masters. Indiscriminate for now, until we get game chat working.
+
+Plays a round of five questions, crowning the winning server by the percentage of correctly answered questions.
+
+If a question is deleted, the server is penalized based on the maximum number of user submissions.
+
+Penalties are present for low participation (avoiding difficult questions), so give it your best shot.'''
         print(host)
-        '''Take on some trivia masters. Indiscriminate for now, until we get game chat working.'''
         USER_THRESHOLD = 2
         target = state.message.channel
         # TODO: implement this into a common method

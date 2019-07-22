@@ -150,6 +150,7 @@ g roll 3d6 2d20 -3 - three six-sided die + two 20-sided die - 3'''
 
     @Command.register(name="uptime")
     async def uptime(host, state):
+        '''Returns how long the bot has been running for since last reset.'''
         uptime = (time.time() - host.uptime) / 86400
         await state.message.channel.send(f"I have been active for {uptime:.2f} days so far!")
 
@@ -301,6 +302,7 @@ Funny little 8ball game for you and friends.
 
     @Command.register(name="night")
     async def night(host, state):
+        '''Wishes you a healthy goodnight message.'''
         msg = state.message
         target = None
         if len(msg.mentions) > 0:
@@ -317,6 +319,7 @@ Funny little 8ball game for you and friends.
 
     @Command.register(name="help")
     async def help(host, state):
+        '''Hey that's me'''
         await state.message.channel.send("http://baboo.mobi/government/help/")
 
     # 32 bit xorshift. used for state dependent PRNG.
