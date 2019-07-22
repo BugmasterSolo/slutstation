@@ -16,7 +16,7 @@ import asyncio
 import sys
 
 import discord
-from discord import Client, Game, Embed
+from discord import Client, Game, Embed, AuditLogAction
 import module
 import time
 import json
@@ -207,6 +207,7 @@ String descrip                  - Text tied to the description.
 discord.User author             - The user that posted the relevant request.
         '''
         poll = await chan.send(embed=embed)
+        polltime = poll.created_at.timestamp()
         # specifics!
         reaction_list = []
         if char_list:
@@ -228,7 +229,7 @@ discord.User author             - The user that posted the relevant request.
         if timer >= 3600:
             await asyncio.sleep(timer - 1800)
             if not await self.message_exists(chan, poll.id):
-                raise MessageDeletedException()
+                raise MessageDeletedException(polltime)
             warning = await chan.send(f"***30 minutes remaining:***\n{descrip}")
             await asyncio.sleep(600)
             await warning.delete()
@@ -236,7 +237,7 @@ discord.User author             - The user that posted the relevant request.
         if timer >= 900:
             await asyncio.sleep(timer - 600)
             if not await self.message_exists(chan, poll.id):
-                raise MessageDeletedException()
+                raise MessageDeletedException(polltime)
             warning = await chan.send(f"***10 minutes remaining:***\n{descrip}")
             await asyncio.sleep(240)
             await warning.delete()
@@ -244,7 +245,7 @@ discord.User author             - The user that posted the relevant request.
         if timer >= 300:
             await asyncio.sleep(timer - 180)
             if not await self.message_exists(chan, poll.id):
-                raise MessageDeletedException()
+                raise MessageDeletedException(polltime)
             warning = await chan.send(f"***3 minutes remaining:***\n{descrip}")
             await asyncio.sleep(45)
             await warning.delete()
@@ -252,13 +253,13 @@ discord.User author             - The user that posted the relevant request.
         if timer >= 120:
             await asyncio.sleep(timer - 60)
             if not await self.message_exists(chan, poll.id):
-                raise MessageDeletedException()
+                raise MessageDeletedException(polltime)
             warning = await chan.send(f"***1 minute remaining:***\n{descrip}")
             timer = 60
         if timer > 10:
             await asyncio.sleep(timer - 10)
             if not await self.message_exists(chan, poll.id):
-                raise MessageDeletedException()
+                raise MessageDeletedException(polltime)
             # use a description on longer waits
             warning = await chan.send("***10 seconds remaining!***")
             await asyncio.sleep(5)
@@ -285,7 +286,7 @@ discord.User author             - The user that posted the relevant request.
                 return -1  # indicating no response
                 # user took too long
         if not await self.message_exists(chan, poll.id):
-            raise MessageDeletedException()
+            raise MessageDeletedException(polltime)
         return poll.id
         # jump back into loop
 
@@ -375,7 +376,7 @@ discord.User author             - The user that posted the relevant request.
         descrip = triv['question']
         correct_index = triv['correct_index']
         poll = None
-        # TODO: reduce diffeerences
+        # TODO: these can be combined now
         if type == "boolean":
             correct_index = 0 if triv['correct_answer'] == "True" else 1
             descrip = "*You have 20 seconds to answer the following question.*\n\nTrue or False:\n\n" + descrip
@@ -386,22 +387,16 @@ discord.User author             - The user that posted the relevant request.
             char_list = [TRIVIA_REACTION_LIST[0], TRIVIA_REACTION_LIST[1]]  # what
             try:
                 poll = await self.add_reactions(msg.channel, trivia_embed, 20, answer_count=2, char_list=char_list)
-            except MessageDeletedException:
+            except MessageDeletedException as exc:
                 await msg.channel.send("Trivia question deleted.")
-                if msg.author.permissions_in(msg.channel).manage_messages:
-                    correct_users = []
-                    incorrect_users = [msg.author]
-                    return (correct_users, incorrect_users, None)
+                if await self.message_deleted(msg, float(str(exc))):
+                    return ([], [msg.author], None)
                 else:
-                    return([], [], None)
+                    return ([], [], None)
         elif type == "multiple":
             answer_array = triv['incorrect_answers']
             descrip = "*You have 20 seconds to answer the following question.*\n\n" + descrip + f"A) {answer_array[0]}\nB) {answer_array[1]}\nC) {answer_array[2]}\nD) {answer_array[3]}\n\n"
-            #
-            #
-            # use the unicode constant for this?
-            #
-            #
+            # TODO: use the unicode constant for this?
             correct_index += 2
             trivia_embed = Embed(title=f"{triv['category']} - {triv['difficulty']}",
                                  description=descrip,
@@ -409,14 +404,12 @@ discord.User author             - The user that posted the relevant request.
             trivia_embed.set_footer(text="Questions Provided by Open Trivia DB")
             try:
                 poll = await self.add_reactions(msg.channel, trivia_embed, 20, answer_count=4)
-            except MessageDeletedException:
+            except MessageDeletedException as exc:
                 await msg.channel.send("Trivia question deleted.")
-                if msg.author.permissions_in(msg.channel).manage_messages:
-                    correct_users = []
-                    incorrect_users = [msg.author]
-                    return (correct_users, incorrect_users, None)
+                if await self.message_deleted(msg, float(str(exc))):
+                    return ([], [msg.author], None)
                 else:
-                    return([], [], None)
+                    return ([], [], None)
         # refresh the reaction list
         done = await msg.channel.send("***Time's up!***")
         poll = await msg.channel.fetch_message(poll)  # update message data
@@ -439,6 +432,21 @@ discord.User author             - The user that posted the relevant request.
                                 incorrect_users.append(user)
         await done.delete()
         return (correct_users, incorrect_users, triv)
+
+    async def message_deleted(self, msg, msg_time):
+        if msg.guild.me.permissions_in(msg.channel).view_audit_log:
+            targ = f"{self.user.name}#{self.user.discriminator}"
+            async for log in msg.guild.audit_logs(limit=10, user=msg.author):  # TODO: in multi trivia may need to account for more, will figure this out
+                creation_time = log.created_at.timestamp()
+                if log.action == AuditLogAction.message_delete and str(log.target) == targ:
+                    if log.extra.count > 1 or creation_time > msg_time:  # taking a leap here
+                        return True
+                if creation_time < msg_time:
+                    return False
+        elif msg.author.permissions_in(msg.channel).manage_messages:
+            return True
+        else:
+            return False
 
 
 def load_token():
