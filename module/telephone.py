@@ -126,7 +126,7 @@ class TriviaConvo(MultiConvo):
                     q_sum = correct + len(results[1])
                     result_list[i] = max(result_list[i], q_sum)
                     self.trivia_history[i].append((correct, q_sum))
-                    task_list.append(asyncio.create_task(self.channel_list[i].send(f"{trivia_temp_string}\n{correct} users answered correctly!")))
+                    task_list.append(asyncio.create_task(self.channel_list[i].send(f"{trivia_temp_string}\n{correct}/{q_sum} users answered correctly!")))
             await asyncio.sleep(5)
         # game over. handle results here
         for i in range(self.party_size):
