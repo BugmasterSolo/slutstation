@@ -70,18 +70,19 @@ class Government(Client):
         self.guild_update_listeners = {}                    # used by music player and associated utilities to divvy out events
 
         # rebuild module calls to parse json
-        command_info = {}
+        command_info = []
         for mod in self.module_list:
             for command in mod.command_list:  # oh duh, this gets keys and not values; carry on
                 if command in self.unique_commands:
                     raise ValueError(f"Duplicate commands: {command} in {mod.__name__} and {self.unique_commands[command].__name__}")
                 self.unique_commands[command] = mod  # mod value ties functions to modules
-                if command_info.get(command) is None:
-                    command_info[command] = {
+                if command not in mod.command_list[command].alias:
+                    command_info.append({
                         "name": command,
                         "descrip": mod.command_list[command].descrip.strip(),
-                        "aliases": mod.command_list[command].alias
-                    }
+                        "aliases": mod.command_list[command].alias,
+                        "module": type(mod).__name__
+                    })
         # whatever
         self.loop.run_until_complete(self.http_post_request("http://baboo.mobi/government/help_function.php", json.dumps(command_info)))
         print("Up and running!")

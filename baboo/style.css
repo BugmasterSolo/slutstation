@@ -5,6 +5,12 @@
   --background: #1b1b1b;
 }
 
+.menu-item a {
+  color: #fff;
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+}
+
 body {
   background-color: #1b1b1b;
   background-color: var(--background);
@@ -19,7 +25,7 @@ header {
   position: fixed;
 }
 
-h2 {
+h1 {
   color: #a0ffb0;
   color: var(--accent);
   cursor: pointer;
@@ -41,7 +47,7 @@ h2 {
   overflow: hidden;
 }
 
-h2.highlight span, #highlight-container-two .highlight span, #highlight-container-two .highlight {
+h1.highlight span, #highlight-container-two .highlight span, #highlight-container-two .highlight {
   background-color: #1b1b1b;
   background-color: var(--background);
   color: #a0ffb0;
@@ -52,7 +58,7 @@ h2.highlight span, #highlight-container-two .highlight span, #highlight-containe
   overflow: hidden;
 }
 
-h2 span {
+h1 span {
   background-color: #a0ffb0;
   background-color: var(--accent);
   color: #1b1b1b;
@@ -106,6 +112,15 @@ nav .menu-item:hover .bullet-node {
 /* for visual flair. */
 .hidden {
   filter: opacity(0);
+}
+
+.halfopac {
+  filter: opacity(0.5);
+  border-width: 0;
+}
+
+.halfopac:hover {
+  filter: opacity(1);
 }
 
 .intangible {

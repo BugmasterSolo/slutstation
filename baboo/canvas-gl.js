@@ -180,10 +180,10 @@
     } else {
       isHeaderAnimating = (isHeaderAnimating && time < Math.max((GROWTH_TIME + SHRINK_TIME), (MENU_DROPS + 2.0)));
 
-      let width = document.querySelector("header h2").getBoundingClientRect().width || 240;  // our sacred fellow
+      let width = document.querySelector("header h1").getBoundingClientRect().width || 240;  // our sacred fellow
 
-      let divMiddle = document.querySelector("#highlight-container h2.highlight");
-      let divFront = document.querySelector("#highlight-container-two h2.highlight");
+      let divMiddle = document.querySelector("#highlight-container h1.highlight");
+      let divFront = document.querySelector("#highlight-container-two h1.highlight");
 
       let frontWidth = 0;
       let middleWidth = 0;

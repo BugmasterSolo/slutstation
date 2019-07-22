@@ -193,7 +193,7 @@ Usage: g trivia
 Run a poll in your current server.
 
 Usage:
-g poll "<question>" <duration int (seconds)> <choiceA> | <choiceB> | ...
+g poll \"<question (in quotes)>\" <duration int (seconds)> <choiceA> | <choiceB> | ...
 
 Bot will send reminder messages every few, with a link to the message.
 
@@ -317,7 +317,7 @@ Funny little 8ball game for you and friends.
 
     @Command.register(name="help")
     async def help(host, state):
-        await state.message.channel.send("oh sorry\nthis isnt done yet\nsend me a message and i'll help out i guess\nhallo#1700")
+        await state.message.channel.send("http://baboo.mobi/government/help/")
 
     # 32 bit xorshift. used for state dependent PRNG.
     def _xorshift(num):
