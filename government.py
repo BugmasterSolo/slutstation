@@ -351,7 +351,6 @@ discord.User author             - The user that posted the relevant request.
                 }
 
     async def fetch_trivia(self):
-        TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001f1e6", "\U0001f1e7", "\U0001f1e8", "\U0001f1e9")
         url = "https://opentdb.com/api.php?amount=1"
         response = await self.http_get_request(url)
         status = response['status']
