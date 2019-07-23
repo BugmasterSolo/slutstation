@@ -6,6 +6,11 @@
   width: 100%;
 }
 
+#help-container {
+  display: flex;
+  flex-direction: column;
+}
+
 div input {
   display: block;
   margin: auto;
@@ -62,8 +67,9 @@ section {
   border: 1px solid var(--accent);
   border-radius: 20px;
   box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.57);
-  margin: 15px 0;
+  margin: 8px 0;
   padding: 15px 10px;
+  order: 1;
 }
 
 section.nsfw {
@@ -92,4 +98,10 @@ footer p {
   color: rgba(255, 255, 255, 0.6);
   font-size: 12px;
   font-style: italic;
+}
+
+.halfopac {
+  filter: opacity(0.5);
+  border-width: 0;
+  order: 2;
 }

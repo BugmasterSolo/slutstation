@@ -109,14 +109,14 @@ nav .menu-item:hover .bullet-node {
   width: 20px;
 }
 
+.a-block {
+  display: block;
+  text-decoration: none;
+}
+
 /* for visual flair. */
 .hidden {
   filter: opacity(0);
-}
-
-.halfopac {
-  filter: opacity(0.5);
-  border-width: 0;
 }
 
 .halfopac:hover {

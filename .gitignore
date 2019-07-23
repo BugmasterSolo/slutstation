@@ -6,3 +6,4 @@ db_token.json
 db_token.php
 *.pyc
 .htaccess
+help_contents.json
