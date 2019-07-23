@@ -560,7 +560,7 @@ class MemeFilter(ImageQueueable):
         fontface = ImageFont.truetype(font=font, size=max(minim, min(maxim, int(maxim / widthratio))))
 
         if widthratio > (maxim / minim):
-            text_format = PeterGriffinFilter.split_text(text, fontface, width, brush)
+            text_format = MemeFilter.split_text(text, fontface, width, brush)
             multiline = True
 
         return (text_format, fontface, multiline)
@@ -657,6 +657,7 @@ class PeterGriffinFilter(MemeFilter):
 
     def apply_filter(img, text):
         try:
+            img, size = ImageQueueable.apply_filter(img)
             griffin = Image.open('module/module_resources/putridgriffith.png')
             GRIFFIN_RATIO = griffin.size[1] / griffin.size[0]
             griffin = griffin.resize((int(img.size[0] * 0.2), int(img.size[0] * 0.2 * GRIFFIN_RATIO)), Image.BICUBIC)
@@ -665,7 +666,6 @@ class PeterGriffinFilter(MemeFilter):
             MAX_SIZE = 72
             FONT_NAME = 'arial.ttf'
             multiline = False
-            img, size = ImageQueueable.apply_filter(img)
             size_limit = size[0] * 0.6
             brush = ImageDraw.Draw(img)
 
