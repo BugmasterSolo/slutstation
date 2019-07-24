@@ -346,7 +346,6 @@ Usage: g undo <#>
                     await chan.send("Undo history cleared.", delete_after=5)
                     print("cleared")
                     return
-                print(msg_list)
                 for id in msg_list:
                     try:
                         msg = await chan.fetch_message(id)
@@ -357,7 +356,7 @@ Usage: g undo <#>
         else:
             await chan.send("No undoable messages on record.", delete_after=5)
         try:
-            state.message.delete()
+            await state.message.delete()
         except Forbidden:
             pass
 
