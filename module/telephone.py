@@ -1,6 +1,7 @@
 from .base import Module, Command
 import asyncio
 import async_timeout
+import math
 from discord.errors import Forbidden
 
 # TODO: SERVER JEOPARDY! waiting out asyncs to allow servers to guess for an answer
@@ -104,18 +105,23 @@ class TriviaConvo(MultiConvo):
 
     async def trivia_loop(self):
         result_list = self.party_size * [0]
+        event_list = [asyncio.Event() for _ in range(self.party_size)]
+        sync_event = asyncio.Event()
         for q in range(self.QUESTION_COUNT):
             task_list = []
             triv = await self.gov.fetch_trivia()
             for m in range(self.party_size):
-                task_list.append(asyncio.create_task(self.gov.tdb_trivia(self.msg_list[m], triv)))
+                task_list.append(asyncio.create_task(self.gov.tdb_trivia(self.msg_list[m], triv, event_list[m], sync_event)))
+            asyncio.create_task(self.gov.await_event_list(event_list, sync_event))
             trivia_results = await asyncio.gather(*task_list)
+
+            sync_event.clear()
+            for e in event_list:
+                e.clear()
+
             task_list = []
             trivia_temp_string = f"The correct answer was {triv['correct_answer']}."
             for i in range(self.party_size):
-                # in this situation, deleted messages should be treated as server-wide wrong answers.
-                # they will receive a 0 / (max participants in a question), making their weight at least 20%.
-                # thankfully we can detect this if trivia is set to none
                 results = trivia_results[i]
                 print(results)
                 if results[2] is None:
@@ -131,7 +137,7 @@ class TriviaConvo(MultiConvo):
         # game over. handle results here
         for i in range(self.party_size):
             max_users = result_list[i]
-            half_users = int(max_users / 2)
+            half_users = math.ceil(max_users / 2)
             correct_sum = 0
             placeholders = 0
             submission_sum = 0

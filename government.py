@@ -13,6 +13,7 @@
 #
 
 import asyncio
+import async_timeout
 import sys
 
 import discord
@@ -377,7 +378,11 @@ discord.User author             - The user that posted the relevant request.
         else:
             raise HTTPNotFoundException("Failed to fetch trivia data.")
 
-    async def tdb_trivia(self, msg, triv=None):
+    async def await_event_list(self, event_list, completion_event):
+        await asyncio.wait([asyncio.create_task(e.wait()) for e in event_list])
+        completion_event.set()
+
+    async def tdb_trivia(self, msg, triv=None, timer_event=None, completion_event=None):
         TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001f1e6", "\U0001f1e7", "\U0001f1e8", "\U0001f1e9")
         if triv is None:
             triv = await self.fetch_trivia()
@@ -419,6 +424,18 @@ discord.User author             - The user that posted the relevant request.
                     return ([], [msg.author], None)
                 else:
                     return ([], [], None)
+        waiting_msg = None
+        if timer_event:
+            timer_event.set()
+        if completion_event:
+            try:
+                async with async_timeout.timeout(3):
+                    await completion_event.wait()
+            except asyncio.TimeoutError:
+                waiting_msg = await msg.channel.send("Waiting for other players...")
+            await completion_event.wait()
+            if waiting_msg is not None:
+                await waiting_msg.delete()
         # refresh the reaction list
         done = await msg.channel.send("***Time's up!***")
         poll = await msg.channel.fetch_message(poll)  # update message data
