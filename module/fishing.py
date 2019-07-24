@@ -116,9 +116,10 @@ g fish cast - Casts the fishing line at a chosen location.
                                     description="You just caught a{1} {0[1]}!\n\n*{0[2]}*\n\n**Length:** {2:.2f}cm\n*Larger than {3:.4g}% of all {0[1]}!*\n\n**Price:** {0[8]}{5}\n\n{4}".format(target, label, size, percentile, rarity, host.CURRENCY_SYMBOL),
                                     color=0xa0fff0)
                 embed_catch.set_footer(text=f"Caught by {auth.name}#{auth.discriminator}", icon_url=auth.avatar_url_as(format="png", size=128))
-                await asyncio.sleep(random.uniform(5, 9))
+                interval = random.uniform(5, 9)
                 await cur.callproc('GIVE_CREDITS', (state.message.author.id, target[8]))
             await conn.commit()
+        await asyncio.sleep(interval)
         await cast_msg.delete()
         await state.message.channel.send(embed=embed_catch)
 
