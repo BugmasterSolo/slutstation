@@ -39,8 +39,9 @@ main thread to continue processing commands.
 TODO: Rework the image queue into a general case queue object, allowing it to return the results of
 different complex operations, for instance shader renders and the like.
     '''
-    def __init__(self):
+    def __init__(self, host):
         mp.set_start_method("spawn")
+        self.host = host
         self.queue = asyncio.Queue()
         self.pool = mp.Pool(processes=mp.cpu_count() - 1, initializer=None)
         self.load_event = asyncio.Event()
@@ -84,7 +85,8 @@ Manages the core processing loop that powers the image queue.
 
     async def post(self, data, q):
         try:
-            await q.channel.send(file=File(data, filename=q.filename))
+            msg = await q.channel.send(file=File(data, filename=q.filename))
+            self.host.log_undo(msg, q.msg)
         except Exception as e:
             print(e)
             print("we got em")
@@ -122,8 +124,9 @@ Manages the core processing loop that powers the image queue.
 
 
 class ImageQueueable:
-    def __init__(self, *, channel, filename="upload.png", url=None):
-        self.channel = channel
+    def __init__(self, *, msg, filename="upload.png", url=None):
+        self.msg = msg
+        self.channel = msg.channel
         self.filename = filename
         self.url = url
         self.size = None
@@ -221,8 +224,8 @@ class Cruncher(ImageQueueable):
         1, 2, 1
     )
 
-    def __init__(self, *, channel, url, scale=0.2):
-        super().__init__(channel=channel)
+    def __init__(self, *, msg, url, scale=0.2):
+        super().__init__(msg=msg)
         self.url = url
         self.scale = scale
 
@@ -444,8 +447,8 @@ class Cruncher(ImageQueueable):
 
 
 class StatView(ImageQueueable):
-    def __init__(self, *, channel, target, url):
-        super().__init__(channel=channel)  # christ
+    def __init__(self, *, msg, target, url):
+        super().__init__(msg=msg)  # christ
         self.target = target
         self.url = url
 
@@ -500,8 +503,8 @@ class StatView(ImageQueueable):
 
 
 class JPEGFilter(ImageQueueable):
-    def __init__(self, *, channel, url):
-        super().__init__(channel=channel, url=url)
+    def __init__(self, *, msg, url):
+        super().__init__(msg=msg, url=url)
 
     def bundle_filter_call(self):
         return JPEGFilter.apply_filter, (self.image,)
@@ -514,8 +517,8 @@ class JPEGFilter(ImageQueueable):
 
 
 class MemeFilter(ImageQueueable):
-    def __init__(self, *, channel, url, text):
-        super().__init__(channel=channel, url=url)
+    def __init__(self, *, msg, url, text):
+        super().__init__(msg=msg, url=url)
         self.text = text
 
     def bundle_filter_call(self):
@@ -648,8 +651,8 @@ class MemeFilter(ImageQueueable):
 
 
 class PeterGriffinFilter(MemeFilter):
-    def __init__(self, *, channel, url, text):
-        super().__init__(channel=channel, url=url, text=text)
+    def __init__(self, *, msg, url, text):
+        super().__init__(msg=msg, url=url, text=text)
         # griffin from Wikipedia: https://en.wikipedia.org/wiki/Peter_Griffin
 
     def bundle_filter_call(self):
@@ -701,8 +704,8 @@ class Pixelsort(ImageQueueable):
 If not provided, compare is set to the luminance function.
 
 Pixelsort(channel, url, [filename='upload.png', isHorizontal=True, threshold=0.5, compare=luma])'''
-    def __init__(self, *, channel, url, filename="upload.png", isHorizontal=True, threshold=0.5, compare=None):
-        super().__init__(channel=channel, filename=filename, url=url)
+    def __init__(self, *, msg, url, filename="upload.png", isHorizontal=True, threshold=0.5, compare=None):
+        super().__init__(msg=msg, filename=filename, url=url)
         self.compare = compare
         if not compare:
             self.compare = compare_funcs.luma
@@ -798,7 +801,7 @@ class compare_funcs:
 class ImageModule(Module):
     def __init__(self, host, *args, **kwargs):
         super().__init__(host, *args, **kwargs)
-        self.queue = ImageQueue()
+        self.queue = ImageQueue(host)
 
     def parse_string(host, content, message):
         array = host.split(content)
@@ -832,9 +835,9 @@ g pixelsort (<url> or ignore if uploaded image) [<threshold (0.5)> <comparison f
                 threshold = float(args[0])
             except ValueError:
                 threshold = 0.5
-            sort = Pixelsort(channel=state.message.channel, url=url, threshold=threshold, isHorizontal=True)
+            sort = Pixelsort(msg=state.message, url=url, threshold=threshold, isHorizontal=True)
         else:
-            sort = Pixelsort(channel=state.message.channel, url=url, isHorizontal=True)
+            sort = Pixelsort(msg=state.message, url=url, isHorizontal=True)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(sort)
 
@@ -852,7 +855,7 @@ g stat
             async with conn.cursor() as cur:
                 await cur.callproc("GLOBALINFO", (target.id, state.message.guild.id))
                 targetinfo = await cur.fetchone()
-        statview = StatView(channel=state.message.channel, target=targetinfo, url=str(target.avatar_url_as(static_format="png", size=128)))
+        statview = StatView(msg=state.message, target=targetinfo, url=str(target.avatar_url_as(static_format="png", size=128)))
         await state.command_host.queue.add_to_queue(statview)
 
     @Command.cooldown(scope=Scope.CHANNEL, time=10)
@@ -875,9 +878,9 @@ g crunch (<url> or ignore if uploaded image) [<crunch amount(0.2)>]
                 scale = float(args[0])
             except ValueError:
                 scale = 0.2
-            cruncher = Cruncher(channel=state.message.channel, url=url, scale=scale)
+            cruncher = Cruncher(msg=state.message, url=url, scale=scale)
         else:
-            cruncher = Cruncher(channel=state.message.channel, url=url)
+            cruncher = Cruncher(msg=state.message, url=url)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(cruncher)
 
@@ -898,7 +901,7 @@ g meme (<url> or ignore if uploaded image) (<TEXT> or <TOPTEXT> | <BOTTOMTEXT>)
             return
         if len(args) == 0:
             args = ["ERR", "|", "TRANSLATION", "SERVICE", "UNAVAILABLE"]
-        meme = MemeFilter(channel=state.message.channel, url=url, text=args)
+        meme = MemeFilter(msg=state.message, url=url, text=args)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(meme)
 
@@ -916,7 +919,7 @@ g jpeg (<url> or ignore if uploaded image)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
-        jaypeg = JPEGFilter(channel=state.message.channel, url=url)
+        jaypeg = JPEGFilter(msg=state.message, url=url)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(jaypeg)
 
@@ -934,7 +937,7 @@ g invert (<url> or ignore if uploaded image)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
-        inverter = InvertFilter(channel=state.message.channel, url=url)
+        inverter = InvertFilter(msg=state.message, url=url)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(inverter)
 
@@ -954,6 +957,6 @@ g peterhere (<url> or ignore if uploaded image) <text>
             return
         if len(args) == 0:
             args = ['fortnite']
-        griffin = PeterGriffinFilter(channel=state.message.channel, url=url, text=args)
+        griffin = PeterGriffinFilter(msg=state.message, url=url, text=args)
         await state.message.channel.trigger_typing()
         await state.command_host.queue.add_to_queue(griffin)

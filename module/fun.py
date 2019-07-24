@@ -8,6 +8,7 @@ import json
 import html
 import re
 from string import ascii_uppercase as letters
+from discord.errors import NotFound, Forbidden
 
 
 # TODO: Modify poll info to appear in embed message.
@@ -321,6 +322,38 @@ Funny little 8ball game for you and friends.
     async def help(host, state):
         '''Hey that's me'''
         await state.message.channel.send("http://baboo.mobi/government/help/")
+
+    @Command.register(name="undo")
+    async def undo(host, state):
+        chan = state.message.channel
+        undo_log = host.undo_log.get(chan.id)
+        delete_count = 1
+        try:
+            delete_count = int(state.content)
+        except ValueError:
+            pass
+        if undo_log:
+            for _ in range(delete_count):
+                try:
+                    msg_list = undo_log.pop()
+                except IndexError:
+                    await chan.send("Undo history cleared.", delete_after=5)
+                    print("cleared")
+                    return
+                print(msg_list)
+                for id in msg_list:
+                    try:
+                        msg = await chan.fetch_message(id)
+                    except NotFound:
+                        pass
+                    await msg.delete()
+                await chan.send("Last undoable message deleted.", delete_after=5)
+        else:
+            await chan.send("No undoable messages on record.", delete_after=5)
+        try:
+            state.message.delete()
+        except Forbidden:
+            pass
 
     # 32 bit xorshift. used for state dependent PRNG.
     def _xorshift(num):

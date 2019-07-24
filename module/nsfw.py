@@ -17,8 +17,8 @@ class NSFW(Module):
                 await self.command_list[state.command_name](self.host, state)
 
     def check_tags(args):
-        BANNED_ARGS = ("loli", "child", "shota", "cub", "kid", "pedophilia")
-        overlap = [x for x in args if x in BANNED_ARGS]
+        BANNED_ARGS = ("loli", "child", "shota", "cub", "kid", "pedophilia", "pedo")
+        overlap = [x for x in args if x in BANNED_ARGS]  # ee
         # i see you staff team
         return (len(overlap) > 0)
 
@@ -34,6 +34,8 @@ Optional page count parameter if you're out of the good stuff. Defaults to page 
 
 Usage:
 g e621 [tag1 tag2 ... tag6] (page<int>)
+
+Results are undoable.
         '''
         # check if the command is it
         chan = state.message.channel
@@ -84,7 +86,8 @@ g e621 [tag1 tag2 ... tag6] (page<int>)
                                        url=url)
                 response_embed.set_image(url=url)
                 response_embed.set_author(name="E621.NET")
-                await chan.send(embed=response_embed)
+                msg = await chan.send(embed=response_embed)
+                host.log_undo(msg, state.message)
         else:
             await chan.send("Sorry, no dice: " + parsed_json['reason'])
         # thanks stack: https://stackoverflow.com/questions/25231989/how-to-check-if-a-variable-is-a-dictionary-in-python
@@ -113,6 +116,8 @@ Optional pagenum parameter fetches more stuff if you're thirsting for the flesh.
 
 Usage:
 g rule34 [tag1 tag2 tag3 ... tag6] (page<int>)
+
+Results are undoable.
         '''
         chan = state.message.channel
         args = host.split(state.content)
@@ -156,6 +161,7 @@ g rule34 [tag1 tag2 tag3 ... tag6] (page<int>)
                                        description=descrip, title="Rule34", color=0xa0e080)
                 response_embed.set_image(url=image_url)
                 response_embed.set_author(name="RULE34.XXX")
-                await chan.send(embed=response_embed)
+                msg = await chan.send(embed=response_embed)
+                host.log_undo(msg, state.message)
         else:
             await chan.send("Response failed. Remind me to provide more info here :)")

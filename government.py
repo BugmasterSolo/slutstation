@@ -18,6 +18,7 @@ import sys
 import discord
 from discord import Client, Game, Embed, AuditLogAction
 import module
+import collections
 import time
 import json
 import aiomysql as sql
@@ -28,7 +29,6 @@ import html
 from discord.errors import NotFound
 import aiohttp
 import random
-
 
 from module.base import GuildUpdateListener, MessageDeletedException, HTTPNotFoundException
 
@@ -56,6 +56,8 @@ class Government(Client):
 
     def __init__(self, prefix):
         super().__init__()
+        self.undo_log = {}
+        self.undo_limit = 50
         self.uptime = time.time()                           # for tracking current uptime.
         self.prefix = prefix                                # bot prefix for commands.
         self.owner = 186944167308427264                     # me
@@ -188,6 +190,13 @@ class Government(Client):
                 return quote
 
     # UTILITY FUNCTIONS BELOW!
+
+    def log_undo(self, *msg):
+        chan = self.undo_log.get(msg[0].channel.id)
+        if not chan:
+            chan = self.undo_log[msg[0].channel.id] = collections.deque(maxlen=self.undo_limit)  # accidental bingo
+        msg_list = [m.id for m in msg]
+        chan.append(msg_list)
 
     async def add_reactions(self, chan, embed, timer=0, answer_count=2, char_list=None, descrip="Get your answer in!", author=None):
         '''
