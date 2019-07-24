@@ -823,7 +823,9 @@ class ImageModule(Module):
 Quick pixelsorting function. URL or image upload must be provided.
 
 Usage:
-g pixelsort (<url> or ignore if uploaded image) [<threshold (0.5)> <comparison function (luma)>]
+g pixelsort (<url> or ignore if uploaded image) [threshold (0 - 1, default 0.5)]
+
+Undoable.
         '''
         try:
             url, args = ImageModule.parse_string(host, state.content, state.message)
@@ -849,6 +851,8 @@ Display your user statistics in an image!
 
 Usage:
 g stat
+
+Undoable.
         '''
         target = state.message.author
         async with host.db.acquire() as conn:
@@ -865,7 +869,9 @@ g stat
 Naive seam carving (Content aware scale) algorithm with JPEG filter.
 
 Usage:
-g crunch (<url> or ignore if uploaded image) [<crunch amount(0.2)>]
+g crunch (<url> or ignore if uploaded image) [crunch amount(0 - 0.9, default 0.2)]
+
+Undoable.
         '''
         # todo: implement FXAA step or something similar to smooth out the result
         try:
@@ -893,6 +899,8 @@ Make a meme.
 
 Usage:
 g meme (<url> or ignore if uploaded image) (<TEXT> or <TOPTEXT> | <BOTTOMTEXT>)
+
+Undoable.
         '''
         try:
             url, args = ImageModule.parse_string(host, state.content, state.message)
@@ -913,6 +921,8 @@ Do I look like I-- no no not doing that.
 
 Usage:
 g jpeg (<url> or ignore if uploaded image)
+
+Undoable.
         '''
         try:
             url, _ = ImageModule.parse_string(host, state.content, state.message)
@@ -931,6 +941,8 @@ Invert the colors.
 
 Usage:
 g invert (<url> or ignore if uploaded image)
+
+Undoable.
         '''
         try:
             url, _ = ImageModule.parse_string(host, state.content, state.message)
@@ -949,6 +961,8 @@ Hey guys, peter here.
 
 Usage:
 g peterhere (<url> or ignore if uploaded image) <text>
+
+Undoable.
         '''
         try:
             url, args = ImageModule.parse_string(host, state.content, state.message)

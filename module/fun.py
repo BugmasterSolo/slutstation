@@ -325,11 +325,17 @@ Funny little 8ball game for you and friends.
 
     @Command.register(name="undo")
     async def undo(host, state):
+        '''For big mistakes. Deletes 1 or more valid results (and their associated commands) from the message log. Undos are handled by individual commands. Check the help section to see if you can undo a command!
+
+The logger stores up to 50 commands per channel.
+
+Usage: g undo <#>
+'''
         chan = state.message.channel
         undo_log = host.undo_log.get(chan.id)
         delete_count = 1
         try:
-            delete_count = int(state.content)
+            delete_count = max(int(state.content), 1)
         except ValueError:
             pass
         if undo_log:
