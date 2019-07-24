@@ -87,19 +87,20 @@ g fish cast - Casts the fishing line at a chosen location.
 
     async def cast(self, host, state, args):
         # fetch user loadout from DB (skipping for now)
+        auth = state.message.author
         descrip = "```"
         for i in range(len(self.LOCATIONS)):
             descrip += f"\n{chr(i + 0x41)}. {self.LOC_PRINT[i]} | {self.CAST_COST}{host.CURRENCY_SYMBOL}"
         descrip += "```"
         reaction_embed = Embed(title="Choose a location:", description=descrip, color=0xa0fff0)
-        locindex = await host.add_reactions(state.message.channel, reaction_embed, answer_count=len(self.LOCATIONS), author=state.message.author)
+        locindex = await host.add_reactions(state.message.channel, reaction_embed, answer_count=len(self.LOCATIONS), author=auth)
         if locindex == -1:
             await state.message.channel.send("`Fishing cancelled -- response not sent in time.`")
         target = None
         cast_msg = await state.message.channel.send(f"{self.LOC_EMOJI[locindex]} | ***Casting...***")
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.callproc('SPEND_CREDITS', (state.message.author.id, Fishing.CAST_COST))
+                await cur.callproc('SPEND_CREDITS', (auth.id, Fishing.CAST_COST))
                 await cur.callproc('GETFISH', (1, 1, self.LOCATIONS[locindex]))
                 target = await cur.fetchone()
                 distro = random.gauss(0, 1)
@@ -114,6 +115,7 @@ g fish cast - Casts the fishing line at a chosen location.
                 embed_catch = Embed(title=f"{self.LOC_EMOJI[locindex]} | *It's big catch!*",
                                     description="You just caught a{1} {0[1]}!\n\n*{0[2]}*\n\n**Length:** {2:.2f}cm\n*Larger than {3:.4g}% of all {0[1]}!*\n\n**Price:** {0[8]}{5}\n\n{4}".format(target, label, size, percentile, rarity, host.CURRENCY_SYMBOL),
                                     color=0xa0fff0)
+                embed_catch.set_footer(text=f"Caught by {auth.name}#{auth.discriminator}", icon_url=auth.avatar_url_as(format="png", size=128))
                 await asyncio.sleep(random.uniform(5, 9))
                 await cur.callproc('GIVE_CREDITS', (state.message.author.id, target[8]))
             await conn.commit()
