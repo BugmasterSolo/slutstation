@@ -66,7 +66,7 @@ Manages the core processing loop that powers the image queue.
                     if not image_successful:
                         await process.channel.send("Something went wrong while parsing that link. Make sure it contains an image.")
                         continue
-                except aiohttp.InvalidURL:
+                except (aiohttp.InvalidURL, AssertionError):
                     await process.channel.send("Invalid URL provided.")
                     continue
 
