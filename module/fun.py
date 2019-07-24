@@ -350,9 +350,9 @@ Usage: g undo <#>
                 for id in msg_list:
                     try:
                         msg = await chan.fetch_message(id)
-                    except NotFound:
+                        await msg.delete()
+                    except (NotFound, Forbidden):
                         pass
-                    await msg.delete()
                 await chan.send("Last undoable message deleted.", delete_after=5)
         else:
             await chan.send("No undoable messages on record.", delete_after=5)
