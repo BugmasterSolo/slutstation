@@ -54,6 +54,25 @@ g board
                 msg += "```"
                 await state.message.channel.send(msg)
 
+    @Command.register(name="servertip")
+    async def servertip(host, state):
+        '''
+Pay forward a chunk of your credits towards your currently active server.
+        '''
+        value = 0
+        try:
+            value = int(state.content)
+        except ValueError:
+            return
+        async with host.db.acquire() as conn:
+            async with conn.cursor() as cur:
+                if not host.spendcredits(cur, state.message.author.id, value):
+                    await state.message.channel.send("You do not have enough credits to tip that amount!")
+                    return
+                await cur.callproc("SEND_TIP", (state.message.guild.id, value))
+            await conn.commit()
+        await state.message.channel.send(f"Successfully added {value} credits to the server tip jar!")
+
     @Command.register(name="rank")
     async def rank(host, state):
         '''
