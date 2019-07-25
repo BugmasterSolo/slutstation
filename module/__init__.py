@@ -21,3 +21,4 @@ from .player import *
 from .image import *
 from .fishing import *
 from .telephone import *
+from .dbl import *

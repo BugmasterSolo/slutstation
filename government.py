@@ -29,6 +29,7 @@ import re
 import html
 from discord.errors import NotFound
 import aiohttp
+from aiohttp import web
 import random
 
 from module.base import GuildUpdateListener, MessageDeletedException, HTTPNotFoundException
@@ -66,10 +67,11 @@ class Government(Client):
         self.module_list = []                               # list of all instantiated modules
         self.loop = asyncio.get_event_loop()                # current running event looped (started by discord py)
         self.db = None                                      # current database connection (aiomysql pool)
+        self.wh = None
+        self.dbl_key = None
         self.loop.run_until_complete(self.import_all())
         self.loop.run_until_complete(self.create_db())
         self.unique_commands = {}                           # dict of unique commands (k: command name or alias -- v: modules)
-
         self.guild_update_listeners = {}                    # used by music player and associated utilities to divvy out events
 
         # rebuild module calls to parse json
@@ -94,6 +96,7 @@ class Government(Client):
         sql_cred_array = None
         with open("db_token.json", "r") as f:
             sql_cred_array = json.loads(f.read().strip())
+        self.dbl_key = sql_cred_array.pop('secret')
         self.db = await sql.create_pool(loop=self.loop, **sql_cred_array)  # minsize = 0?
 
     async def on_ready(self):
@@ -160,6 +163,7 @@ class Government(Client):
         await self.import_extension(module.ImageModule)
         await self.import_extension(module.Fishing)
         await self.import_extension(module.Telephone)
+        self.wh = module.WebHandler(self, "localhost", 80, dbl_key=self.dbl_key)
 
     async def import_extension(self, cls):
         try:
@@ -169,16 +173,18 @@ class Government(Client):
             print(f"Exception occurred: \n{err_string}")
 
     async def checkuser(self, message):
-        isLogged = self.logged_users.get(message.channel.id)
-        if not isLogged:
-            self.logged_users[message.channel.id] = {}
-        isLogged = self.logged_users[message.channel.id].get(message.author.id)
-        if not isLogged and not message.author.bot:
-            async with self.db.acquire() as conn:
-                async with conn.cursor() as cur:
+        async with self.db.acquire() as conn:
+            async with conn.cursor() as cur:
+                if not self.checkguild(message):
+                    await cur.callproc("GUILDEXISTS", (message.guild.id,))
+                    self.logged_users[message.guild.id] = set()
+                if not message.author.bot and message.author.id not in self.logged_users[message.guild.id]:
                     await cur.callproc("USEREXISTS", (message.author.id, f"{message.author.name}#{message.author.discriminator}", message.guild.id))
+                    self.logged_users[message.guild.id].add(message.author.id)  # ensures above logic passes
                 await conn.commit()
-            self.logged_users[message.channel.id][message.author.id] = True  # ensures above logic passes
+
+    def checkguild(self, message):
+        return message.guild.id in self.logged_users
 
     def get_closing_quote(self, quote):
         # add relevant exceptions
@@ -192,12 +198,15 @@ class Government(Client):
 
     # UTILITY FUNCTIONS BELOW!
 
+    async def dbl_request(self, resp):
+        return web.Response()
+        pass
+
     def log_undo(self, *msg):
         chan = self.undo_log.get(msg[0].channel.id)
         if not chan:
             chan = self.undo_log[msg[0].channel.id] = collections.deque(maxlen=self.undo_limit)  # accidental bingo
-        msg_list = [m.id for m in msg]
-        chan.append(msg_list)
+        chan.append(msg)
 
     async def add_reactions(self, chan, embed, timer=0, answer_count=2, char_list=None, descrip="Get your answer in!", author=None):
         '''
@@ -473,6 +482,11 @@ discord.User author             - The user that posted the relevant request.
             return True
         else:
             return False
+
+    async def spendcredits(cur, uid, amt):
+        await cur.callproc("SPEND_CREDITS", (uid, amt))
+        success = cur.fetchone()
+        return success[0]
 
 
 def load_token():

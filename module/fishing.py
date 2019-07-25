@@ -100,7 +100,9 @@ g fish cast - Casts the fishing line at a chosen location.
         cast_msg = await state.message.channel.send(f"{self.LOC_EMOJI[locindex]} | ***Casting...***")
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.callproc('SPEND_CREDITS', (auth.id, Fishing.CAST_COST))
+                if not host.spendcredits(cur, auth.id, Fishing.CAST_COST):
+                    await state.message.channel.send("You do not have enough credits!")
+                    return
                 await cur.callproc('GETFISH', (1, 1, self.LOCATIONS[locindex]))
                 target = await cur.fetchone()
                 distro = random.gauss(0, 1)
