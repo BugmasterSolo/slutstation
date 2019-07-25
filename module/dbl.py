@@ -4,6 +4,7 @@ import asyncio
 
 class WebHandler:
     def __init__(self, host, dom, port, **kwargs):
+        print(kwargs)
         self.host = host
         self.dom = dom
         self.port = port
@@ -11,12 +12,16 @@ class WebHandler:
         self.server = None
         self.dbl_key = kwargs.get("dbl_key")
         asyncio.create_task(self.create_webhooks())
+        print("smilk")
 
     async def create_webhooks(self):
+        print("minkoid")
+        print(self)
         self.app = web.Application()
 
         # initialize all endpoints
         if self.dbl_key is not None:
+            print("ok")
             self.app.router.add_post("/dbl", self.dbl_request)
 
         runner = web.AppRunner(self.app)
@@ -28,6 +33,7 @@ class WebHandler:
         print("all fired up!")
 
     async def dbl_request(self, resp):
+        print("smeg")
         key = resp.headers.get('Authorization')
         if key and key == self.dbl_key:
             fresp = await resp.json()

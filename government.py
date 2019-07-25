@@ -69,8 +69,8 @@ class Government(Client):
         self.db = None                                      # current database connection (aiomysql pool)
         self.wh = None
         self.dbl_key = None
-        self.loop.run_until_complete(self.import_all())
         self.loop.run_until_complete(self.create_db())
+        self.loop.run_until_complete(self.import_all())
         self.unique_commands = {}                           # dict of unique commands (k: command name or alias -- v: modules)
         self.guild_update_listeners = {}                    # used by music player and associated utilities to divvy out events
 
