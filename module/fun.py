@@ -340,19 +340,15 @@ Usage: g undo <#>
             except ValueError:
                 pass
         if undo_log:
+            msg_cache = []
             for _ in range(delete_count):
                 try:
                     msg_list = undo_log.pop()
+                    for m in msg_list:
+                        msg_cache.append(m)
                 except IndexError:
                     await chan.send("Undo history cleared.", delete_after=5)
-                    print("cleared")
-                    return
-                for id in msg_list:
-                    try:
-                        msg = await chan.fetch_message(id)
-                        await msg.delete()
-                    except (NotFound, Forbidden):
-                        pass
+            await chan.delete_messages(msg_cache)
             await chan.send(f"{delete_count} message(s) deleted.", delete_after=5)
         else:
             await chan.send("No undoable messages on record.", delete_after=5)
