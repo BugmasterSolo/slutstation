@@ -334,10 +334,11 @@ Usage: g undo <#>
         chan = state.message.channel
         undo_log = host.undo_log.get(chan.id)
         delete_count = 1
-        try:
-            delete_count = max(int(state.content), 1)
-        except ValueError:
-            pass
+        if state.message.author.permissions_in(chan).administrator:
+            try:
+                delete_count = max(int(state.content), 1)
+            except ValueError:
+                pass
         if undo_log:
             for _ in range(delete_count):
                 try:
@@ -352,7 +353,7 @@ Usage: g undo <#>
                         await msg.delete()
                     except (NotFound, Forbidden):
                         pass
-                await chan.send("Last undoable message deleted.", delete_after=5)
+            await chan.send(f"{delete_count} message(s) deleted.", delete_after=5)
         else:
             await chan.send("No undoable messages on record.", delete_after=5)
         try:
