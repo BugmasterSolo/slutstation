@@ -29,7 +29,6 @@ import re
 import html
 from discord.errors import NotFound
 import aiohttp
-from aiohttp import web
 import random
 
 import psutil as ps
@@ -179,7 +178,7 @@ class Government(Client):
         await self.import_extension(module.ImageModule)
         await self.import_extension(module.Fishing)
         await self.import_extension(module.Telephone)  # fuggit
-        asyncio.create_task(self.sys_monitor_loop())
+        # asyncio.create_task(self.sys_monitor_loop())
 
     async def import_extension(self, cls):
         try:
@@ -213,9 +212,6 @@ class Government(Client):
                 return quote
 
     # UTILITY FUNCTIONS BELOW!
-
-    async def dbl_request(self, resp):
-        return web.Response()
 
     def log_undo(self, *msg):
         chan = self.undo_log.get(msg[0].channel.id)
