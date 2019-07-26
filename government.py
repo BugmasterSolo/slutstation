@@ -15,7 +15,7 @@
 import asyncio
 import async_timeout
 import sys
-
+from aiohttp import web
 import discord
 from discord import Client, Game, Embed, AuditLogAction
 import module
@@ -41,6 +41,7 @@ http_header = {
     "user-agent": "Government(Discord.py) / 0.091 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
 }
 
+print("smeg")
 
 class State:
     '''Wrapper for variables provided in message event, includes some added values as necessary.
@@ -178,6 +179,7 @@ class Government(Client):
         await self.import_extension(module.ImageModule)
         await self.import_extension(module.Fishing)
         await self.import_extension(module.Telephone)  # fuggit
+        module.WebHandler(self, "localhost", 8080, dbl_key=self.dbl_key)
         # asyncio.create_task(self.sys_monitor_loop())
 
     async def import_extension(self, cls):
