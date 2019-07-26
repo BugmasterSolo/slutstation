@@ -178,7 +178,7 @@ class Government(Client):
         await self.import_extension(module.Player)
         await self.import_extension(module.ImageModule)
         await self.import_extension(module.Fishing)
-        await self.import_extension(module.Telephone)
+        await self.import_extension(module.Telephone)  # fuggit
         self.wh = module.WebHandler(self, "localhost", 8080, dbl_key=self.dbl_key)
         asyncio.create_task(self.sys_monitor_loop())
 
