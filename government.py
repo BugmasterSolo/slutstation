@@ -32,6 +32,8 @@ import aiohttp
 from aiohttp import web
 import random
 
+import psutil as ps
+
 from module.base import GuildUpdateListener, MessageDeletedException, HTTPNotFoundException
 
 logging.basicConfig(level=logging.INFO)
@@ -60,6 +62,9 @@ class Government(Client):
         super().__init__()
         self.undo_log = {}
         self.undo_limit = 50
+
+        self.stats = [collections.deque(maxlen=20) for _ in range(3)]
+
         self.uptime = time.time()                           # for tracking current uptime.
         self.prefix = prefix                                # bot prefix for commands.
         self.owner = 186944167308427264                     # me
@@ -90,7 +95,17 @@ class Government(Client):
                     })
         # whatever
         self.loop.run_until_complete(self.http_post_request("http://baboo.mobi/government/help_function.php", json.dumps(command_info)))
+
         print("Up and running!")
+
+    async def sys_monitor_loop(self):
+        while 1:
+            # do some monitoring work
+            loadavg = ps.getloadavg()
+            for i in range(3):
+                stat = self.stats[i]
+                stat.append(loadavg[i])
+            await asyncio.sleep(60)
 
     async def create_db(self):
         sql_cred_array = None
@@ -155,6 +170,7 @@ class Government(Client):
             del arr
 
     async def import_all(self):
+        # ahahaha
         await self.import_extension(module.Fun)
         await self.import_extension(module.NSFW)
         await self.import_extension(module.Steam)
@@ -164,6 +180,7 @@ class Government(Client):
         await self.import_extension(module.Fishing)
         await self.import_extension(module.Telephone)
         self.wh = module.WebHandler(self, "localhost", 80, dbl_key=self.dbl_key)
+        asyncio.create_task(self.sys_monitor_loop())
 
     async def import_extension(self, cls):
         try:
@@ -176,7 +193,7 @@ class Government(Client):
         async with self.db.acquire() as conn:
             async with conn.cursor() as cur:
                 if not self.checkguild(message):
-                    await cur.callproc("GUILDEXISTS", (message.guild.id,))
+                    await cur.callproc("GUILDEXISTS", (message.guild.id, ))
                     self.logged_users[message.guild.id] = set()
                 if not message.author.bot and message.author.id not in self.logged_users[message.guild.id]:
                     await cur.callproc("USEREXISTS", (message.author.id, f"{message.author.name}#{message.author.discriminator}", message.guild.id))
