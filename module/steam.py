@@ -10,7 +10,7 @@ class Steam(Module):
         self.api_key = load_api_key()
 
     @Command.register(name="steamid")
-    async def steamid(host, state):
+    async def steamid(self, host, state):
         '''
 Look up a friend!
 
@@ -21,14 +21,14 @@ g steamid (<vanityurl> or <steamid>)
         args = host.split(state.content)
         userID = args[0]
         try:
-            response = await state.command_host.steam_profile_request(host, userID)
+            response = await self.steam_profile_request(host, userID)
         except HTTPNotFoundException:
             await state.message.channel.send("Failed to fetch from Steam API.")
         # make status check
         #   There's not really a way for the function to halt up. We could throw an exception on 404 but that's a bit lame
         if response is None:
             try:
-                resp = await host.http_get_request(f"https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key={state.command_host.api_key}&vanityurl={userID}")
+                resp = await host.http_get_request(f"https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key={self.api_key}&vanityurl={userID}")
             except HTTPNotFoundException:
                 await state.message.channel.send("Failed to fetch from Steam API.")
             url = json.loads(resp['text'])['response']
@@ -37,10 +37,10 @@ g steamid (<vanityurl> or <steamid>)
                 return
             userID = url['steamid']
             try:
-                response = await state.command_host.steam_profile_request(host, userID)
+                response = await self.steam_profile_request(host, userID)
             except HTTPNotFoundException:
                 await state.message.channel.send("Failed to fetch from Steam API.")
-        url = f"https://api.steampowered.com/IPlayerService/GetBadges/v1/?key={state.command_host.api_key}&steamid={userID}"
+        url = f"https://api.steampowered.com/IPlayerService/GetBadges/v1/?key={self.api_key}&steamid={userID}"
         timecreated = time.strftime("%B %d, %Y", time.gmtime(response['timecreated']))
         try:
             resp = await host.http_get_request(url)

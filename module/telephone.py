@@ -40,7 +40,7 @@ class Teleconvo(Convo):
             async with async_timeout.timeout(30):
                 await self.message_status.wait()
         except asyncio.TimeoutError:
-            await self.end_call()
+            await self.end_call(None)
 
     def check_channels(self, chan):
         return chan.id == self.end_a['channel'].id or chan.id == self.end_b['channel'].id
@@ -107,7 +107,7 @@ class TriviaConvo(MultiConvo):
         result_list = self.party_size * [0]
         event_list = [asyncio.Event() for _ in range(self.party_size)]
         sync_event = asyncio.Event()
-        for q in range(self.QUESTION_COUNT):
+        for _ in range(self.QUESTION_COUNT):
             task_list = []
             triv = await self.gov.fetch_trivia()
             for m in range(self.party_size):
@@ -207,13 +207,13 @@ class TriviaData:
         return self.ratio > other.ratio
 
     def __ge__(self, other):
-        return not self.__lt__(self, other)
+        return not self.__lt__(other)
 
     def __le__(self, other):
-        return not self.__gt__(self, other)
+        return not self.__gt__(other)
 
     def __ne__(self, other):
-        return not self.__eq__(self, other)
+        return not self.__eq__(other)
 
 
 class Telephone(Module):
@@ -233,10 +233,10 @@ class Telephone(Module):
         is_cmd = state.message.content.startswith(state.host.prefix)  # TODO: do this elsewhere please
         if call and not is_cmd and call.check_channels(state.message.channel):
             await call.process_message(state)
-        return self == state.command_host
+        return state.command_host == self
 
     @Command.register(name="multitrivia")
-    async def multitrivia(host, state):
+    async def multitrivia(self, host, state):
         '''
 Take on some trivia masters. Indiscriminate for now, until we get game chat working.
 
@@ -254,11 +254,11 @@ Penalties are present for low participation (avoiding difficult questions), so g
         except Forbidden:
             print("call blocked due to permissions errors")
             return
-        if state.command_host.calllist.get(state.message.guild.id, None):
+        if self.calllist.get(state.message.guild.id, None):
             await target.send("You're already in a communication channel!")
             return
 
-        valid_channels = state.command_host.userqueue_trivia
+        valid_channels = self.userqueue_trivia
         for queueitem in valid_channels:
             if queueitem[1] == target.guild:
                 await target.send("You're already waiting for a channel on this server!")
@@ -266,20 +266,20 @@ Penalties are present for low participation (avoiding difficult questions), so g
         if len(valid_channels) >= (USER_THRESHOLD - 1):
             participant_list = [state.message]
             task_list = [asyncio.create_task(target.send("*The trivia game is about to begin!*"))]
-            for i in range(USER_THRESHOLD - 1):
+            for _ in range(USER_THRESHOLD - 1):
                 msg = valid_channels.pop(0)[0]
                 participant_list.append(msg)
                 task_list.append(asyncio.create_task(msg.channel.send("*The trivia game is about to begin!*")))
             await asyncio.wait(task_list)  # ensure all channels have received this
             await asyncio.sleep(5)
-            t_convo = TriviaConvo(state.command_host, participant_list, host)
+            t_convo = TriviaConvo(self, participant_list, host)
             for msg in participant_list:
-                state.command_host.calllist[msg.guild.id] = t_convo
+                self.calllist[msg.guild.id] = t_convo
         else:
-            state.command_host.userqueue_trivia.append((state.message, target.guild))
+            self.userqueue_trivia.append((state.message, target.guild))
 
     @Command.register(name="telephone")
-    async def telephone(host, state):
+    async def telephone(self, host, state):
         '''
 Make some new friends across the web. NSFW/SFW channels are separated as well, so go nuts.
 
@@ -291,14 +291,14 @@ g telephone
         # users match with people with roughly their rating or lower
         # if no suitable matches, sit around and wait
         if target.nsfw:
-            valid_channels = state.command_host.userqueue_nsfw
+            valid_channels = self.userqueue_nsfw
         else:
-            valid_channels = state.command_host.userqueue
+            valid_channels = self.userqueue
         for queueitem in valid_channels:
             if queueitem[1] == target.guild:
                 await target.send("You're already waiting for a channel on this server!")
                 return
-        if state.command_host.calllist.get(state.message.guild.id, None):
+        if self.calllist.get(state.message.guild.id, None):
             await target.send("You're already in a communication channel!")
             return
         try:
@@ -314,15 +314,15 @@ g telephone
             c2 = asyncio.create_task(pardner.send("***Connected to a random place in cyberspace...***"))
 
             await asyncio.wait([c1, c2])
-            convo = Teleconvo(target, pardner, state.command_host)
-            state.command_host.calllist[pardner.guild.id] = convo
-            state.command_host.calllist[state.message.guild.id] = convo
+            convo = Teleconvo(target, pardner, self)
+            self.calllist[pardner.guild.id] = convo
+            self.calllist[state.message.guild.id] = convo
             # task creation
         else:
             valid_channels.append((target, target.guild))
 
     @Command.register(name="hangup")
-    async def hangup(host, state):
+    async def hangup(self, host, state):
         '''
 Hangs up the phone. Don't worry, the other person won't see it. Alternatively, removes you from the call queue.
 
@@ -330,22 +330,22 @@ Usage:
 g hangup
         '''
         chan = state.message.channel
-        call = state.command_host.calllist.get(chan.guild.id, None)
+        call = self.calllist.get(chan.guild.id, None)
         if call and call.check_channels(chan):
             await call.end_call(chan)
         else:
             if chan.nsfw:
-                valid_channels = state.command_host.userqueue_nsfw
+                valid_channels = self.userqueue_nsfw
             else:
-                valid_channels = state.command_host.userqueue
+                valid_channels = self.userqueue
             for q in valid_channels:
                 if q[1] == chan.guild:
                     valid_channels.remove(q)
                     await chan.send("Removed from telephone queue.")
                     return
-            for q in state.command_host.userqueue_trivia:
+            for q in self.userqueue_trivia:
                 if q[1] == chan.guild:
-                    state.command_host.userqueue_trivia.remove(q)
+                    self.userqueue_trivia.remove(q)
                     await chan.send("Removed from trivia queue.")
                     return
             await chan.send("You are not in any queue!")

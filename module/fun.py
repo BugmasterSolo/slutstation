@@ -41,7 +41,7 @@ class Fun(Module):
         FORTUNE_LIST = json.loads(fortunes.read())
 
     @Command.register(name="fortune")
-    async def fortune(host, state):  # if any issues come up check here.
+    async def fortune(self, host, state):  # if any issues come up check here.
         '''
 Tells your fortune. One fortune per day.
 
@@ -49,7 +49,7 @@ Usage:
 g fortune
         '''
         cur = int(time.time() / 86400)
-        seed = Fun._xorshift(state.message.author.id - cur)
+        seed = self._xorshift(state.message.author.id - cur)
         # eh
         seed %= len(Fun.FORTUNE_LIST)
         timeformat = time.strftime("%B %d, %Y", time.gmtime())
@@ -61,7 +61,7 @@ g fortune
         await state.message.channel.send(embed=fortune)
 
     @Command.register(name="coinflip", alias=("flip"))
-    async def coinflip(host, state):
+    async def coinflip(self, host, state):
         '''
 Flips a coin that you can watch tumble in the air.
 
@@ -93,7 +93,7 @@ g coinflip
             await msg.channel.send("You flipped tails!")
 
     @Command.register(name="pushup")
-    async def pushup(host, state):
+    async def pushup(self, host, state):
         '''
 A contest of wits.
 
@@ -112,7 +112,7 @@ g pushup <int>
         await state.message.channel.send(f"that's cool but i can do {count} pushups")
 
     @Command.register(name="roll")
-    async def roll(host, state):
+    async def roll(self, host, state):
         '''Operators are added automatically, separated by spaces.
 Usage:
 g roll [dice1, dice2, ...]
@@ -150,14 +150,14 @@ g roll 3d6 2d20 -3 - three six-sided die + two 20-sided die - 3'''
             print(e)
 
     @Command.register(name="uptime")
-    async def uptime(host, state):
+    async def uptime(self, host, state):
         '''Returns how long the bot has been running for since last reset.'''
         uptime = (time.time() - host.uptime) / 86400
         await state.message.channel.send(f"I have been active for {uptime:.2f} days so far!")
 
     @Command.cooldown(scope=Scope.CHANNEL, time=0, type=Scope.RUN)
     @Command.register(name="trivia")
-    async def trivia(host, state):
+    async def trivia(self, host, state):
         '''
 Play a funky trivia game with your friends.
 
@@ -190,7 +190,7 @@ Usage: g trivia
 
     @Command.cooldown(scope=Scope.CHANNEL, time=10, type=Scope.TIME)
     @Command.register(name="poll")
-    async def poll(host, state):
+    async def poll(self, host, state):
         '''
 Run a poll in your current server.
 
@@ -292,7 +292,7 @@ Prints the final results at the end of the poll!
         await poll.edit(content=result_string)
 
     @Command.register(name="8ball")
-    async def eightball(host, state):
+    async def eightball(self, host, state):
         '''
 Funny little 8ball game for you and friends.
         '''
@@ -302,7 +302,7 @@ Funny little 8ball game for you and friends.
         await state.message.channel.send("\U0001f3b1 | *" + random.choice(Fun.EIGHT_BALL) + "...*")
 
     @Command.register(name="night")
-    async def night(host, state):
+    async def night(self, host, state):
         '''Wishes you a healthy goodnight message.'''
         msg = state.message
         target = None
@@ -319,12 +319,12 @@ Funny little 8ball game for you and friends.
     # todo: move into host.
 
     @Command.register(name="help")
-    async def help(host, state):
+    async def help(self, host, state):
         '''Hey that's me'''
         await state.message.channel.send("http://baboo.mobi/government/help/")
 
     @Command.register(name="undo")
-    async def undo(host, state):
+    async def undo(self, host, state):
         '''For big mistakes. Deletes 1 or more valid results (and their associated commands) from the message log. Undos are handled by individual commands. Check the help section to see if you can undo a command!
 
 The logger stores up to 50 commands per channel.
@@ -358,7 +358,7 @@ Usage: g undo <#>
             pass
 
     # 32 bit xorshift. used for state dependent PRNG.
-    def _xorshift(num):
+    def _xorshift(self, num):
         tnum = num & 0xFFFFFFFF
         tnum = (tnum ^ (tnum << 13))
         tnum = (tnum ^ (tnum >> 17))

@@ -26,12 +26,12 @@ class Stattrack(Module):
                     await cur.callproc("MESSAGE", (auth.id, strleng, hard, soft, state.message.guild.id))
                 except ConnectionResetError:
                     print("Error in DB communication")
-                    return self == state.command_host
+                    return state.command_host == self
             await conn.commit()
-        return self == state.command_host
+        return state.command_host == self
 
     @Command.register(name="board")
-    async def guildtop(host, state):
+    async def guildtop(self, host, state):
         '''
 See who's killing it locally.
 
@@ -55,7 +55,7 @@ g board
                 await state.message.channel.send(msg)
 
     @Command.register(name="servertip")
-    async def servertip(host, state):
+    async def servertip(self, host, state):
         '''
 Pay forward a chunk of your credits towards your currently active server.
         '''
@@ -74,7 +74,7 @@ Pay forward a chunk of your credits towards your currently active server.
         await state.message.channel.send(f"Successfully added {value} credits to the server tip jar!")
 
     @Command.register(name="rank")
-    async def rank(host, state):
+    async def rank(self, host, state):
         '''
 Displays an embedded summary of your history as a user, or the history of another user.
 
@@ -111,7 +111,7 @@ g rank <user mention>
 *Level {res[7]} | {res[9]}/{res[8]}*\n
 **Trivia record:** {res[2]} / {res[3]} ({trivia_percent:.2f}%)\n
 **Power:** {res[4]}H / {res[5]}S\n
-**Credits:** {res[10]} {state.command_host.CURRENCY_SYMBOL}"""
+**Credits:** {res[10]} {self.CURRENCY_SYMBOL}"""
         response_embed = Embed(title=(target.name + "#" + target.discriminator), description=descrip, color=0x7289da)
         response_embed.set_thumbnail(url=target.avatar_url_as(static_format="png", size=512))
         await msg.channel.send(embed=response_embed)

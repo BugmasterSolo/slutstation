@@ -69,7 +69,7 @@ class Fishing(Module):
     # me and the boys going fishing
     @Command.cooldown(scope=Scope.USER, time=0, type=Scope.RUN)
     @Command.register(name="fish")
-    async def fish(host, state):
+    async def fish(self, host, state):
         '''
         Initializes a command relating to fishing. The following commands are currently available:
 g fish cast - Casts the fishing line at a chosen location.
@@ -81,7 +81,7 @@ g fish cast - Casts the fishing line at a chosen location.
             await state.message.channel.send("Please input a subcommand: `g fish <cast, reel, ...>`")
             return
         if subtype in Fishing.COMMAND_LIST:
-            await getattr(state.command_host, subtype)(host, state, subcommand)
+            await getattr(self, subtype)(host, state, subcommand)
         else:
             await state.message.channel.send("That's not part of the fishing!")
 

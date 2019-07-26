@@ -59,6 +59,7 @@ class Module:
         for func in dir(self):
             f = getattr(self, func)
             if isinstance(f, Command):
+                f.command_host = self  # i mean sure
                 if self.command_list.get(f.name) is not None:
                     raise AttributeError(f"\nDuplicate name {f.name} found. Please ensure that you're avoiding duplicates.")
                 self.command_list[f.name] = f  # list of potential commands and the coinciding function
@@ -96,7 +97,7 @@ class Module:
         to overwrite this! It will save some compute time and it will make the bot smile at you :)
         '''
         if state.command_host:
-            return self == state.command_host
+            return state.command_host == self
         return False
 
     async def handle_message(self, state):
@@ -104,8 +105,7 @@ class Module:
         Handles user input that passes the initial check.
         Defaults to checking the command list and passing the context to the command.
         '''
-        if state.command_host == self:
-            await self.command_list[state.command_name](self.host, state)  # TODO: get rid of host in all cases, since it's included in "state"
+        await self.command_list[state.command_name](self.host, state)  # TODO: get rid of host in all cases, since it's included in "state"
 
 
 # TODO: Lots of functions in here that can be moved. No reason to have them here, maybe move into bot host.
@@ -145,6 +145,7 @@ class Command:
         self.descrip = kwargs.get("descrip", func.__doc__ or "No description available.")
         self.alias = []
         self.cool = None
+        self.command_host = None
         # safe to set
         self.cooltime = None
         self.cooldown_array = {}
@@ -182,7 +183,7 @@ class Command:
                             await cooldown_msg.delete()
                         # eh
                         return
-            await self.func(host, state, *args, **kwargs)
+            await self.func(self.command_host, host, state, *args, **kwargs)
             if not uid == 0 and self.cool >= 4:
                 self.cooldown_array[uid] = time.time()
         except Exception as e:
@@ -205,6 +206,7 @@ class Command:
                 return 1
         return 0
 
+    @staticmethod
     def register(func=None, *args, **kwargs):
         '''
         Decorator used to instantiate command objects from functions.
@@ -216,12 +218,15 @@ class Command:
         For descriptions of options view the Command docstring.
         '''
         if func:
+            print(func.__self__)
             return Command(func)
 
         def wrapper(func):
+            print(func)
             return Command(func, *args, **kwargs)
         return wrapper
 
+    @staticmethod
     def cooldown(cmd=None, scope=Scope.CHANNEL, type=Scope.TIME, time=15):
         if cmd:
             cmd.cool = scope

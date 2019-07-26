@@ -64,6 +64,7 @@ class StreamGenerator:
 # param types: https://stackoverflow.com/questions/2489669/function-parameter-types-in-python
 class YTPlayer:
 
+    @staticmethod
     async def format_source_local(host, state, url):
         if not isinstance(url, str):
             return YTPlayer.format_source_tuple(host, state, url)
@@ -75,6 +76,7 @@ class YTPlayer:
     #   If you get no videos back, chances are the URL is either not referring to a video or unsupported.
     #   You can find out which by examining the output (if you run youtube-dl on the console) or catching an
     #   UnsupportedError exception if you run it from a Python program.
+    @staticmethod
     async def format_source_single(host, state, url):
         try:
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url=url, download=False))
@@ -90,6 +92,7 @@ class YTPlayer:
         return StreamContainer(source=discord.FFmpegPCMAudio(data['url'], before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"), data=data, message=state.message, loc=None, embed=response_embed)
         # this makes the streaming work by reconnecting to the stream
 
+    @staticmethod
     def format_source_tuple(host, state, url):
         async def generator():
             for link in url:
@@ -277,7 +280,7 @@ class Player(Module):
         self.active_players.pop(id)
 
     @Command.register(name="play")
-    async def play(host, state):
+    async def play(self, host, state):
         '''
 Bot will sing a song for you.
 
@@ -300,7 +303,7 @@ g play (<valid URL> or <search query>)
             return
         vchan = state.message.author.voice.channel
         # no idea why this does not work
-        player = state.command_host.active_players.get(state.message.guild.id)
+        player = self.active_players.get(state.message.guild.id)
         url = state.content.strip()  # todo: deal with additional arguments
         print(url)
         is_playlist = re.search(r"playlist\?list=(?P<playlist_id>\w+)", url)
@@ -319,7 +322,7 @@ g play (<valid URL> or <search query>)
             # engage search api
             # if search then include all queries
             try:
-                return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q={state.content}&type=video&key={state.command_host.api_key}")
+                return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q={state.content}&type=video&key={self.api_key}")
             except HTTPNotFoundException:
                 await chan.send("Video search failed.")
                 return
@@ -332,7 +335,7 @@ g play (<valid URL> or <search query>)
         elif is_playlist:
             playlist_id = is_playlist.group("playlist_id")
             try:
-                return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/playlistItems?part=id%2CcontentDetails&maxResults=50&playlistId={playlist_id}&key={state.command_host.api_key}")
+                return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/playlistItems?part=id%2CcontentDetails&maxResults=50&playlistId={playlist_id}&key={self.api_key}")
             except HTTPNotFoundException:
                 await chan.send("Playlist lookup failed.")
                 return
@@ -345,7 +348,7 @@ g play (<valid URL> or <search query>)
             while result_remain > 0:
                 page_token = return_query['nextPageToken']
                 try:
-                    return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/playlistItems?part=id%2CcontentDetails&maxResults=50&playlistId={playlist_id}&pageToken={page_token}&key={state.command_host.api_key}")
+                    return_query = await host.http_get_request(f"https://www.googleapis.com/youtube/v3/playlistItems?part=id%2CcontentDetails&maxResults=50&playlistId={playlist_id}&pageToken={page_token}&key={self.api_key}")
                 except HTTPNotFoundException:
                     await chan.send("Playlist lookup failed.")
                     return
@@ -368,27 +371,27 @@ g play (<valid URL> or <search query>)
                 print(e)
             await msg.delete()
             return
-        player = state.command_host.get_player(host, state, vchan)
+        player = self.get_player(host, state, vchan)
         await msg.delete()
         await player.add_to_queue(source, state.message.channel)
 
     # deal with case where user keeps the bot paused.
     @Command.register(name="pause")
-    async def pause(host, state):
+    async def pause(self, host, state):
         '''
 Pauses currently playing video. Only works if the bot is already in a call.
 
 Usage:
 g pause
         '''
-        player = state.command_host.active_players.get(state.message.guild.id)
+        player = self.active_players.get(state.message.guild.id)
         if player:
             player.active_vc.pause()
         else:
             await state.message.channel.send("*i didn't even play anything...*")
 
     @Command.register(name="stop")
-    async def stop(host, state):
+    async def stop(self, host, state):
         '''
 Administrator only. Stops current playback, if playing.
 
@@ -397,7 +400,7 @@ g stop
         '''
         # check if admin
         perms = state.message.author.permissions_in(state.message.channel)
-        player = state.command_host.active_players.get(state.message.guild.id)
+        player = self.active_players.get(state.message.guild.id)
         if perms.administrator:
             if player:
                 player.active_vc.stop()  # stop the current stream, calling on the empty queue
@@ -406,7 +409,7 @@ g stop
             await state.message.channel.send("\U0001f6d1 | **You do not have permission to stop the stream. Use 'g skip' instead!** | \U0001f6d1")
 
     @Command.register(name="skip")
-    async def skip(host, state):
+    async def skip(self, host, state):
         '''
 Submits a skip request to the bot.
 
@@ -416,12 +419,12 @@ Otherwise it's added to a vote tally of users. Once the majority of users in the
 Usage:
 g skip
         '''
-        player = state.command_host.active_players.get(state.message.guild.id)
+        player = self.active_players.get(state.message.guild.id)
         if player:
             await player.process_skip(state.message.author, state.message.channel)
 
     @Command.register(name="playing")
-    async def now_playing(host, state):
+    async def now_playing(self, host, state):
         '''
 Returns information on the video currently playing on the bot in a given server.
 
@@ -430,7 +433,7 @@ Returns a default message if nothing is playing.
 Usage:
 g playing
         '''
-        player = state.command_host.active_players.get(state.message.guild.id)
+        player = self.active_players.get(state.message.guild.id)
         embed = None
         if player:
             embed = player.now_playing

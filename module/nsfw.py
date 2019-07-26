@@ -10,12 +10,12 @@ import cfscrape
 
 class NSFW(Module):
     async def handle_message(self, state):
-        if state.command_host == self:
-            if not state.message.channel.nsfw:
-                await state.message.channel.send(f'```Command "{state.command_name}" for NSFW channels only!```')
-            else:
-                await self.command_list[state.command_name](self.host, state)
-
+        if not state.message.channel.nsfw:
+            await state.message.channel.send(f'```Command "{state.command_name}" for NSFW channels only!```')
+        else:
+            await self.command_list[state.command_name](self.host, state)
+    
+    @staticmethod
     def check_tags(args):
         BANNED_ARGS = ("loli", "child", "shota", "cub", "kid", "pedophilia", "pedo")
         overlap = [x for x in args if x in BANNED_ARGS]  # ee
@@ -26,7 +26,7 @@ class NSFW(Module):
     #       - add bantags (please, per-server)
     @Command.cooldown(scope=Scope.CHANNEL, time=5)
     @Command.register(name="e621")
-    async def esix(host, state):
+    async def esix(self, host, state):
         '''
 Grabs images from e621.net. Tags are separated by white space, all valid tags are supported.
 
@@ -40,11 +40,11 @@ Results are undoable.
         # check if the command is it
         chan = state.message.channel
         args = host.split(state.content)
-        if NSFW.check_tags(args):
+        if self.check_tags(args):
             await chan.send("https://www.youtube.com/watch?v=_YmDcCpD1gc")
             print("diddler")
             return
-        tag_array, pagenum = await NSFW._parse_tags(args, chan)
+        tag_array, pagenum = await self._parse_tags(args, chan)
         tagstring = ("+".join(tag_array))
         if pagenum is not None:
             tagstring += "&page=" + str(pagenum)
@@ -92,7 +92,7 @@ Results are undoable.
             await chan.send("Sorry, no dice: " + parsed_json['reason'])
         # thanks stack: https://stackoverflow.com/questions/25231989/how-to-check-if-a-variable-is-a-dictionary-in-python
 
-    async def _parse_tags(tag_array, chan):
+    async def _parse_tags(self, tag_array, chan):
         pagenum = None
         if len(tag_array) >= 1 and tag_array[-1].startswith("page"):
             pagenum = tag_array.pop(-1)
@@ -108,7 +108,7 @@ Results are undoable.
 
     @Command.cooldown(scope=Scope.CHANNEL, time=5)
     @Command.register(name="rule34")
-    async def rule34(host, state):
+    async def rule34(self, host, state):
         '''
 Grabs images from rule34.xxx. Tags separated by white space, all valid tags are supported.
 
@@ -121,11 +121,11 @@ Results are undoable.
         '''
         chan = state.message.channel
         args = host.split(state.content)
-        if NSFW.check_tags(args):
+        if self.check_tags(args):
             await chan.send("https://www.youtube.com/watch?v=izREDpUHIqQ")
             print("diddler")
             return
-        tag_array, pagenum = await NSFW._parse_tags(args, chan)
+        tag_array, pagenum = await self._parse_tags(args, chan)
         tagstring = "+".join(tag_array)
         url = f"https://rule34.xxx/index.php?page=dapi&s=post&q=index&limit=50&tags={tagstring}"
         if pagenum is not None:

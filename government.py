@@ -217,7 +217,6 @@ class Government(Client):
 
     async def dbl_request(self, resp):
         return web.Response()
-        pass
 
     def log_undo(self, *msg):
         chan = self.undo_log.get(msg[0].channel.id)

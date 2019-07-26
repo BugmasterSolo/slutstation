@@ -785,6 +785,8 @@ class InvertFilter(ImageQueueable):
 
 # ~~ THRESHOLD FUNCTIONS ~~ #
 class compare_funcs:
+    
+    @staticmethod
     def luma(col, mode="RGB"):
         if mode == "RGB":
             return (0.2126 * col[0] + 0.7152 * col[1] + 0.0722 * col[2]) / 256
@@ -803,7 +805,7 @@ class ImageModule(Module):
         super().__init__(host, *args, **kwargs)
         self.queue = ImageQueue(host)
 
-    def parse_string(host, content, message):
+    def parse_string(self, host, content, message):
         array = host.split(content)
         url = None
         if (len(message.attachments)):
@@ -818,7 +820,7 @@ class ImageModule(Module):
 
     @Command.cooldown(scope=Scope.CHANNEL, time=5)
     @Command.register(name="pixelsort")
-    async def pixelsort(host, state):
+    async def pixelsort(self, host, state):
         '''
 Quick pixelsorting function. URL or image upload must be provided.
 
@@ -828,7 +830,7 @@ g pixelsort (<url> or ignore if uploaded image) [threshold (0 - 1, default 0.5)]
 Undoable.
         '''
         try:
-            url, args = ImageModule.parse_string(host, state.content, state.message)
+            url, args = self.parse_string(host, state.content, state.message)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
@@ -841,11 +843,11 @@ Undoable.
         else:
             sort = Pixelsort(msg=state.message, url=url, isHorizontal=True)
         await state.message.channel.trigger_typing()
-        await state.command_host.queue.add_to_queue(sort)
+        await self.queue.add_to_queue(sort)
 
     @Command.cooldown(scope=Scope.USER, time=20)
     @Command.register(name="stat")
-    async def stat(host, state):
+    async def stat(self, host, state):
         '''
 Display your user statistics in an image!
 
@@ -860,11 +862,11 @@ Undoable.
                 await cur.callproc("GLOBALINFO", (target.id, state.message.guild.id))
                 targetinfo = await cur.fetchone()
         statview = StatView(msg=state.message, target=targetinfo, url=str(target.avatar_url_as(static_format="png", size=128)))
-        await state.command_host.queue.add_to_queue(statview)
+        await self.queue.add_to_queue(statview)
 
     @Command.cooldown(scope=Scope.CHANNEL, time=10)
     @Command.register(name="crunch")
-    async def crunch(host, state):
+    async def crunch(self, host, state):
         '''
 Naive seam carving (Content aware scale) algorithm with JPEG filter.
 
@@ -875,7 +877,7 @@ Undoable.
         '''
         # todo: implement FXAA step or something similar to smooth out the result
         try:
-            url, args = ImageModule.parse_string(host, state.content, state.message)
+            url, args = self.parse_string(host, state.content, state.message)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
@@ -888,12 +890,12 @@ Undoable.
         else:
             cruncher = Cruncher(msg=state.message, url=url)
         await state.message.channel.trigger_typing()
-        await state.command_host.queue.add_to_queue(cruncher)
+        await self.queue.add_to_queue(cruncher)
 
     # todo: improve text here
     @Command.cooldown(scope=Scope.CHANNEL, time=3)
     @Command.register(name="meme")
-    async def meme(host, state):
+    async def meme(self, host, state):
         '''
 Make a meme.
 
@@ -903,7 +905,7 @@ g meme (<url> or ignore if uploaded image) (<TEXT> or <TOPTEXT> | <BOTTOMTEXT>)
 Undoable.
         '''
         try:
-            url, args = ImageModule.parse_string(host, state.content, state.message)
+            url, args = self.parse_string(host, state.content, state.message)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
@@ -911,11 +913,11 @@ Undoable.
             args = ["ERR", "|", "TRANSLATION", "SERVICE", "UNAVAILABLE"]
         meme = MemeFilter(msg=state.message, url=url, text=args)
         await state.message.channel.trigger_typing()
-        await state.command_host.queue.add_to_queue(meme)
+        await self.queue.add_to_queue(meme)
 
     @Command.cooldown(scope=Scope.CHANNEL, time=3)
     @Command.register(name="jpeg")
-    async def jpeg(host, state):
+    async def jpeg(self, host, state):
         '''
 Do I look like I-- no no not doing that.
 
@@ -925,17 +927,17 @@ g jpeg (<url> or ignore if uploaded image)
 Undoable.
         '''
         try:
-            url, _ = ImageModule.parse_string(host, state.content, state.message)
+            url, _ = self.parse_string(host, state.content, state.message)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
         jaypeg = JPEGFilter(msg=state.message, url=url)
         await state.message.channel.trigger_typing()
-        await state.command_host.queue.add_to_queue(jaypeg)
+        await self.queue.add_to_queue(jaypeg)
 
     @Command.cooldown(scope=Scope.CHANNEL, time=3)
     @Command.register(name="invert")
-    async def invert(host, state):
+    async def invert(self, host, state):
         '''
 Invert the colors.
 
@@ -945,17 +947,17 @@ g invert (<url> or ignore if uploaded image)
 Undoable.
         '''
         try:
-            url, _ = ImageModule.parse_string(host, state.content, state.message)
+            url, _ = self.parse_string(host, state.content, state.message)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
         inverter = InvertFilter(msg=state.message, url=url)
         await state.message.channel.trigger_typing()
-        await state.command_host.queue.add_to_queue(inverter)
+        await self.queue.add_to_queue(inverter)
 
     @Command.cooldown(scope=Scope.CHANNEL, time=5)
     @Command.register(name="peterhere")
-    async def peterhere(host, state):
+    async def peterhere(self, host, state):
         '''
 Hey guys, peter here.
 
@@ -965,7 +967,7 @@ g peterhere (<url> or ignore if uploaded image) <text>
 Undoable.
         '''
         try:
-            url, args = ImageModule.parse_string(host, state.content, state.message)
+            url, args = self.parse_string(host, state.content, state.message)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
@@ -973,4 +975,4 @@ Undoable.
             args = ['fortnite']
         griffin = PeterGriffinFilter(msg=state.message, url=url, text=args)
         await state.message.channel.trigger_typing()
-        await state.command_host.queue.add_to_queue(griffin)
+        await self.queue.add_to_queue(griffin)
