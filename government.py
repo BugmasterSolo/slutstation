@@ -500,7 +500,7 @@ discord.User author             - The user that posted the relevant request.
         else:
             return False
 
-    async def spendcredits(cur, uid, amt):
+    async def spendcredits(self, cur, uid, amt):
         await cur.callproc("SPEND_CREDITS", (uid, amt))
         success = cur.fetchone()
         return success[0]
