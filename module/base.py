@@ -218,11 +218,9 @@ class Command:
         For descriptions of options view the Command docstring.
         '''
         if func:
-            print(func.__self__)
             return Command(func)
 
         def wrapper(func):
-            print(func)
             return Command(func, *args, **kwargs)
         return wrapper
 

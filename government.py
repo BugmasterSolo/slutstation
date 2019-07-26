@@ -517,5 +517,8 @@ def load_token():
 
 
 if __name__ == '__main__':
-    client = Government("g ")
-    client.run(load_token())
+    try:
+        client = Government("g ")
+        client.run(load_token())
+    except Exception as e:
+        print(e)
