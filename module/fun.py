@@ -286,8 +286,8 @@ Prints the final results at the end of the poll!
                 answer_summary = f"{answer_list[i]} -- {poll_responses[i]} vote(s) ({percent}%)"
                 if i in maxindex:
                     answer_summary = f"***{answer_summary}***"
-                poll_summary += f"{answer_summary}\n\n{poll.jump_url}"
-            result_string += poll_summary
+                poll_summary += f"{answer_summary}\n\n"
+            result_string += poll_summary + poll.jump_url
         await chan.send(result_string)
         await poll.edit(content=result_string)
 
