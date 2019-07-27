@@ -9,6 +9,7 @@ import random
 import copyreg
 import types
 from functools import reduce
+import sys
 
 # todo: make these function names consistent. they're a pain :)
 
@@ -47,7 +48,6 @@ different complex operations, for instance shader renders and the like.
         self.load_event = asyncio.Event()
         self.loop = asyncio.get_event_loop()
         self.loop.create_task(self.process_images(self.loop))
-        # this can be asyncio.run_coroutine_threadsafe? look into tradeoffs of all of this mess
 
     async def add_to_queue(self, item):
         await self.queue.put(item)
@@ -473,10 +473,10 @@ class StatView(ImageQueueable):
         brush.rectangle((244, 104, 246, 120), fill=GRAY)
         brush.rectangle((12, 108, levelbar_x, 118), fill=GRAY)
 
-        fontBig = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=64)
-        fontSmall = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=32)
-        fontTiny = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=16)
-        fontMiniscule = ImageFont.truetype(font="RobotoMono-Bold.ttf", size=8)
+        fontBig = ImageFont.truetype(font="/usr/share/fonts/truetype/RobotoMono-Bold.ttf", size=64)
+        fontSmall = ImageFont.truetype(font="/usr/share/fonts/truetype/RobotoMono-Bold.ttf", size=32)
+        fontTiny = ImageFont.truetype(font="/usr/share/fonts/truetype/RobotoMono-Bold.ttf", size=16)
+        fontMiniscule = ImageFont.truetype(font="/usr/share/fonts/truetype/RobotoMono-Bold.ttf", size=8)
 
         level = str(target[7])
         rank_global = "#" + str(target[6])
@@ -596,9 +596,9 @@ class MemeFilter(ImageQueueable):
 
             brush = ImageDraw.Draw(img)
 
-            text_top_str, font_top, multiline_top = MemeFilter.fit_text(brush, "impact.ttf", MAX_SIZE, MIN_SIZE, text_top, size_limit, height_limit)
+            text_top_str, font_top, multiline_top = MemeFilter.fit_text(brush, "/usr/share/fonts/truetype/impact.ttf", MAX_SIZE, MIN_SIZE, text_top, size_limit, height_limit)
 
-            text_bot_str, font_bot, multiline_bot = MemeFilter.fit_text(brush, "impact.ttf", MAX_SIZE, MIN_SIZE, text_bottom, size_limit, height_limit)
+            text_bot_str, font_bot, multiline_bot = MemeFilter.fit_text(brush, "/usr/share/fonts/truetype/impact.ttf", MAX_SIZE, MIN_SIZE, text_bottom, size_limit, height_limit)
 
             multiline = multiline_top or multiline_bot
 
@@ -667,7 +667,7 @@ class PeterGriffinFilter(MemeFilter):
             # TODO: refactor
             MIN_SIZE = 21
             MAX_SIZE = 72
-            FONT_NAME = 'arial.ttf'
+            FONT_NAME = '/usr/share/fonts/truetype/arial.ttf'
             multiline = False
             size_limit = size[0] * 0.6
             brush = ImageDraw.Draw(img)

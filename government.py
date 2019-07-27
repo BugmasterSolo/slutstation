@@ -178,8 +178,9 @@ class Government(Client):
         await self.import_extension(module.Player)
         await self.import_extension(module.ImageModule)
         await self.import_extension(module.Fishing)
-        await self.import_extension(module.Telephone)  # fuggit
-        module.WebHandler(self, "localhost", 8080, dbl_key=self.dbl_key)
+        await self.import_extension(module.Telephone)
+        # i dont want to worry about these until things are configured
+        # module.WebHandler(self, "localhost", 8080, dbl_key=self.dbl_key)
         # asyncio.create_task(self.sys_monitor_loop())
 
     async def import_extension(self, cls):
