@@ -8,3 +8,4 @@ db_token.php
 .htaccess
 help_contents.json
 nginx.conf
+*.tar.xz

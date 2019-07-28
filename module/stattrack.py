@@ -66,7 +66,7 @@ Pay forward a chunk of your credits towards your currently active server.
             return
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
-                if not host.spendcredits(cur, state.message.author.id, value):
+                if not await host.spendcredits(cur, state.message.author.id, value):
                     await state.message.channel.send("You do not have enough credits to tip that amount!")
                     return
                 await cur.callproc("SEND_TIP", (state.message.guild.id, value))

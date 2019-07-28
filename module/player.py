@@ -96,7 +96,7 @@ class YTPlayer:
     def format_source_tuple(host, state, url):
         async def generator():
             for link in url:
-                player = await YTPlayer.format_source_single(host, state, link)
+                player = await YTPlayer.format_source_single(host, state, link)  # eek
                 yield player
         author = state.message.author
         response_embed = discord.Embed(title=f"Added {len(url)} videos to queue!", color=0xff0000)
