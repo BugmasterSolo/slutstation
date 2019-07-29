@@ -483,10 +483,14 @@ class StatView(ImageQueueable):
             brush.rectangle((244, 104, 246, 120), fill=GRAY)
             brush.rectangle((12, 108, levelbar_x, 118), fill=GRAY)
 
-            fontBig = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=64)
-            fontSmall = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=32)
-            fontTiny = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=16)
-            fontMiniscule = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=8)
+            font_name = font_suffix + "RobotoMono-Bold.ttf"
+
+            print(font_name)
+
+            fontBig = ImageFont.truetype(font=font_name, size=64)
+            fontSmall = ImageFont.truetype(font=font_name, size=32)
+            fontTiny = ImageFont.truetype(font=font_name, size=16)
+            fontMiniscule = ImageFont.truetype(font=font_name, size=8)
 
             level = str(target[7])
             rank_global = "#" + str(target[6])
