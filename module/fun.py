@@ -9,6 +9,7 @@ import html
 import re
 from string import ascii_uppercase as letters
 from discord.errors import NotFound, Forbidden
+import asyncio
 
 
 # TODO: Modify poll info to appear in embed message.
@@ -340,21 +341,30 @@ Usage: g undo <#>
             except ValueError:
                 pass
         if undo_log:
-            msg_cache = []
+            msg_gen = []  # don't like creating this and just forgetting about it but its a small footprint. go back to this later on more sleep
+            msg_bot = []
+            delperm = state.message.guild.me.permissions_in(state.message.channel).manage_messages
             for _ in range(delete_count):
                 try:
                     msg_list = undo_log.pop()
                     for m in msg_list:
-                        msg_cache.append(m)
+                        if m.author == host.user:
+                            msg_bot.append(m)
+                        elif delperm:
+                            msg_gen.append(m)
                 except IndexError:
                     await chan.send("Undo history cleared.", delete_after=5)
                     return
-            msg_cache.sort(key=lambda a: int(a.author.bot), reverse=True)  # ensure that the bot deletes all of its own messages before trying to delete someone else's
             try:
-                await chan.delete_messages(msg_cache)
+                tl = []
+                tl.append(asyncio.create_task(chan.delete_messages(msg_bot)))
+                if delperm:
+                    tl.append(asyncio.create_task(chan.delete_messages(msg_gen)))
+
+                await asyncio.wait(tl)       
             except Forbidden:
+                # this is likely unnecessary with aio wait
                 pass
-                # bad at deleting several messages
             await chan.send(f"{delete_count} message(s) deleted.", delete_after=5)
         else:
             await chan.send("No undoable messages on record.", delete_after=5)
