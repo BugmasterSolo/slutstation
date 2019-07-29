@@ -13,6 +13,7 @@ import sys
 
 # todo: make these function names consistent. they're a pain :)
 
+font_suffix = ("/usr/share/fonts/truetype/" if "linux" in sys.platform else "")
 
 class ImageNotFoundException(Exception):
     pass
@@ -107,6 +108,7 @@ Manages the core processing loop that powers the image queue.
             return False
         return True
 
+    @staticmethod
     def bytes_and_load(data):
         byte = BytesIO(data)
         try:
@@ -133,6 +135,7 @@ class ImageQueueable:
         self.mode = None
         self.image = None
 
+    @staticmethod
     def apply_filter(img, maxsize=1024):
         '''Rescales images to the passed size.'''
         exif_orientation = 0x0112  # thanks SO
@@ -232,6 +235,7 @@ class Cruncher(ImageQueueable):
     def bundle_filter_call(self):
         return Cruncher.apply_filter, (self.image, self.scale)
 
+    @staticmethod
     def explore(start, step, row, data, size):
         x = start
         if start >= size[0]:
@@ -250,6 +254,8 @@ class Cruncher(ImageQueueable):
     #  - What the current algo does NOT do is record this minimum value in the image table. Use a new image for that.
     #  - From there, we can use the prefabbed exploration function to find our potential seeds. From there, we evaluate the seed cost of each option and choose the lowest one. The new algo relies on predetermined seed minimums.
     #  - This then iterates through the entire image.
+    
+    @staticmethod
     def apply_crunch(img, scale, debug=False, debug2=False):
         '''To return back to in the future -- a technically "proper" implementation'''
         img, size = ImageQueueable.apply_filter(img, 640)  # oop
@@ -351,6 +357,7 @@ class Cruncher(ImageQueueable):
             print(traceback.format_exc())
         return finale
 
+    @staticmethod
     def apply_crunch_lazy(img, scale, debug=False):
         '''Faster seam carve function that runs better but crunches it up all nasty'''
         print("starting")
@@ -427,6 +434,7 @@ class Cruncher(ImageQueueable):
             import traceback
             print(traceback.format_exc())
 
+    @staticmethod
     def apply_filter(img, scale, debug=False, ultradebug=False):
         if ultradebug:
             img_temp = Cruncher.apply_crunch(img, scale, False, False).convert("RGB").rotate(-90, expand=True)
@@ -455,6 +463,7 @@ class StatView(ImageQueueable):
     def bundle_filter_call(self):
         return StatView.apply_filter, (self.image, self.target)
 
+    @staticmethod
     def apply_filter(img, target):
         GRAY = 0x36393f
         GREEN = 0xadd8a3
@@ -473,10 +482,10 @@ class StatView(ImageQueueable):
         brush.rectangle((244, 104, 246, 120), fill=GRAY)
         brush.rectangle((12, 108, levelbar_x, 118), fill=GRAY)
 
-        fontBig = ImageFont.truetype(font="/usr/share/fonts/truetype/RobotoMono-Bold.ttf", size=64)
-        fontSmall = ImageFont.truetype(font="/usr/share/fonts/truetype/RobotoMono-Bold.ttf", size=32)
-        fontTiny = ImageFont.truetype(font="/usr/share/fonts/truetype/RobotoMono-Bold.ttf", size=16)
-        fontMiniscule = ImageFont.truetype(font="/usr/share/fonts/truetype/RobotoMono-Bold.ttf", size=8)
+        fontBig = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=64)
+        fontSmall = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=32)
+        fontTiny = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=16)
+        fontMiniscule = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=8)
 
         level = str(target[7])
         rank_global = "#" + str(target[6])
@@ -509,6 +518,7 @@ class JPEGFilter(ImageQueueable):
     def bundle_filter_call(self):
         return JPEGFilter.apply_filter, (self.image,)
 
+    @staticmethod
     def apply_filter(img, quality=5):
         result = BytesIO()
         img.convert("RGB").save(result, "JPEG", quality=quality)
@@ -524,6 +534,7 @@ class MemeFilter(ImageQueueable):
     def bundle_filter_call(self):
         return MemeFilter.apply_filter, (self.image, self.text)
 
+    @staticmethod
     def split_text(text_arr, font, size_limit, brush):
         line_size = 0
         string_temp = ""
@@ -548,6 +559,7 @@ class MemeFilter(ImageQueueable):
                 string_temp += word + " "
         return string_temp
 
+    @staticmethod
     def fit_text(brush, font, maxim, minim, text, width, height=0):
         fontface = ImageFont.truetype(font, size=maxim)
         text_format = " ".join(text)
@@ -568,6 +580,7 @@ class MemeFilter(ImageQueueable):
 
         return (text_format, fontface, multiline)
 
+    @staticmethod
     def apply_filter(img, text):
         # todo:
         #   - optimize textsize calls
@@ -596,9 +609,9 @@ class MemeFilter(ImageQueueable):
 
             brush = ImageDraw.Draw(img)
 
-            text_top_str, font_top, multiline_top = MemeFilter.fit_text(brush, "/usr/share/fonts/truetype/impact.ttf", MAX_SIZE, MIN_SIZE, text_top, size_limit, height_limit)
+            text_top_str, font_top, multiline_top = MemeFilter.fit_text(brush, font_suffix + "impact.ttf", MAX_SIZE, MIN_SIZE, text_top, size_limit, height_limit)
 
-            text_bot_str, font_bot, multiline_bot = MemeFilter.fit_text(brush, "/usr/share/fonts/truetype/impact.ttf", MAX_SIZE, MIN_SIZE, text_bottom, size_limit, height_limit)
+            text_bot_str, font_bot, multiline_bot = MemeFilter.fit_text(brush, font_suffix + "impact.ttf", MAX_SIZE, MIN_SIZE, text_bottom, size_limit, height_limit)
 
             multiline = multiline_top or multiline_bot
 
@@ -658,6 +671,7 @@ class PeterGriffinFilter(MemeFilter):
     def bundle_filter_call(self):
         return PeterGriffinFilter.apply_filter, (self.image, self.text)
 
+    @staticmethod
     def apply_filter(img, text):
         try:
             img, size = ImageQueueable.apply_filter(img)
@@ -667,7 +681,7 @@ class PeterGriffinFilter(MemeFilter):
             # TODO: refactor
             MIN_SIZE = 21
             MAX_SIZE = 72
-            FONT_NAME = '/usr/share/fonts/truetype/arial.ttf'
+            FONT_NAME = font_suffix + 'arial.ttf'
             multiline = False
             size_limit = size[0] * 0.6
             brush = ImageDraw.Draw(img)
@@ -720,6 +734,7 @@ Pixelsort(channel, url, [filename='upload.png', isHorizontal=True, threshold=0.5
     def bundle_filter_call(self):
         return Pixelsort.apply_filter, (self.image, self.isHorizontal, self.compare, self.mode, self.threshold)
 
+    @staticmethod
     def apply_filter(img, isHorizontal, compare, mode, threshold):
         img, size = ImageQueueable.apply_filter(img)
 
@@ -773,6 +788,7 @@ class InvertFilter(ImageQueueable):
     def bundle_filter_call(self):
         return InvertFilter.apply_filter, (self.image, )
 
+    @staticmethod
     def apply_filter(img):
         img, _ = ImageQueueable.apply_filter(img)
         img = ImageOps.invert(img)
