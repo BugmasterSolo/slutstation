@@ -465,50 +465,55 @@ class StatView(ImageQueueable):
 
     @staticmethod
     def apply_filter(img, target):
-        GRAY = 0x36393f
-        GREEN = 0xadd8a3
-        SIZE = (384, 256)
-        canvas = Image.new("RGB", SIZE, (54, 57, 63))
-        canvas.paste(img, (257, 129))
+        try:
+            GRAY = 0x36393f
+            GREEN = 0xadd8a3
+            SIZE = (384, 256)
+            canvas = Image.new("RGB", SIZE, (54, 57, 63))
+            canvas.paste(img, (257, 129))
 
-        brush = ImageDraw.Draw(canvas)
+            brush = ImageDraw.Draw(canvas)
 
-        brush.rectangle((0, 0, 256, 256), fill=GREEN)
-        brush.rectangle((0, 256, 128, 384), fill=GREEN)
+            brush.rectangle((0, 0, 256, 256), fill=GREEN)
+            brush.rectangle((0, 256, 128, 384), fill=GREEN)
 
-        levelbar_x = int(12 + (target[9] / target[8]) * 232)
+            levelbar_x = int(12 + (target[9] / target[8]) * 232)
 
-        brush.rectangle((10, 104, 12, 120), fill=GRAY)
-        brush.rectangle((244, 104, 246, 120), fill=GRAY)
-        brush.rectangle((12, 108, levelbar_x, 118), fill=GRAY)
+            brush.rectangle((10, 104, 12, 120), fill=GRAY)
+            brush.rectangle((244, 104, 246, 120), fill=GRAY)
+            brush.rectangle((12, 108, levelbar_x, 118), fill=GRAY)
 
-        fontBig = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=64)
-        fontSmall = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=32)
-        fontTiny = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=16)
-        fontMiniscule = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=8)
+            fontBig = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=64)
+            fontSmall = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=32)
+            fontTiny = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=16)
+            fontMiniscule = ImageFont.truetype(font=font_suffix + "RobotoMono-Bold.ttf", size=8)
 
-        level = str(target[7])
-        rank_global = "#" + str(target[6])
-        rank_local = "#" + str(target[11])
-        expnext = str(target[8])
-        expcur = str(target[9])
+            level = str(target[7])
+            rank_global = "#" + str(target[6])
+            rank_local = "#" + str(target[11])
+            expnext = str(target[8])
+            expcur = str(target[9])
 
-        levelWidth = brush.textsize(level, font=fontBig)
-        brush.text((10, 30), level, font=fontBig, fill=GRAY)
-        brush.text((10, 140), "GR", font=fontBig, fill=GRAY)
-        brush.text((138, 140), "LR", font=fontBig, fill=GRAY)
-        brush.text((levelWidth[0] + 15, 60), expcur, font=fontTiny, fill=GRAY)
-        brush.text((levelWidth[0] + 15, 80), expnext, font=fontTiny, fill=GRAY)
-        grWidth = brush.textsize(rank_global, font=fontSmall)
-        lrWidth = brush.textsize(rank_local, font=fontSmall)
-        brush.text((118 - grWidth[0], 208), rank_global, font=fontSmall, fill=GRAY)
-        brush.text((246 - lrWidth[0], 208), rank_local, font=fontSmall, fill=GRAY)
-        brush.text((14, 108), "EXP", font=fontMiniscule, fill=GREEN)
+            levelWidth = brush.textsize(level, font=fontBig)
+            brush.text((10, 30), level, font=fontBig, fill=GRAY)
+            brush.text((10, 140), "GR", font=fontBig, fill=GRAY)
+            brush.text((138, 140), "LR", font=fontBig, fill=GRAY)
+            brush.text((levelWidth[0] + 15, 60), expcur, font=fontTiny, fill=GRAY)
+            brush.text((levelWidth[0] + 15, 80), expnext, font=fontTiny, fill=GRAY)
+            grWidth = brush.textsize(rank_global, font=fontSmall)
+            lrWidth = brush.textsize(rank_local, font=fontSmall)
+            brush.text((118 - grWidth[0], 208), rank_global, font=fontSmall, fill=GRAY)
+            brush.text((246 - lrWidth[0], 208), rank_local, font=fontSmall, fill=GRAY)
+            brush.text((14, 108), "EXP", font=fontMiniscule, fill=GREEN)
 
-        result = BytesIO()
-        canvas.save(result, "PNG")
-        result.seek(0)
-        return result
+            result = BytesIO()
+            canvas.save(result, "PNG")
+            result.seek(0)
+            return result
+        except Exception as e:
+            print(e)
+            import traceback
+            print traceback.format_exc()
 
 
 class JPEGFilter(ImageQueueable):
