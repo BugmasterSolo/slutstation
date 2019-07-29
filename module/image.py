@@ -513,7 +513,7 @@ class StatView(ImageQueueable):
         except Exception as e:
             print(e)
             import traceback
-            print traceback.format_exc()
+            print(traceback.format_exc())
 
 
 class JPEGFilter(ImageQueueable):
