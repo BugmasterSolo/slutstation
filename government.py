@@ -217,8 +217,6 @@ class Government(Client):
     # UTILITY FUNCTIONS BELOW!
 
     def log_undo(self, *msg):
-        print("message added to undo queue!")
-        print(msg)
         chan = self.undo_log.get(msg[0].channel.id)
         if not chan:
             chan = self.undo_log[msg[0].channel.id] = collections.deque(maxlen=self.undo_limit)  # accidental bingo

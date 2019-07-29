@@ -349,10 +349,12 @@ Usage: g undo <#>
                 except IndexError:
                     await chan.send("Undo history cleared.", delete_after=5)
                     return
+            msg_cache.sort(key=lambda a: int(a.author.bot), reverse=True)  # ensure that the bot deletes all of its own messages before trying to delete someone else's
             try:
                 await chan.delete_messages(msg_cache)
             except Forbidden:
                 pass
+                # bad at deleting several messages
             await chan.send(f"{delete_count} message(s) deleted.", delete_after=5)
         else:
             await chan.send("No undoable messages on record.", delete_after=5)
