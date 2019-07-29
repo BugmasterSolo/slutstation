@@ -326,7 +326,7 @@ Funny little 8ball game for you and friends.
 
     @Command.register(name="undo")
     async def undo(self, host, state):
-        '''For big mistakes. Deletes 1 or more valid results (and their associated commands) from the message log. Undos are handled by individual commands. Check the help section to see if you can undo a command!
+        '''For big mistakes. Deletes commands from the undo log. Undos are handled by individual commands. Check the help section to see if you can undo a command!
 
 The logger stores up to 50 commands per channel.
 
@@ -334,16 +334,24 @@ Usage: g undo <#>
 '''
         chan = state.message.channel
         undo_log = host.undo_log.get(chan.id)
+
         delete_count = 1
+        delperm = state.message.guild.me.permissions_in(state.message.channel).manage_messages
+        
         if state.message.author.permissions_in(chan).administrator:
             try:
-                delete_count = max(int(state.content), 1)
+                delete_count = min(len(undo_log), max(int(state.content), 1))
             except ValueError:
                 pass
+
+        if not delperm and delete_count > 1:  # assuming that at least one bot message will always be in the mix
+            await chan.send("I need the \"Manage Messages\" permission to accomplish that!")
+            return
+
+
         if undo_log:
             msg_gen = []  # don't like creating this and just forgetting about it but its a small footprint. go back to this later on more sleep
             msg_bot = []
-            delperm = state.message.guild.me.permissions_in(state.message.channel).manage_messages
             for _ in range(delete_count):
                 try:
                     msg_list = undo_log.pop()
@@ -353,17 +361,15 @@ Usage: g undo <#>
                         elif delperm:
                             msg_gen.append(m)
                 except IndexError:
-                    await chan.send("Undo history cleared.", delete_after=5)
-                    return
+                    break
             try:
+
                 tl = []
                 tl.append(asyncio.create_task(chan.delete_messages(msg_bot)))
                 if delperm:
-                    tl.append(asyncio.create_task(chan.delete_messages(msg_gen)))
-
-                await asyncio.wait(tl)       
+                    tl.append(asyncio.create_task(self.delete_catch(chan, msg_gen)))
+                await asyncio.wait(tl) 
             except Forbidden:
-                # this is likely unnecessary with aio wait
                 pass
             await chan.send(f"{delete_count} message(s) deleted.", delete_after=5)
         else:
@@ -372,6 +378,15 @@ Usage: g undo <#>
             await state.message.delete()
         except Forbidden:
             pass
+
+    @staticmethod
+    async def delete_catch(chan, msg_list):
+        try:
+            await chan.delete_messages(msg_list)
+        except Forbidden:
+            print("oopsie poopsie")
+            return False
+        return True
 
     # 32 bit xorshift. used for state dependent PRNG.
     def _xorshift(self, num):
