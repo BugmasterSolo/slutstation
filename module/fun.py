@@ -352,7 +352,7 @@ Usage: g undo <#>
             try:
                 await chan.delete_messages(msg_cache)
             except Forbidden:
-                return
+                pass
             await chan.send(f"{delete_count} message(s) deleted.", delete_after=5)
         else:
             await chan.send("No undoable messages on record.", delete_after=5)
