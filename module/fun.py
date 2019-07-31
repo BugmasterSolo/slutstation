@@ -365,6 +365,9 @@ Usage: g undo <#>
             try:
 
                 tl = []
+
+                # todo: how does it handle deleted messages?
+
                 tl.append(asyncio.create_task(chan.delete_messages(msg_bot)))
                 if delperm:
                     tl.append(asyncio.create_task(self.delete_catch(chan, msg_gen)))

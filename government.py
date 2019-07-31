@@ -41,9 +41,9 @@ http_header = {
     "user-agent": "Government(Discord.py) / 0.091 -- https://github.com/jamieboy1337/slutstation; sorry im just lerning :-)"
 }
 
-print("smeg")
-
 class State:
+    __slots__ = ["message", "host", "command_host", "content", "command_name"]
+    
     '''Wrapper for variables provided in message event, includes some added values as necessary.
         TODO: remove the need for state and move the function parsing to a hidden module var.'''
     def __init__(self, host, message, **kwargs):

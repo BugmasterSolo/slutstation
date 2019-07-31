@@ -52,6 +52,8 @@ class Module:
     or at least that is the goal.
     '''
 
+    __slots__ = ['command_list', 'host']
+
     # getting the event loop inside of the module and passing it to all of the functions.
     def __init__(self, host, *args, **kwargs):
         self.command_list = {}
@@ -135,6 +137,9 @@ class Command:
                 - host, referring to the bot.
                 - message, referring to the passed message.
     '''
+
+    __slots__ = ['name', 'func', 'descrip', 'alias', 'cool', 'command_host', 'cooltime', 'cooldown_array']
+
     def __init__(self, func, **kwargs):
         # command_host could just as easily be passed here
         self.name = kwargs.get("name", func.__name__)
@@ -202,7 +207,7 @@ class Command:
                 return message.channel.id
             elif cool == 2:
                 return message.guild.id
-            elif cool == 3:
+            else:
                 return 1
         return 0
 

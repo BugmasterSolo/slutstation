@@ -36,6 +36,8 @@ def format_time(time):
 
 
 class StreamContainer:
+    __slots__ = ['page_url', 'author', 'title', 'thumb', 'description', 'channel', 'duration', 'message_host', 'source', 'dir', 'embed']
+
     def __init__(self, source, data, message, loc, embed):
         self.page_url = data['webpage_url']
         self.author = message.author
@@ -110,6 +112,8 @@ def check(guild_old, guild_new):
 
 
 class MusicPlayer:
+    __slots__ = ['host', 'source', 'queue', 'state', 'active_vc', 'parent', 'voice_channel', 'queue_event', 'skip_list', 'now_playing', 'queue_duration', 'start_time', 'last_start_time', 'now_playing_duration', 'destroyed', 'listener']
+
     def __init__(self, host, state, player, channel):
         self.host = host                                            # Government
         self.source = state.message                                 # one player to a guild, you can't have the bot all to yourself
