@@ -190,6 +190,8 @@ class MusicPlayer:
                 await source.message_host.send("I can't join that voice channel!")
                 return
             self.active_vc = await channel.connect()
+        self.active_vc = channel.guild.voice_client
+
         duration_string = format_time(source.duration)
         descrip = f"*{source.title}\nby {source.channel}*\n\n**Duration:** {duration_string}\n\n{source.description}"
         response_embed = discord.Embed(title="Now Playing!", color=0xff0000, description=descrip, url=source.page_url)

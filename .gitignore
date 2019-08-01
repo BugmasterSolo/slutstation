@@ -9,3 +9,4 @@ db_token.php
 help_contents.json
 nginx.conf
 *.tar.xz
+Dockerfile
