@@ -325,6 +325,7 @@ discord.User author             - The user that posted the relevant request.
         # jump back into loop
 
     def format_duration(self, timer):
+        timer = int(timer)
         duration_string = ""
         if (timer > 86400):
             day_count = math.floor(timer / 84600)
