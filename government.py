@@ -168,32 +168,6 @@ class Government(Client):
                 stat.append(loadavg[i])
             await asyncio.sleep(60)
 
-    async def collect_data(self):
-        pass
-        # '''log the db state into memory'''
-        # members_processed = 0
-        # async with self.db.acquire() as conn:
-        #     async with conn.cursor() as cur:
-        #         # future proofed: for shards
-        #         # if new: set and fetch
-        #         # if old: just set
-        #         print("ok baby")
-        #         for member in self.get_all_members():
-        #             members_processed += 1
-        #             await cur.execute("SELECT * FROM users WHERE user_id = %s", (member.id, ))
-        #             data = await cur.fetchone()
-        #             if not member.bot and data is not None:
-        #                 record = DBRecord.create_from_data(data)
-        #                 await cur.execute("SELECT * FROM guilds WHERE user_id = %s",(member.id, ))
-        #                 data = await cur.fetchall()
-        #                 for guild in data:
-        #                     record.active_guilds[guild[0]] = guild[2]
-
-        #                 self.logged_users[member.id] = record
-        #             if members_processed % 100 == 0:
-        #                 print(f"member {members_processed} processed!")
-
-
     async def create_db(self):
         sql_cred_array = None
         with open("db_token.json", "r") as f:
@@ -204,7 +178,6 @@ class Government(Client):
     async def on_ready(self):
         await self.change_presence(activity=Game(name="mike craft"))
         print(f"Connected to {len(self.guilds)} servers!")
-        await self.collect_data()
         print("Up and running!")
         asyncio.create_task(self.contact_db())
 
@@ -288,31 +261,30 @@ class Government(Client):
     async def contact_db(self):
         while True:
             await asyncio.sleep(60)
-            async with self.db_lock:
-                async with self.db.acquire() as conn:
-                    async with conn.cursor() as cur:
-                        print(self.logged_users)
-                        query = "CALL UPDATEUSER(%s, %s, %s, %s, %s, %s);"
-                        guildq = "CALL GUILDXP(%s, %s, %s);"
-                        calllist = []
-                        guildlist = []
-                        for pid in self.logged_users:
-                            user = self.logged_users[pid]
-                            if user.xp > 0:
-                                for gid in user.active_guilds:
-                                    if gid not in self.guild_list:
-                                        await cur.callproc("GUILDEXISTS", (gid, ))
-                                    # await cur.callproc("GUILDXP", (pid, gid, user.active_guilds[gid]))
-                                    add_guild = user.active_guilds[gid]
-                                    if add_guild > 0:
-                                        guildlist.append((pid, gid, user.active_guilds[gid]))
-                                        user.active_guilds[gid] = 0
-                                # await cur.callproc("UPDATEUSER", (pid, user.xp, user.credits, user.hard, user.soft, user.level))
-                                calllist.append((pid, user.xp, user.credits, user.hard, user.soft, user.level))
-                        print("ok")
-                        await cur.executemany(query, calllist)
-                        await cur.executemany(guildq, guildlist)
-                    await conn.commit()
+            async with self.db.acquire() as conn:
+                async with conn.cursor() as cur:
+                    print(self.logged_users)
+                    query = "CALL UPDATEUSER(%s, %s, %s, %s, %s, %s);"
+                    guildq = "CALL GUILDXP(%s, %s, %s);"
+                    calllist = []
+                    guildlist = []
+                    for pid in self.logged_users:
+                        user = self.logged_users[pid]
+                        if user.xp > 0:
+                            for gid in user.active_guilds:
+                                if gid not in self.guild_list:
+                                    await cur.callproc("GUILDEXISTS", (gid, ))
+                                # await cur.callproc("GUILDXP", (pid, gid, user.active_guilds[gid]))
+                                add_guild = user.active_guilds[gid]
+                                if add_guild > 0:
+                                    guildlist.append((pid, gid, user.active_guilds[gid]))
+                                    user.active_guilds[gid] = 0
+                            # await cur.callproc("UPDATEUSER", (pid, user.xp, user.credits, user.hard, user.soft, user.level))
+                            calllist.append((pid, user.xp, user.credits, user.hard, user.soft, user.level))
+                    print("ok")
+                    await cur.executemany(query, calllist)
+                    await cur.executemany(guildq, guildlist)
+                await conn.commit()
 
 
 
@@ -320,40 +292,39 @@ class Government(Client):
         if message.author.bot:
             return
 
-        async with self.db_lock:
-            uid = message.author.id
-            gid = message.guild.id
-            if gid not in self.guild_list:
-                self.guild_list.add(gid)
-                async with self.db.acquire() as conn:
-                    async with conn.cursor() as cur:
-                        await cur.callproc("GUILDEXISTS", (gid, ))
-                    await conn.commit()
-            utrack = self.logged_users.get(uid, None)
-            print(utrack)
-            if utrack is None:
-                # if something iffy happens, check to see if they are logged already
-                async with self.db.acquire() as conn:
-                    async with conn.cursor() as cur:
-                        await cur.callproc("USEREXISTS", (uid, f"{message.author.name}#{message.author.discriminator}"))
-                        await cur.execute("SELECT * from users WHERE user_id = %s", (uid, ))
-                        data = await cur.fetchone()
-                    await conn.commit()
-                
-                utrack = self.logged_users[uid] = DBRecord.create_from_data(data)
-                # data is now up to date on messages as necessary
-            if message.content == "":
-                msg_xp = 0
-            else:
-                
-                msg_xp = int(math.log(len(message.content)) * 3)
-                print(msg_xp)
-                utrack.addexp(gid, msg_xp)
-                msg = message.content.lower()
-                hard = len(re.findall("nigger", msg))  # bro its cool i bought a pass
-                soft = len(re.findall(r"/(nigg\w*|\bnig\b)", msg)) - hard
-                utrack.hard += hard
-                utrack.soft += soft
+        uid = message.author.id
+        gid = message.guild.id
+        if gid not in self.guild_list:
+            self.guild_list.add(gid)
+            async with self.db.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.callproc("GUILDEXISTS", (gid, ))
+                await conn.commit()
+        utrack = self.logged_users.get(uid, None)
+        print(utrack)
+        if utrack is None:
+            # if something iffy happens, check to see if they are logged already
+            async with self.db.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.callproc("USEREXISTS", (uid, f"{message.author.name}#{message.author.discriminator}"))
+                    await cur.execute("SELECT * from users WHERE user_id = %s", (uid, ))
+                    data = await cur.fetchone()
+                await conn.commit()
+            
+            utrack = self.logged_users[uid] = DBRecord.create_from_data(data)
+            # data is now up to date on messages as necessary
+        if message.content == "":
+            msg_xp = 0
+        else:
+            
+            msg_xp = int(math.log(len(message.content)) * 3)
+            print(msg_xp)
+            utrack.addexp(gid, msg_xp)
+            msg = message.content.lower()
+            hard = len(re.findall("nigger", msg))  # bro its cool i bought a pass
+            soft = len(re.findall(r"/(nigg\w*|\bnig\b)", msg)) - hard
+            utrack.hard += hard
+            utrack.soft += soft
         
         # async with self.db.acquire() as conn:
         #     async with conn.cursor() as cur:
