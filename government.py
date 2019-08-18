@@ -50,13 +50,73 @@ class State:
         self.message = message
         self.host = host
         for arg in kwargs:
-            setattr(self, arg, kwargs.get(arg, None))
+            setattr(self, arg, kwargs[arg])
+
+# baby database cacheing
+class DBRecord:
+    __slots__ = ["xp", "xp_next", "sum_next", "credits", "t_correct", "t_sum", "hard", "soft", "level", "active_guilds", "is_new"]
+
+    EXPBASE = 500
+    EXPFACTOR = 500
+    EXPPOW = 1.05
+
+    def __init__(self, **kwargs):
+
+        self.xp = 0
+        self.credits = 0
+        self.t_correct = 0
+        self.t_sum = 0
+        self.hard = 0
+        self.soft = 0
+        self.level = 1
+        self.is_new = True
+
+        self.active_guilds = {}
+
+        for arg in kwargs:
+            if arg in self.__slots__:
+                setattr(self, arg, kwargs[arg])
+
+        self.xp_next = self.calculate_threshold(self.level)
+        self.sum_next = self.calculate_sum(self.level)
+
+    @staticmethod
+    def calculate_threshold(lvl):
+        return DBRecord.EXPBASE + (DBRecord.EXPFACTOR * ((lvl - 1) ** DBRecord.EXPPOW))
+
+    @staticmethod
+    def calculate_sum(lvl):
+        expsum = 0
+        for i in range(1, lvl + 1):
+            expsum += DBRecord.calculate_threshold(i)
+        return expsum
+
+    @classmethod
+    def create_from_data(cls, data):
+        return cls(xp=data[2], t_correct=data[3], t_sum=data[4], 
+                    hard=data[5], soft=data[6], level=data[7], 
+                    xp_next=data[8], sum_next=data[9], credits=data[10])
+
+    def addexp(self, gid, xp):
+        if gid not in self.active_guilds:
+            self.active_guilds[gid] = 0
+        self.xp += xp
+        self.active_guilds[gid] += xp
+        self.credits += int(xp / 2)
+        if self.xp > self.sum_next:
+            self.level += 1
+            self.xp -= self.xp_next
+            self.xp_next = self.calculate_threshold(self.level)
+            self.sum_next += self.xp_next
+
+    
 
 
 class Government(Client):
     A_EMOJI = 0x0001F1E6
     QUOTE_TYPES = "\"“”'"
     CURRENCY_SYMBOL = "฿"
+    DB_UPDATE_FREQUENCY = 60
 
     def __init__(self, prefix):
         super().__init__()
@@ -78,11 +138,13 @@ class Government(Client):
         self.loop.run_until_complete(self.import_all())
         self.unique_commands = {}                           # dict of unique commands (k: command name or alias -- v: modules)
         self.guild_update_listeners = {}                    # used by music player and associated utilities to divvy out events
+        self.guild_list = set()
+        self.db_lock = asyncio.Lock()
 
         # rebuild module calls to parse json
         command_info = []
         for mod in self.module_list:
-            for command in mod.command_list:  # oh duh, this gets keys and not values; carry on
+            for command in mod.command_list:
                 if command in self.unique_commands:
                     raise ValueError(f"Duplicate commands: {command} in {mod.__name__} and {self.unique_commands[command].__name__}")
                 self.unique_commands[command] = mod  # mod value ties functions to modules
@@ -95,8 +157,7 @@ class Government(Client):
                     })
         # whatever
         self.loop.run_until_complete(self.http_post_request("http://baboo.mobi/government/help_function.php", json.dumps(command_info)))
-
-        print("Up and running!")
+        
 
     async def sys_monitor_loop(self):
         while 1:
@@ -106,6 +167,32 @@ class Government(Client):
                 stat = self.stats[i]
                 stat.append(loadavg[i])
             await asyncio.sleep(60)
+
+    async def collect_data(self):
+        pass
+        # '''log the db state into memory'''
+        # members_processed = 0
+        # async with self.db.acquire() as conn:
+        #     async with conn.cursor() as cur:
+        #         # future proofed: for shards
+        #         # if new: set and fetch
+        #         # if old: just set
+        #         print("ok baby")
+        #         for member in self.get_all_members():
+        #             members_processed += 1
+        #             await cur.execute("SELECT * FROM users WHERE user_id = %s", (member.id, ))
+        #             data = await cur.fetchone()
+        #             if not member.bot and data is not None:
+        #                 record = DBRecord.create_from_data(data)
+        #                 await cur.execute("SELECT * FROM guilds WHERE user_id = %s",(member.id, ))
+        #                 data = await cur.fetchall()
+        #                 for guild in data:
+        #                     record.active_guilds[guild[0]] = guild[2]
+
+        #                 self.logged_users[member.id] = record
+        #             if members_processed % 100 == 0:
+        #                 print(f"member {members_processed} processed!")
+
 
     async def create_db(self):
         sql_cred_array = None
@@ -117,6 +204,10 @@ class Government(Client):
     async def on_ready(self):
         await self.change_presence(activity=Game(name="mike craft"))
         print(f"Connected to {len(self.guilds)} servers!")
+        await self.collect_data()
+        print("Up and running!")
+        asyncio.create_task(self.contact_db())
+
 
     async def on_message(self, message):
         if message.author.id != self.user.id:
@@ -190,16 +281,89 @@ class Government(Client):
             err_string = str(e)
             print(f"Exception occurred: \n{err_string}")
 
+    # burner list and primary list, only sift through the primary list as the rest is unnecessary
+    # clear primary list on each read, use burner list as accessible cache
+    # move from burner to primary if available
+    # if not, generate in burner and move to primary via db call
+    async def contact_db(self):
+        while True:
+            await asyncio.sleep(60)
+            async with self.db_lock:
+                async with self.db.acquire() as conn:
+                    async with conn.cursor() as cur:
+                        print(self.logged_users)
+                        query = "CALL UPDATEUSER(%s, %s, %s, %s, %s, %s);"
+                        guildq = "CALL GUILDXP(%s, %s, %s);"
+                        calllist = []
+                        guildlist = []
+                        for pid in self.logged_users:
+                            user = self.logged_users[pid]
+                            if user.xp > 0:
+                                for gid in user.active_guilds:
+                                    if gid not in self.guild_list:
+                                        await cur.callproc("GUILDEXISTS", (gid, ))
+                                    # await cur.callproc("GUILDXP", (pid, gid, user.active_guilds[gid]))
+                                    add_guild = user.active_guilds[gid]
+                                    if add_guild > 0:
+                                        guildlist.append((pid, gid, user.active_guilds[gid]))
+                                        user.active_guilds[gid] = 0
+                                # await cur.callproc("UPDATEUSER", (pid, user.xp, user.credits, user.hard, user.soft, user.level))
+                                calllist.append((pid, user.xp, user.credits, user.hard, user.soft, user.level))
+                        print("ok")
+                        await cur.executemany(query, calllist)
+                        await cur.executemany(guildq, guildlist)
+                    await conn.commit()
+
+
+
     async def checkuser(self, message):
-        async with self.db.acquire() as conn:
-            async with conn.cursor() as cur:
-                if not self.checkguild(message):
-                    await cur.callproc("GUILDEXISTS", (message.guild.id, ))
-                    self.logged_users[message.guild.id] = set()
-                if not message.author.bot and message.author.id not in self.logged_users[message.guild.id]:
-                    await cur.callproc("USEREXISTS", (message.author.id, f"{message.author.name}#{message.author.discriminator}", message.guild.id))
-                    self.logged_users[message.guild.id].add(message.author.id)  # ensures above logic passes
-                await conn.commit()
+        if message.author.bot:
+            return
+
+        async with self.db_lock:
+            uid = message.author.id
+            gid = message.guild.id
+            if gid not in self.guild_list:
+                self.guild_list.add(gid)
+                async with self.db.acquire() as conn:
+                    async with conn.cursor() as cur:
+                        await cur.callproc("GUILDEXISTS", (gid, ))
+                    await conn.commit()
+            utrack = self.logged_users.get(uid, None)
+            print(utrack)
+            if utrack is None:
+                # if something iffy happens, check to see if they are logged already
+                async with self.db.acquire() as conn:
+                    async with conn.cursor() as cur:
+                        await cur.callproc("USEREXISTS", (uid, f"{message.author.name}#{message.author.discriminator}"))
+                        await cur.execute("SELECT * from users WHERE user_id = %s", (uid, ))
+                        data = await cur.fetchone()
+                    await conn.commit()
+                
+                utrack = self.logged_users[uid] = DBRecord.create_from_data(data)
+                # data is now up to date on messages as necessary
+            if message.content == "":
+                msg_xp = 0
+            else:
+                
+                msg_xp = int(math.log(len(message.content)) * 3)
+                print(msg_xp)
+                utrack.addexp(gid, msg_xp)
+                msg = message.content.lower()
+                hard = len(re.findall("nigger", msg))  # bro its cool i bought a pass
+                soft = len(re.findall(r"/(nigg\w*|\bnig\b)", msg)) - hard
+                utrack.hard += hard
+                utrack.soft += soft
+        
+        # async with self.db.acquire() as conn:
+        #     async with conn.cursor() as cur:
+        #         if not self.checkguild(message):
+        #             await cur.callproc("GUILDEXISTS", (message.guild.id, ))
+        #             self.logged_users[message.guild.id] = set()
+        #         if not message.author.bot and message.author.id not in self.logged_users[message.guild.id]:
+        #             await cur.callproc("USEREXISTS", (message.author.id, f"{message.author.name}#{message.author.discriminator}", message.guild.id))
+        #             self.logged_users[message.guild.id].add(message.author.id)  # ensures above logic passes
+        #         await conn.commit()
 
     def checkguild(self, message):
         return message.guild.id in self.logged_users
@@ -222,7 +386,7 @@ class Government(Client):
             chan = self.undo_log[msg[0].channel.id] = collections.deque(maxlen=self.undo_limit)  # accidental bingo
         chan.append(msg)
 
-    async def add_reactions(self, chan, embed, timer=0, answer_count=2, char_list=None, descrip="Get your answer in!", author=None):
+    async def add_reactions(self, chan, embed, timer=0, answer_count=2, char_list=None, descrip="Get your answer in!", author=None, cancellable=False):
         '''
 Adds reactions to a desired embed, and waits for responses to come in.
 In the event that the message is timed, returns the message ID to be handled appropriately.
@@ -521,3 +685,4 @@ if __name__ == '__main__':
         client.run(load_token())
     except Exception as e:
         print(e)
+

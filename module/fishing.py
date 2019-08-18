@@ -30,7 +30,6 @@ class Trap:
     #
 
     async def catch(self, owner):
-        self.host.trap_list.pop(self.owner.id)
         self.timer.set()
         elapsed = min(time.time() - self.start_time, self.duration)
         catch_count = int((1 + (elapsed / self.duration)) ** 4) * (random.random() * 0.3 + 0.8)
@@ -52,8 +51,6 @@ class Trap:
         elif self.public:
             return_embed.set_footer(text=f"Stolen from {owner.name}#{owner.discriminator}", icon_url=owner.avatar_url_as(format="png", size=128))  
         return return_embed
-        
-            
 
     async def waitforcatch(self):
         try:
@@ -123,7 +120,6 @@ g fish cast - Casts the fishing line at a chosen location.
         reaction_embed = Embed(title="Choose a location:", description=descrip, color=0xa0fff0)
         return await host.add_reactions(chan, reaction_embed, answer_count=len(self.LOCATIONS), author=auth)
 
-
     async def cast(self, host, state, args):
         # fetch user loadout from DB (skipping for now)
         auth = state.message.author
@@ -187,7 +183,6 @@ g fish cast - Casts the fishing line at a chosen location.
                     await chan.send(embed=result_embed)
                 else:
                     await chan.send("*Your trap sinks back into the water...*")
-                pass
 
         # no traps active
         else:
@@ -199,7 +194,7 @@ g fish cast - Casts the fishing line at a chosen location.
                 reaclist.append('\U0001f3a3')
             else:
                 descrip += "No unclaimed traps available, for now...\n"
-            trap_embed = Embed(title="Fishing Traps", description=descrip, color=0xa0fff0)
+            trap_embed = Embed(title="Active traps", description=descrip, color=0xa0fff0)
             try:
                 answer = await host.add_reactions(chan, trap_embed, char_list=reaclist, author=auth)
             except MessageDeletedException:
@@ -214,7 +209,7 @@ g fish cast - Casts the fishing line at a chosen location.
                 except MessageDeletedException:
                     return
                 if locindex == -1:
-                    await state.message.channel.send("`Fishing cancelled -- response not sent in time.`")
+                    await state.message.channel.send("`Trap set cancelled -- response not sent in time.`")
                     return
                 # create trap here
                 trap = Trap(locindex, time.time(), 86400, auth, state.message.guild.id, self, host)
@@ -224,8 +219,6 @@ g fish cast - Casts the fishing line at a chosen location.
                 # attempt to steal the first trap in the list.
                 # if successful, pop it off
                 pass
-
-        
 
 
 def cdf_normal(z):
