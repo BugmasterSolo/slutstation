@@ -71,18 +71,26 @@ class DBRecord:
         self.level = 1
         self.is_new = True
 
+        self.xp_next = False
+        self.sum_next = False
+
         self.active_guilds = {}
 
         for arg in kwargs:
             if arg in self.__slots__:
                 setattr(self, arg, kwargs[arg])
 
-        self.xp_next = self.calculate_threshold(self.level)
-        self.sum_next = self.calculate_sum(self.level)
+        if not self.xp_next:
+            self.xp_next = self.calculate_threshold(self.level)
+
+        if not self.sum_next:
+            self.sum_next = self.calculate_sum(self.level)
+            print("new sum: ")
+            print(self.sum_next)
 
     @staticmethod
     def calculate_threshold(lvl):
-        return DBRecord.EXPBASE + (DBRecord.EXPFACTOR * ((lvl - 1) ** DBRecord.EXPPOW))
+        return int(DBRecord.EXPBASE + (DBRecord.EXPFACTOR * (DBRecord.EXPPOW ** (lvl - 1))))
 
     @staticmethod
     def calculate_sum(lvl):
@@ -98,6 +106,8 @@ class DBRecord:
                     xp_next=data[8], sum_next=data[9], credits=data[10])
 
     def addexp(self, gid, xp):
+        print(f"{self.xp} XP")
+        print(f"Sum: {self.sum_next}")
         if gid not in self.active_guilds:
             self.active_guilds[gid] = 0
         self.xp += xp
@@ -105,7 +115,6 @@ class DBRecord:
         self.credits += int(xp / 2)
         if self.xp > self.sum_next:
             self.level += 1
-            self.xp -= self.xp_next
             self.xp_next = self.calculate_threshold(self.level)
             self.sum_next += self.xp_next
 
@@ -260,10 +269,9 @@ class Government(Client):
     # if not, generate in burner and move to primary via db call
     async def contact_db(self):
         while True:
-            await asyncio.sleep(60)
+            await asyncio.sleep(5)
             async with self.db.acquire() as conn:
                 async with conn.cursor() as cur:
-                    print(self.logged_users)
                     query = "CALL UPDATEUSER(%s, %s, %s, %s, %s, %s);"
                     guildq = "CALL GUILDXP(%s, %s, %s);"
                     calllist = []
