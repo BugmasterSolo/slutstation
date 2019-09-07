@@ -272,7 +272,7 @@ class Government(Client):
             await asyncio.sleep(5)
             async with self.db.acquire() as conn:
                 async with conn.cursor() as cur:
-                    query = "CALL UPDATEUSER(%s, %s, %s, %s, %s, %s);"
+                    query = "CALL UPDATEUSER(%s, %s, %s, %s, %s, %s, %s, %s);"
                     guildq = "CALL GUILDXP(%s, %s, %s);"
                     calllist = []
                     guildlist = []
@@ -288,7 +288,7 @@ class Government(Client):
                                     guildlist.append((pid, gid, user.active_guilds[gid]))
                                     user.active_guilds[gid] = 0
                             # await cur.callproc("UPDATEUSER", (pid, user.xp, user.credits, user.hard, user.soft, user.level))
-                            calllist.append((pid, user.xp, user.credits, user.hard, user.soft, user.level))
+                            calllist.append((pid, user.xp, user.credits, user.hard, user.soft, user.level, user.xp_next, user.sum_next))
                     print("ok")
                     await cur.executemany(query, calllist)
                     await cur.executemany(guildq, guildlist)
