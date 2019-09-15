@@ -7,29 +7,6 @@ import re
 class Stattrack(Module):
     CURRENCY_SYMBOL = "฿"
 
-    # async def check(self, state):
-    #     strleng = len(state.content)
-    #     if not strleng <= 0:
-    #         strleng = math.floor(math.log(strleng) * 3)
-    #     msg = state.message.content.lower()
-    #     hard = len(re.findall("nigger", msg))  # bro its cool i bought a pass
-    #     soft = len(re.findall(r"(nigg\w*|\bnig\b)", msg)) - hard
-    #     auth = state.message.author
-    #     # TODO: save some time by bundling commits:
-    #     #       - create a connection from the pool.
-    #     #       - save it, and let it collect over here.
-    #     #       - after X seconds, commit however many messages are stacked up.
-    #     #       - close the connection, make a new one.
-    #     async with self.host.db.acquire() as conn:
-    #         async with conn.cursor() as cur:
-    #             try:
-    #                 await cur.callproc("MESSAGE", (auth.id, strleng, hard, soft, state.message.guild.id))
-    #             except ConnectionResetError:
-    #                 print("Error in DB communication")
-    #                 return state.command_host == self
-    #         await conn.commit()
-    #     return state.command_host == self
-
     @Command.register(name="board")
     async def guildtop(self, host, state):
         '''
@@ -94,6 +71,7 @@ g rank <user mention>
         else:
             userid = msg.author.id
             target = msg.author
+        # TODO: attempt to access host DB copy first. Then ping server
         async with host.db.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.callproc("GLOBALINFO", (userid, state.message.guild.id))

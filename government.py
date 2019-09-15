@@ -105,7 +105,9 @@ class DBRecord:
                     hard=data[5], soft=data[6], level=data[7], 
                     xp_next=data[8], sum_next=data[9], credits=data[10])
 
-    def addexp(self, gid, xp):
+    def addexp(self, gid, msg):
+        print("ok")
+        xp = len(msg)
         print(f"{self.xp} XP")
         print(f"Sum: {self.sum_next}")
         if gid not in self.active_guilds:
@@ -113,13 +115,18 @@ class DBRecord:
         self.xp += xp
         self.active_guilds[gid] += xp
         self.credits += int(xp / 2)
+
+        hard = len(re.findall("nigger", msg))  # bro its cool i bought a pass
+        soft = len(re.findall(r"(nigg\w*|\bnig\b)", msg)) - hard
+        self.hard += hard
+        self.soft += soft
+
         if self.xp > self.sum_next:
             self.level += 1
             self.xp_next = self.calculate_threshold(self.level)
             self.sum_next += self.xp_next
 
-    
-
+    # TODO: Add method to format internal data to represent database
 
 class Government(Client):
     A_EMOJI = 0x0001F1E6
@@ -321,28 +328,7 @@ class Government(Client):
             
             utrack = self.logged_users[uid] = DBRecord.create_from_data(data)
             # data is now up to date on messages as necessary
-        if message.content == "":
-            msg_xp = 0
-        else:
-            
-            msg_xp = int(math.log(len(message.content)) * 3)
-            print(msg_xp)
-            utrack.addexp(gid, msg_xp)
-            msg = message.content.lower()
-            hard = len(re.findall("nigger", msg))  # bro its cool i bought a pass
-            soft = len(re.findall(r"/(nigg\w*|\bnig\b)", msg)) - hard
-            utrack.hard += hard
-            utrack.soft += soft
-        
-        # async with self.db.acquire() as conn:
-        #     async with conn.cursor() as cur:
-        #         if not self.checkguild(message):
-        #             await cur.callproc("GUILDEXISTS", (message.guild.id, ))
-        #             self.logged_users[message.guild.id] = set()
-        #         if not message.author.bot and message.author.id not in self.logged_users[message.guild.id]:
-        #             await cur.callproc("USEREXISTS", (message.author.id, f"{message.author.name}#{message.author.discriminator}", message.guild.id))
-        #             self.logged_users[message.guild.id].add(message.author.id)  # ensures above logic passes
-        #         await conn.commit()
+        utrack.addexp(gid, message.content.lower())
 
     def checkguild(self, message):
         return message.guild.id in self.logged_users
