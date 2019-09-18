@@ -107,7 +107,7 @@ class DBRecord:
 
     def addexp(self, gid, msg):
         print("ok")
-        xp = len(msg)
+        xp = int(3 * math.log(len(msg)))
         print(f"{self.xp} XP")
         print(f"Sum: {self.sum_next}")
         if gid not in self.active_guilds:
