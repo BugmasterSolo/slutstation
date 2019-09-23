@@ -10,6 +10,7 @@ import copyreg
 import types
 from functools import reduce
 import sys
+import re
 
 # todo: make these function names consistent. they're a pain :)
 
@@ -830,17 +831,41 @@ class ImageModule(Module):
         super().__init__(host, *args, **kwargs)
         self.queue = ImageQueue(host)
 
-    def parse_string(self, host, content, message):
+    def re_match(self, content, reobj):
+        matches = reobj.search(content)  # the first matching URL
+        if matches is not None:
+            return matches.group(0)
+        return None
+
+
+    async def parse_string(self, host, content, message):
+        url_finder = re.compile("^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$")
         array = host.split(content)
+
         url = None
-        if (len(message.attachments)):
+
+        if len(array) > 0 and url_finder.match(array[0]) is not None:
+            url = array.pop(0)
+        elif (len(message.attachments)):
             attachment = message.attachments[0]
             if attachment.height is not None:
                 url = attachment.proxy_url
-        if not url and len(array) > 0:
-            url = array.pop(0)
+
+        if not url:
+            # https://www.regexpal.com/93652
+            async for msg in message.channel.history(limit=50, oldest_first=False):
+                if msg.author.bot is False:
+                    if (len(msg.attachments)):
+                        attachment = msg.attachments[0]
+                        if attachment.height is not None:
+                            url = attachment.proxy_url
+                    else:
+                        has_url = url_finder.search(msg.content)
+                        if has_url is not None:
+                            return has_url.group(0), array
         if not url:
             raise ImageNotFoundException("Image not provided!")
+        # do some validation to ensure that the passed url is correct
         return url, array
 
     @Command.cooldown(scope=Scope.CHANNEL, time=5)
@@ -855,7 +880,7 @@ g pixelsort (<url> or ignore if uploaded image) [threshold (0 - 1, default 0.5)]
 Undoable.
         '''
         try:
-            url, args = self.parse_string(host, state.content, state.message)
+            url, args = await self.parse_string(host, state.content, state.message)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
@@ -902,7 +927,7 @@ Undoable.
         '''
         # todo: implement FXAA step or something similar to smooth out the result
         try:
-            url, args = self.parse_string(host, state.content, state.message)
+            url, args = await self.parse_string(host, state.content, state.message)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
@@ -930,7 +955,7 @@ g meme (<url> or ignore if uploaded image) (<TEXT> or <TOPTEXT> | <BOTTOMTEXT>)
 Undoable.
         '''
         try:
-            url, args = self.parse_string(host, state.content, state.message)
+            url, args = await self.parse_string(host, state.content, state.message)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
@@ -952,7 +977,7 @@ g jpeg (<url> or ignore if uploaded image)
 Undoable.
         '''
         try:
-            url, _ = self.parse_string(host, state.content, state.message)
+            url, _ = await self.parse_string(host, state.content, state.message)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
@@ -972,7 +997,7 @@ g invert (<url> or ignore if uploaded image)
 Undoable.
         '''
         try:
-            url, _ = self.parse_string(host, state.content, state.message)
+            url, _ = await self.parse_string(host, state.content, state.message)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
@@ -992,7 +1017,7 @@ g peterhere (<url> or ignore if uploaded image) <text>
 Undoable.
         '''
         try:
-            url, args = self.parse_string(host, state.content, state.message)
+            url, args = await self.parse_string(host, state.content, state.message)
         except ImageNotFoundException:
             await state.message.channel.send("Please include an image URL or attachment!")
             return
