@@ -854,15 +854,14 @@ class ImageModule(Module):
         if not url:
             # https://www.regexpal.com/93652
             async for msg in message.channel.history(limit=50, oldest_first=False):
-                if msg.author.bot is False:
-                    if (len(msg.attachments)):
-                        attachment = msg.attachments[0]
-                        if attachment.height is not None:
-                            return attachment.proxy_url, array
-                    else:
-                        has_url = url_finder.search(msg.content)
-                        if has_url is not None:
-                            return has_url.group(0), array
+                if (len(msg.attachments)):
+                    attachment = msg.attachments[0]
+                    if attachment.height is not None:
+                        return attachment.proxy_url, array
+                else:
+                    has_url = url_finder.search(msg.content)
+                    if has_url is not None:
+                        return has_url.group(0), array
         if not url:
             raise ImageNotFoundException("Image not provided!")
         # do some validation to ensure that the passed url is correct
