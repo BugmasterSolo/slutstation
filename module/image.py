@@ -858,7 +858,7 @@ class ImageModule(Module):
                     if (len(msg.attachments)):
                         attachment = msg.attachments[0]
                         if attachment.height is not None:
-                            url = attachment.proxy_url
+                            return attachment.proxy_url, array
                     else:
                         has_url = url_finder.search(msg.content)
                         if has_url is not None:
