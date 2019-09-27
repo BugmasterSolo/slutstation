@@ -582,7 +582,9 @@ class MemeFilter(ImageQueueable):
 
         multiline = False
 
-        fontface = ImageFont.truetype(font=font, size=max(minim, min(maxim, int(maxim / widthratio))))
+        if (widthratio != 0):
+            fontface = ImageFont.truetype(font=font, size=max(minim, min(maxim, int(maxim / widthratio))))
+            # if false, text is not present and we can just stick with the default
 
         if widthratio > (maxim / minim):
             text_format = MemeFilter.split_text(text, fontface, width, brush)
