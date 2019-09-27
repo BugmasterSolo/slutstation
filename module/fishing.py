@@ -124,7 +124,7 @@ g fish cast - Casts the fishing line at a chosen location.
         # fetch user loadout from DB (skipping for now)
         auth = state.message.author
         try:
-            locindex = self.pick_location(host, auth, state.message.channel)
+            locindex = await self.pick_location(host, auth, state.message.channel)
         except MessageDeletedException:
             return
         if locindex == -1:
