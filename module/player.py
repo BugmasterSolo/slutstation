@@ -172,11 +172,9 @@ class MusicPlayer:
                 if isinstance(source, StreamGenerator):
                     async for stream in source.gen():
                         await self.play_stream(stream.source, stream)
-                        if self.destroyed:
-                            break
                 else:
                     await self.play_stream(source.source, source)
-                if self.queue.empty():
+                if self.queue.empty() or self.destroyed:
                     break
             await self.destroy()
 
@@ -409,8 +407,8 @@ g stop
         player = self.active_players.get(state.message.guild.id)
         if perms.administrator:
             if player:
-                player.active_vc.stop()  # stop the current stream, calling on the empty queue
                 player.destroyed = True
+                player.active_vc.stop()  # stop the current stream, calling on the empty queue
         else:
             await state.message.channel.send("\U0001f6d1 | **You do not have permission to stop the stream. Use 'g skip' instead!** | \U0001f6d1")
 
