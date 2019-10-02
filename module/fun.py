@@ -18,7 +18,7 @@ class Fun(Module):
     # also: this is a significant limitation of the current structure.
     # + i dont like it.
     MAX_INT = 4294967295
-    FORTUNE_LIST = []
+    FORTUNE_LIST = []  # this is wrong
     TRIVIA_REACTION_LIST = ("\U0001F1F9", "\U0001F1EB", "\U0001f1e6", "\U0001f1e7", "\U0001f1e8", "\U0001f1e9")
     EIGHT_BALL = ("It is certain",
                   "It is decidedly so",
@@ -323,6 +323,12 @@ Funny little 8ball game for you and friends.
     async def help(self, host, state):
         '''Hey that's me'''
         await state.message.channel.send("http://baboo.mobi/government/help/")
+
+    @Command.register(name="avatar")
+    async def avatar(self, host, state):
+        auth = state.message.author
+        url = auth.avatar_url_as(format="png", size=1024)
+        await state.message.channel.send(f"{auth.name}#{auth.discriminator}'s avatar is: {url}")
 
     @Command.register(name="undo")
     async def undo(self, host, state):
